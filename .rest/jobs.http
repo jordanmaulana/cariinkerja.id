@@ -1,0 +1,134 @@
+### Jobs API Examples
+
+### Get all jobs (uses JobsListSerializer - lightweight response)
+GET https://api.cariinkerja.id/api/v1/jobs/
+Content-Type: application/json
+
+### Get jobs with pagination (uses JobsListSerializer)
+GET https://api.cariinkerja.id/api/v1/jobs/?page=1&page_size=10
+Content-Type: application/json
+
+### Search jobs by title or description
+GET https://api.cariinkerja.id/api/v1/jobs/?search=developer
+Content-Type: application/json
+
+### Filter by employment type
+GET https://api.cariinkerja.id/api/v1/jobs/?employment_type=full_time
+Content-Type: application/json
+
+### Filter by work location
+GET https://api.cariinkerja.id/api/v1/jobs/?work_location=remote
+Content-Type: application/json
+
+### Filter by skills
+GET https://api.cariinkerja.id/api/v1/jobs/?skills=Python,Django
+Content-Type: application/json
+
+### Filter by salary range
+GET https://api.cariinkerja.id/api/v1/jobs/?min_salary=50000&max_salary=100000
+Content-Type: application/json
+
+### Filter by date range
+GET https://api.cariinkerja.id/api/v1/jobs/?created_after=2024-01-01&created_before=2024-12-31
+Content-Type: application/json
+
+### Combined filters
+GET https://api.cariinkerja.id/api/v1/jobs/?search=python&employment_type=full_time&work_location=remote&min_salary=60000
+Content-Type: application/json
+
+### Order by salary (descending)
+GET https://api.cariinkerja.id/api/v1/jobs/?ordering=-salary
+Content-Type: application/json
+
+### Order by creation date (ascending)
+GET https://api.cariinkerja.id/api/v1/jobs/?ordering=created_on
+Content-Type: application/json
+
+### Get job statistics
+GET https://api.cariinkerja.id/api/v1/jobs/statistics/
+Content-Type: application/json
+
+### Get specific job by ID (uses JobsDetailSerializer - comprehensive response)
+GET https://api.cariinkerja.id/api/v1/jobs/1/
+Content-Type: application/json
+
+### Create new job
+POST https://api.cariinkerja.id/api/v1/jobs/
+Content-Type: application/json
+
+{
+  "title": "Senior Python Developer",
+  "description": "We are looking for an experienced Python developer...",
+  "company_name": "Tech Corp",
+  "employment_type": "full_time",
+  "work_location": "remote",
+  "salary": 80000,
+  "skills": "Python,Django,PostgreSQL",
+  "location": "Jakarta, Indonesia",
+  "requirements": "5+ years experience in Python development"
+}
+
+### Update job
+PUT https://api.cariinkerja.id/api/v1/jobs/1/
+Content-Type: application/json
+
+{
+  "title": "Senior Python Developer - Updated",
+  "description": "Updated job description...",
+  "company_name": "Tech Corp",
+  "employment_type": "full_time",
+  "work_location": "hybrid",
+  "salary": 85000,
+  "skills": "Python,Django,PostgreSQL,Redis",
+  "location": "Jakarta, Indonesia",
+  "requirements": "5+ years experience in Python development"
+}
+
+### Partial update job
+PATCH https://api.cariinkerja.id/api/v1/jobs/1/
+Content-Type: application/json
+
+{
+  "salary": 90000,
+  "work_location": "remote"
+}
+
+### Delete job
+DELETE https://api.cariinkerja.id/api/v1/jobs/1/
+
+### Job Assessments API Examples
+
+### Get user's job assessments (requires authentication)
+GET https://api.cariinkerja.id/api/v1/job-assessments/
+Content-Type: application/json
+Authorization: Token YOUR_TOKEN_HERE
+
+### Create job assessment (requires authentication)
+POST https://api.cariinkerja.id/api/v1/job-assessments/
+Content-Type: application/json
+Authorization: Token YOUR_TOKEN_HERE
+
+{
+  "job_uid": "job-uuid-here",
+  "score": 85,
+  "feedback": "Great job opportunity with good growth potential"
+}
+
+### Get specific job assessment
+GET https://api.cariinkerja.id/api/v1/job-assessments/1/
+Content-Type: application/json
+Authorization: Token YOUR_TOKEN_HERE
+
+### Update job assessment
+PUT https://api.cariinkerja.id/api/v1/job-assessments/1/
+Content-Type: application/json
+Authorization: Token YOUR_TOKEN_HERE
+
+{
+  "score": 90,
+  "feedback": "Updated feedback - excellent opportunity"
+}
+
+### Delete job assessment
+DELETE https://api.cariinkerja.id/api/v1/job-assessments/1/
+Authorization: Token YOUR_TOKEN_HERE
