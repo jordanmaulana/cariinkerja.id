@@ -7,10 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tw": "npx @tailwindcss/cli -i ./src/styles/input.css -o ./src/styles/output.css --watch",
+    "prepare": "husky"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
+    "@tailwindcss/cli": "^4.1.13",
     "@tailwindcss/vite": "^4.1.13",
     "@tanstack/react-query": "^5.87.4",
     "@tanstack/react-router": "^1.131.41",
@@ -33,6 +36,8 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
     "prettier": "3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "tw-animate-css": "^1.3.8",
