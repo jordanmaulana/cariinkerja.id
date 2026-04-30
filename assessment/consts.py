@@ -7,4 +7,3 @@ class Status(models.TextChoices):
     APPLIED = "applied", "Applied"
     REJECTED = "rejected", "Rejected"
     ACCEPTED = "accepted", "Accepted"
-    

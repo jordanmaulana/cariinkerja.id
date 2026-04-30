@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('profiles', '0003_preference_crawl_url_preference_status'),
+        ("profiles", "0003_preference_crawl_url_preference_status"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='profile',
-            name='linkedin_url',
+            model_name="profile",
+            name="linkedin_url",
             field=models.URLField(blank=True, null=True),
         ),
     ]

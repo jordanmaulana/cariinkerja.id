@@ -2,6 +2,7 @@ from django.db import models
 
 
 class Status(models.TextChoices):
-    WAITING = "waiting", "Waiting"
+    WAITING_PAYMENT = "waiting_payment", "Waiting Payment"
+    WAITING_ADMIN = "waiting_admin", "Waiting Admin"
     RUNNING = "running", "Running"
     EXPIRED = "expired", "Expired"
