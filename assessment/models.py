@@ -23,3 +23,9 @@ class Assessment(BaseModel):
 
     class Meta:
         app_label = "assessment"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job", "preference"],
+                name="unique_assessment_per_job_preference",
+            ),
+        ]

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useAtom, useSetAtom } from "jotai";
 
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,14 @@ function HomePage() {
           {user.full_name ? ` — ${user.full_name}` : ""}
         </p>
       )}
-      <Button onClick={onLogout} variant="outline">
-        Log out
-      </Button>
+      <div className="flex gap-2">
+        <Link to="/assessments">
+          <Button>View assessments</Button>
+        </Link>
+        <Button onClick={onLogout} variant="outline">
+          Log out
+        </Button>
+      </div>
     </main>
   );
 }

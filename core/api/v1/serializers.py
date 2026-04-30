@@ -3,7 +3,10 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
+from assessment.consts import Status as AssessmentStatus
+from assessment.models import Assessment
 from jobs.consts import JobType, RemoteOption
+from jobs.models import Job
 from profiles.models import Preference, Profile
 
 User = get_user_model()
@@ -98,3 +101,40 @@ class OnboardingSerializer(serializers.Serializer):
                 remote_option=data["remote_option"],
             )
         return profile
+
+
+class JobBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Job
+        fields = ["id", "title", "location", "url", "job_type", "remote_option"]
+
+
+class PreferenceBriefSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Preference
+        fields = ["id", "title"]
+
+
+class AssessmentSerializer(serializers.ModelSerializer):
+    job = JobBriefSerializer(read_only=True)
+    preference = PreferenceBriefSerializer(read_only=True)
+
+    class Meta:
+        model = Assessment
+        fields = [
+            "id",
+            "status",
+            "score",
+            "verdict",
+            "created_on",
+            "job",
+            "preference",
+            "soft_skill_match",
+            "soft_skill_gap",
+            "hard_skill_match",
+            "hard_skill_gap",
+        ]
+
+
+class AssessmentStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=AssessmentStatus.choices)

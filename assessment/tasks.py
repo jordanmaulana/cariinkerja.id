@@ -77,14 +77,16 @@ def assess_job(job_id: str, preference_id: str):
     job = Job.objects.get(id=job_id)
     pref = Preference.objects.select_related("profile").get(id=preference_id)
     result = assess(job, pref)
-    Assessment.objects.create(
+    _, created = Assessment.objects.get_or_create(
         job=job,
         preference=pref,
-        soft_skill_match=result.soft_skill_match,
-        soft_skill_gap=result.soft_skill_gap,
-        hard_skill_match=result.hard_skill_match,
-        hard_skill_gap=result.hard_skill_gap,
-        score=result.score,
-        verdict=result.verdict,
+        defaults={
+            "soft_skill_match": result.soft_skill_match,
+            "soft_skill_gap": result.soft_skill_gap,
+            "hard_skill_match": result.hard_skill_match,
+            "hard_skill_gap": result.hard_skill_gap,
+            "score": result.score,
+            "verdict": result.verdict,
+        },
     )
-    return "created"
+    return "created" if created else "skipped"
