@@ -7,30 +7,59 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('jobs', '0001_initial'),
-        ('profiles', '0001_initial'),
+        ("jobs", "0001_initial"),
+        ("profiles", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Assessment',
+            name="Assessment",
             fields=[
-                ('id', models.CharField(default=core.models.make_object_id, editable=False, primary_key=True, serialize=False)),
-                ('created_on', models.DateTimeField(auto_now_add=True)),
-                ('updated_on', models.DateTimeField(auto_now=True)),
-                ('soft_skill_match', models.JSONField(blank=True, default=list)),
-                ('soft_skill_gap', models.JSONField(blank=True, default=list)),
-                ('hard_skill_match', models.JSONField(blank=True, default=list)),
-                ('hard_skill_gap', models.JSONField(blank=True, default=list)),
-                ('score', models.IntegerField()),
-                ('actor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('job', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='assessments', to='jobs.job')),
-                ('profile', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='assessments', to='profiles.profile')),
+                (
+                    "id",
+                    models.CharField(
+                        default=core.models.make_object_id,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("created_on", models.DateTimeField(auto_now_add=True)),
+                ("updated_on", models.DateTimeField(auto_now=True)),
+                ("soft_skill_match", models.JSONField(blank=True, default=list)),
+                ("soft_skill_gap", models.JSONField(blank=True, default=list)),
+                ("hard_skill_match", models.JSONField(blank=True, default=list)),
+                ("hard_skill_gap", models.JSONField(blank=True, default=list)),
+                ("score", models.IntegerField()),
+                (
+                    "actor",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "job",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="assessments",
+                        to="jobs.job",
+                    ),
+                ),
+                (
+                    "profile",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="assessments",
+                        to="profiles.profile",
+                    ),
+                ),
             ],
         ),
     ]

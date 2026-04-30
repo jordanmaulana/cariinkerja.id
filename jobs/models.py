@@ -7,7 +7,7 @@ from jobs.consts import JobType, RemoteOption
 # Create your models here.
 class Job(models.Model):
     id = models.CharField(primary_key=True, default=make_object_id, editable=False)
-    url = models.URLField()
+    url = models.URLField(unique=True)
     title = models.CharField(max_length=255)
     description = models.TextField()
     location = models.CharField(max_length=255, null=True, blank=True)

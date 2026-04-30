@@ -5,29 +5,64 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Job',
+            name="Job",
             fields=[
-                ('id', models.CharField(default=core.models.make_object_id, editable=False, primary_key=True, serialize=False)),
-                ('url', models.URLField()),
-                ('title', models.CharField(max_length=255)),
-                ('description', models.TextField()),
-                ('location', models.CharField(blank=True, max_length=255, null=True)),
-                ('job_type', models.CharField(blank=True, choices=[('full-time', 'Full-time'), ('part-time', 'Part-time'), ('contract', 'Contract'), ('internship', 'Internship')], max_length=20, null=True)),
-                ('remote_option', models.CharField(blank=True, choices=[('remote', 'Remote'), ('on-site', 'On-site'), ('hybrid', 'Hybrid')], max_length=20, null=True)),
-                ('created_on', models.DateTimeField(auto_now_add=True)),
-                ('updated_on', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.CharField(
+                        default=core.models.make_object_id,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("url", models.URLField()),
+                ("title", models.CharField(max_length=255)),
+                ("description", models.TextField()),
+                ("location", models.CharField(blank=True, max_length=255, null=True)),
+                (
+                    "job_type",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("full-time", "Full-time"),
+                            ("part-time", "Part-time"),
+                            ("contract", "Contract"),
+                            ("internship", "Internship"),
+                        ],
+                        max_length=20,
+                        null=True,
+                    ),
+                ),
+                (
+                    "remote_option",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("remote", "Remote"),
+                            ("on-site", "On-site"),
+                            ("hybrid", "Hybrid"),
+                        ],
+                        max_length=20,
+                        null=True,
+                    ),
+                ),
+                ("created_on", models.DateTimeField(auto_now_add=True)),
+                ("updated_on", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['-created_on'],
-                'indexes': [models.Index(fields=['created_on'], name='jobs_job_created_5ec730_idx')],
+                "ordering": ["-created_on"],
+                "indexes": [
+                    models.Index(
+                        fields=["created_on"], name="jobs_job_created_5ec730_idx"
+                    )
+                ],
             },
         ),
     ]
