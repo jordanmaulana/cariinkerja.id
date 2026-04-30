@@ -106,7 +106,15 @@ class OnboardingSerializer(serializers.Serializer):
 class JobBriefSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
-        fields = ["id", "title", "location", "url", "job_type", "remote_option"]
+        fields = [
+            "id",
+            "title",
+            "company",
+            "location",
+            "url",
+            "job_type",
+            "remote_option",
+        ]
 
 
 class PreferenceBriefSerializer(serializers.ModelSerializer):

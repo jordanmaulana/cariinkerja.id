@@ -269,6 +269,7 @@ def parse_detail(html: str, url: str) -> dict | None:
     description: str | None = None
     location: str | None = None
     job_type: str | None = None
+    company: str | None = None
 
     if jsonld:
         raw_title = jsonld.get("title")
@@ -279,6 +280,11 @@ def parse_detail(html: str, url: str) -> dict | None:
             description = BeautifulSoup(raw_desc, "lxml").get_text("\n", strip=True)
         location = _location_from_jsonld(jsonld)
         job_type = _map_employment_type(jsonld.get("employmentType"))
+        org = jsonld.get("hiringOrganization")
+        if isinstance(org, dict):
+            org_name = org.get("name")
+            if isinstance(org_name, str) and org_name.strip():
+                company = org_name.strip()
 
     if not title:
         title_el = soup.select_one(
@@ -296,6 +302,10 @@ def parse_detail(html: str, url: str) -> dict | None:
         )
         if loc_el:
             location = loc_el.get_text(" ", strip=True)
+    if not company:
+        company_el = soup.select_one('[data-testid="inlineHeader-companyName"]')
+        if company_el:
+            company = company_el.get_text(" ", strip=True)
 
     if not title or not description:
         logger.warning("detail page missing title/description: %s", url)
@@ -306,6 +316,7 @@ def parse_detail(html: str, url: str) -> dict | None:
     return {
         "url": url,
         "title": title[:255],
+        "company": (company[:255] if company else None),
         "description": description,
         "location": (location[:255] if location else None),
         "job_type": job_type,

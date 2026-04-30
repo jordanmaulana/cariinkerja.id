@@ -186,11 +186,14 @@ def parse_detail(html: str, url: str) -> dict | None:
         return None
     location_el = soup.select_one('[data-automation="job-detail-location"]')
     worktype_el = soup.select_one('[data-automation="job-detail-work-type"]')
+    company_el = soup.select_one('[data-automation="advertiser-name"]')
     location_raw = location_el.get_text(" ", strip=True) if location_el else ""
+    company = company_el.get_text(" ", strip=True) if company_el else None
 
     return {
         "url": url,
         "title": title_el.get_text(" ", strip=True)[:255],
+        "company": (company[:255] if company else None),
         "description": desc_el.get_text("\n", strip=True),
         "location": _strip_remote_suffix(location_raw)[:255] or None,
         "job_type": _map_job_type(

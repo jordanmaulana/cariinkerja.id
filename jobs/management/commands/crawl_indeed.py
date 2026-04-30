@@ -62,6 +62,7 @@ class Command(BaseCommand):
                         url=posting["url"],
                         defaults={
                             "title": posting["title"],
+                            "company": posting.get("company"),
                             "description": posting["description"],
                             "location": posting["location"],
                             "job_type": posting["job_type"],

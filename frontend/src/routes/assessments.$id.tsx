@@ -128,6 +128,7 @@ function AssessmentDetail({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">{job.title}</h1>
+            <p className="text-sm font-medium">{job.company ?? "—"}</p>
             <p className="text-sm text-muted-foreground">
               {job.location ?? "—"} ·{" "}
               {job.job_type ? JOB_TYPE_LABEL[job.job_type] : "—"} ·{" "}

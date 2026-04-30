@@ -30,6 +30,7 @@ def assess(job, preference) -> SkillAssessment:
         f"PREFERENCE: title={preference.title}, "
         f"job_type={preference.job_type}, remote_option={preference.remote_option}\n\n"
         f"JOB TITLE: {job.title}\n"
+        f"JOB COMPANY: {job.company}\n"
         f"JOB LOCATION: {job.location}\n"
         f"JOB DESCRIPTION:\n{job.description}"
     )

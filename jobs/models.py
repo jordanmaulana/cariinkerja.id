@@ -9,6 +9,7 @@ class Job(models.Model):
     id = models.CharField(primary_key=True, default=make_object_id, editable=False)
     url = models.URLField(unique=True)
     title = models.CharField(max_length=255)
+    company = models.CharField(max_length=255, null=True, blank=True)
     description = models.TextField()
     location = models.CharField(max_length=255, null=True, blank=True)
     job_type = models.CharField(

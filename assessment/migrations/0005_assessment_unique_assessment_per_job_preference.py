@@ -21,18 +21,20 @@ def dedupe_assessments(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('assessment', '0004_schedule_crawl_running_preferences'),
-        ('jobs', '0003_job_source'),
-        ('profiles', '0008_preference_crawl_source'),
+        ("assessment", "0004_schedule_crawl_running_preferences"),
+        ("jobs", "0003_job_source"),
+        ("profiles", "0008_preference_crawl_source"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RunPython(dedupe_assessments, migrations.RunPython.noop),
         migrations.AddConstraint(
-            model_name='assessment',
-            constraint=models.UniqueConstraint(fields=('job', 'preference'), name='unique_assessment_per_job_preference'),
+            model_name="assessment",
+            constraint=models.UniqueConstraint(
+                fields=("job", "preference"),
+                name="unique_assessment_per_job_preference",
+            ),
         ),
     ]

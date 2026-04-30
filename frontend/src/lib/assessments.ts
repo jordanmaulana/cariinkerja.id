@@ -11,6 +11,7 @@ export type AssessmentStatus =
 export type AssessmentJob = {
   id: string;
   title: string;
+  company: string | null;
   location: string | null;
   url: string;
   job_type: JobType | null;
