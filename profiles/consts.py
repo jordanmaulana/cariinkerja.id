@@ -6,3 +6,8 @@ class Status(models.TextChoices):
     WAITING_ADMIN = "waiting_admin", "Waiting Admin"
     RUNNING = "running", "Running"
     EXPIRED = "expired", "Expired"
+
+
+class Source(models.TextChoices):
+    JOBSTREET = "jobstreet", "JobStreet"
+    INDEED = "indeed", "Indeed"

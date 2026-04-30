@@ -5,13 +5,28 @@ from django.contrib.auth.views import LogoutView
 from django.urls import include, path
 from django.views.generic import RedirectView
 
-from core.views import AdminLoginView, DashboardView
+from core.views import (
+    AdminLoginView,
+    DashboardView,
+    PreferenceDetailView,
+    PreferenceListView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("login/", AdminLoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(next_page="login"), name="logout"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path(
+        "preferences/",
+        PreferenceListView.as_view(),
+        name="preference_list",
+    ),
+    path(
+        "preferences/<str:pk>/",
+        PreferenceDetailView.as_view(),
+        name="preference_detail",
+    ),
     path("api/", include("core.api.urls")),
     path("", RedirectView.as_view(url="/dashboard/", permanent=False), name="home"),
 ]

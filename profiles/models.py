@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from profiles.consts import Status
+from profiles.consts import Source, Status
 from core.models import BaseModel
 from jobs.consts import JobType, RemoteOption
 
@@ -42,6 +42,13 @@ class Preference(BaseModel):
         max_length=20, choices=RemoteOption.choices, null=True, blank=True
     )
     crawl_url = models.URLField(null=True, blank=True, help_text="Filled by Admin")
+    crawl_source = models.CharField(
+        max_length=20,
+        choices=Source.choices,
+        null=True,
+        blank=True,
+        help_text="Filled by Admin",
+    )
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.WAITING_PAYMENT
     )

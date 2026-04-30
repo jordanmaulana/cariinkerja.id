@@ -1,0 +1,95 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Preference detail — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-4xl mx-auto">
+    <div>
+      <a href="{% url 'preference_list' %}" class="text-sm text-blue-600 hover:underline">← Back to preferences</a>
+    </div>
+
+    <header>
+      <h2 class="text-2xl font-bold">{{ preference.title|default:"(untitled preference)" }}</h2>
+      <p class="text-slate-500 text-sm">Preference ID: {{ preference.id }}</p>
+    </header>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">Profile</h3>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">Full name</dt>
+        <dd>{{ profile.full_name|default:"—" }}</dd>
+        <dt class="text-slate-500">LinkedIn</dt>
+        <dd>
+          {% if profile.linkedin_url %}
+            <a href="{{ profile.linkedin_url }}" class="text-blue-600 hover:underline" target="_blank" rel="noopener">{{ profile.linkedin_url }}</a>
+          {% else %}—{% endif %}
+        </dd>
+        <dt class="text-slate-500">Bio</dt>
+        <dd class="whitespace-pre-wrap">{{ profile.bio|default:"—" }}</dd>
+      </dl>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">Preference</h3>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">Title</dt>
+        <dd>{{ preference.title|default:"—" }}</dd>
+        <dt class="text-slate-500">Job type</dt>
+        <dd>{{ preference.get_job_type_display|default:"—" }}</dd>
+        <dt class="text-slate-500">Remote option</dt>
+        <dd>{{ preference.get_remote_option_display|default:"—" }}</dd>
+        <dt class="text-slate-500">Status</dt>
+        <dd>
+          <span class="px-2 py-0.5 rounded text-xs
+            {% if preference.status == 'waiting_payment' %}bg-yellow-100 text-yellow-800
+            {% elif preference.status == 'waiting_admin' %}bg-orange-100 text-orange-800
+            {% elif preference.status == 'running' %}bg-green-100 text-green-800
+            {% elif preference.status == 'expired' %}bg-slate-200 text-slate-700
+            {% else %}bg-slate-100 text-slate-700{% endif %}">
+            {{ preference.get_status_display }}
+          </span>
+        </dd>
+        <dt class="text-slate-500">Created</dt>
+        <dd>{{ preference.created_on|date:"Y-m-d H:i" }}</dd>
+      </dl>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm">
+      <h3 class="text-lg font-semibold mb-3">Admin fields</h3>
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label for="full_profile" class="block text-sm font-medium text-slate-700">Full profile (Profile.full_profile)</label>
+          <textarea id="full_profile" name="full_profile" rows="8"
+                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm">{{ profile.full_profile|default_if_none:"" }}</textarea>
+        </div>
+        <div>
+          <label for="crawl_url" class="block text-sm font-medium text-slate-700">Crawl URL (Preference.crawl_url)</label>
+          <input id="crawl_url" name="crawl_url" type="url"
+                 value="{{ preference.crawl_url|default_if_none:"" }}"
+                 class="mt-1 w-full rounded border-slate-300 border p-2 text-sm" />
+        </div>
+        <div>
+          <label for="crawl_source" class="block text-sm font-medium text-slate-700">Crawl source (Preference.crawl_source)</label>
+          <select id="crawl_source" name="crawl_source"
+                  class="mt-1 w-full rounded border-slate-300 border p-2 text-sm bg-white">
+            <option value="" {% if not preference.crawl_source %}selected{% endif %}>—</option>
+            {% for value, label in source_choices %}
+              <option value="{{ value }}" {% if preference.crawl_source == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="status" class="block text-sm font-medium text-slate-700">Status (Preference.status)</label>
+          <select id="status" name="status"
+                  class="mt-1 w-full rounded border-slate-300 border p-2 text-sm bg-white">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if preference.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+        </div>
+      </form>
+    </section>
+  </main>
+{% endblock %}

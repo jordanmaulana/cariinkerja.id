@@ -126,7 +126,7 @@
               <tr class="border-b last:border-0">
                 <td class="py-2">
                   <a href="{% url 'admin:assessment_assessment_change' a.id %}" class="text-blue-600 hover:underline">
-                    {{ a.profile.full_name|default:"(no name)" }}
+                    {{ a.preference.profile.full_name|default:"(no name)" }}
                   </a>
                 </td>
                 <td class="py-2">{{ a.job.title }}</td>
