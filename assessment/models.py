@@ -8,8 +8,8 @@ class Assessment(BaseModel):
     job = models.ForeignKey(
         "jobs.Job", on_delete=models.CASCADE, related_name="assessments"
     )
-    profile = models.ForeignKey(
-        "profiles.Profile", on_delete=models.CASCADE, related_name="assessments"
+    preference = models.ForeignKey(
+        "profiles.Preference", on_delete=models.CASCADE, related_name="assessments"
     )
     soft_skill_match = models.JSONField(default=list, blank=True)
     soft_skill_gap = models.JSONField(default=list, blank=True)
