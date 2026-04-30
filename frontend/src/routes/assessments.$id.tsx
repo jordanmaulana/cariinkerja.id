@@ -1,19 +1,28 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, createFileRoute } from "@tanstack/react-router"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ArrowLeft, ExternalLink } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   type Assessment,
   type AssessmentStatus,
   getAssessment,
   updateAssessmentStatus,
-} from "@/lib/assessments";
-import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts";
+} from "@/lib/assessments"
+import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts"
 
 export const Route = createFileRoute("/assessments/$id")({
   component: AssessmentDetailPage,
-});
+})
 
 const STATUS_VARIANT: Record<
   AssessmentStatus,
@@ -24,78 +33,83 @@ const STATUS_VARIANT: Record<
   applied: "default",
   rejected: "destructive",
   accepted: "default",
-};
+}
 
 const JOB_TYPE_LABEL = Object.fromEntries(
   JOB_TYPES.map((j) => [j.value, j.label]),
-);
+)
 const REMOTE_LABEL = Object.fromEntries(
   REMOTE_OPTIONS.map((r) => [r.value, r.label]),
-);
+)
 
 type Action = {
-  label: string;
-  next: AssessmentStatus;
-  variant?: "default" | "destructive" | "outline";
-};
+  label: string
+  next: AssessmentStatus
+  variant?: "default" | "destructive" | "outline"
+}
 
 function getActionsForStatus(status: AssessmentStatus): Action[] {
   switch (status) {
     case "new":
       return [
-        { label: "Mark Seen", next: "seen", variant: "outline" },
+        { label: "Mark seen", next: "seen", variant: "outline" },
         { label: "Reject", next: "rejected", variant: "destructive" },
-      ];
+      ]
     case "seen":
       return [
-        { label: "Mark Applied", next: "applied", variant: "default" },
+        { label: "Mark applied", next: "applied", variant: "default" },
         { label: "Reject", next: "rejected", variant: "destructive" },
-      ];
+      ]
     case "applied":
       return [
-        { label: "Mark Accepted", next: "accepted", variant: "default" },
+        { label: "Mark accepted", next: "accepted", variant: "default" },
         { label: "Reject", next: "rejected", variant: "destructive" },
-      ];
+      ]
     default:
-      return [];
+      return []
   }
 }
 
 function AssessmentDetailPage() {
-  const { id } = Route.useParams();
-  const queryClient = useQueryClient();
+  const { id } = Route.useParams()
+  const queryClient = useQueryClient()
 
   const query = useQuery({
     queryKey: ["assessment", id],
     queryFn: () => getAssessment(id),
-  });
+  })
 
   const mutation = useMutation({
     mutationFn: (next: AssessmentStatus) => updateAssessmentStatus(id, next),
     onSuccess: (data) => {
-      queryClient.setQueryData(["assessment", id], data);
-      queryClient.invalidateQueries({ queryKey: ["assessments"] });
+      queryClient.setQueryData(["assessment", id], data)
+      queryClient.invalidateQueries({ queryKey: ["assessments"] })
     },
-  });
+  })
 
   return (
-    <main className="p-8 space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
-        <Link
-          to="/assessments"
-          className="text-sm text-muted-foreground hover:underline"
-        >
-          ← Back to assessments
-        </Link>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/assessments">
+            <ArrowLeft className="size-4" />
+            Back to assessments
+          </Link>
+        </Button>
+        {query.data && (
+          <Badge variant={STATUS_VARIANT[query.data.status]} className="capitalize">
+            {query.data.status}
+          </Badge>
+        )}
       </div>
 
-      {query.isLoading && (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      )}
+      {query.isLoading && <Skeleton className="h-96 w-full" />}
       {query.isError && (
-        <p className="text-sm text-destructive">
-          Failed to load assessment. It may not exist or you may not have access.
-        </p>
+        <Card>
+          <CardContent className="py-6 text-sm text-destructive">
+            Failed to load assessment. It may not exist or you may not have access.
+          </CardContent>
+        </Card>
       )}
 
       {query.data && (
@@ -105,8 +119,8 @@ function AssessmentDetailPage() {
           onAction={(next) => mutation.mutate(next)}
         />
       )}
-    </main>
-  );
+    </div>
+  )
 }
 
 function AssessmentDetail({
@@ -114,123 +128,147 @@ function AssessmentDetail({
   isPending,
   onAction,
 }: {
-  assessment: Assessment;
-  isPending: boolean;
-  onAction: (next: AssessmentStatus) => void;
+  assessment: Assessment
+  isPending: boolean
+  onAction: (next: AssessmentStatus) => void
 }) {
-  const { job, preference, status, score, verdict, created_on } = assessment;
-  const actions = getActionsForStatus(status);
-  const created = new Date(created_on).toLocaleDateString();
+  const { job, preference, status, score, verdict, created_on } = assessment
+  const actions = getActionsForStatus(status)
+  const created = new Date(created_on).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  })
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">{job.title}</h1>
-            <p className="text-sm font-medium">{job.company ?? "—"}</p>
-            <p className="text-sm text-muted-foreground">
-              {job.location ?? "—"} ·{" "}
-              {job.job_type ? JOB_TYPE_LABEL[job.job_type] : "—"} ·{" "}
+      <Card>
+        <CardHeader>
+          <div className="space-y-2">
+            <CardTitle className="text-xl">{job.title}</CardTitle>
+            <CardDescription>
+              <span className="font-medium text-foreground">
+                {job.company ?? "—"}
+              </span>
+              {" · "}
+              {job.location ?? "—"}
+              {" · "}
+              {job.job_type ? JOB_TYPE_LABEL[job.job_type] : "—"}
+              {" · "}
               {job.remote_option ? REMOTE_LABEL[job.remote_option] : "—"}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              For preference:{" "}
-              <span className="font-medium">{preference.title ?? "—"}</span> ·
-              Assessed {created}
-            </p>
+            </CardDescription>
+            <div className="text-xs text-muted-foreground">
+              Matched against{" "}
+              <span className="font-medium text-foreground">
+                {preference.title ?? "—"}
+              </span>
+              {" · Assessed "}
+              {created}
+            </div>
           </div>
-          <Badge variant={STATUS_VARIANT[status]}>{status}</Badge>
-        </div>
-        <a
-          href={job.url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-sm text-primary hover:underline"
-        >
-          View original posting →
-        </a>
-      </div>
-
-      <div className="rounded-lg border p-4 flex items-center gap-6">
-        <div>
-          <p className="text-xs text-muted-foreground">Match score</p>
-          <p className="text-3xl font-bold">{score}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {actions.length === 0 ? (
-            <span className="text-sm text-muted-foreground">
-              Terminal status — no further actions.
-            </span>
-          ) : (
-            actions.map((a) => (
-              <Button
-                key={a.next}
-                variant={a.variant ?? "default"}
-                disabled={isPending}
-                onClick={() => onAction(a.next)}
-              >
-                {a.label}
+        </CardHeader>
+        <CardContent className="border-t pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Match score
+              </div>
+              <div className="mt-0.5 flex items-baseline gap-1">
+                <span className="text-3xl font-semibold tabular-nums">
+                  {score}
+                </span>
+                <span className="text-sm text-muted-foreground">/100</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button asChild variant="outline" size="sm">
+                <a href={job.url} target="_blank" rel="noreferrer">
+                  <ExternalLink className="size-3.5" />
+                  Original posting
+                </a>
               </Button>
-            ))
-          )}
-        </div>
-      </div>
+              {actions.length === 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  Terminal status — no further actions.
+                </span>
+              ) : (
+                actions.map((a) => (
+                  <Button
+                    key={a.next}
+                    size="sm"
+                    variant={a.variant ?? "default"}
+                    disabled={isPending}
+                    onClick={() => onAction(a.next)}
+                  >
+                    {a.label}
+                  </Button>
+                ))
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {verdict && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Verdict
-          </h2>
-          <p className="text-sm whitespace-pre-line">{verdict}</p>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Verdict</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-line text-sm leading-relaxed">
+              {verdict}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <SkillList title="Hard skill match" items={assessment.hard_skill_match} />
-        <SkillList
+      <div className="grid gap-4 md:grid-cols-2">
+        <SkillCard title="Hard skill match" items={assessment.hard_skill_match} />
+        <SkillCard
           title="Hard skill gap"
           items={assessment.hard_skill_gap}
           tone="gap"
         />
-        <SkillList title="Soft skill match" items={assessment.soft_skill_match} />
-        <SkillList
+        <SkillCard title="Soft skill match" items={assessment.soft_skill_match} />
+        <SkillCard
           title="Soft skill gap"
           items={assessment.soft_skill_gap}
           tone="gap"
         />
       </div>
     </div>
-  );
+  )
 }
 
-function SkillList({
+function SkillCard({
   title,
   items,
   tone = "match",
 }: {
-  title: string;
-  items: string[];
-  tone?: "match" | "gap";
+  title: string
+  items: string[]
+  tone?: "match" | "gap"
 }) {
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-        {title}
-      </h2>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">None.</p>
-      ) : (
-        <ul className="flex flex-wrap gap-1.5">
-          {items.map((s, i) => (
-            <li key={`${s}-${i}`}>
-              <Badge variant={tone === "gap" ? "destructive" : "secondary"}>
-                {s}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">None.</p>
+        ) : (
+          <ul className="flex flex-wrap gap-1.5">
+            {items.map((s, i) => (
+              <li key={`${s}-${i}`}>
+                <Badge variant={tone === "gap" ? "destructive" : "secondary"}>
+                  {s}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  )
 }

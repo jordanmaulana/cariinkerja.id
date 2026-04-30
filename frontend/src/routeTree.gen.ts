@@ -10,16 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as PreferencesRouteImport } from './routes/preferences'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AssessmentsRouteImport } from './routes/assessments'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PreferencesIndexRouteImport } from './routes/preferences.index'
 import { Route as AssessmentsIndexRouteImport } from './routes/assessments.index'
+import { Route as PreferencesIdRouteImport } from './routes/preferences.$id'
 import { Route as AssessmentsIdRouteImport } from './routes/assessments.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreferencesRoute = PreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -32,6 +41,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssessmentsRoute = AssessmentsRouteImport.update({
   id: '/assessments',
   path: '/assessments',
@@ -42,10 +56,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreferencesIndexRoute = PreferencesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PreferencesRoute,
+} as any)
 const AssessmentsIndexRoute = AssessmentsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AssessmentsRoute,
+} as any)
+const PreferencesIdRoute = PreferencesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PreferencesRoute,
 } as any)
 const AssessmentsIdRoute = AssessmentsIdRouteImport.update({
   id: '/$id',
@@ -56,64 +80,88 @@ const AssessmentsIdRoute = AssessmentsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assessments': typeof AssessmentsRouteWithChildren
+  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/preferences': typeof PreferencesRouteWithChildren
   '/signup': typeof SignupRoute
   '/assessments/$id': typeof AssessmentsIdRoute
+  '/preferences/$id': typeof PreferencesIdRoute
   '/assessments/': typeof AssessmentsIndexRoute
+  '/preferences/': typeof PreferencesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
   '/assessments/$id': typeof AssessmentsIdRoute
+  '/preferences/$id': typeof PreferencesIdRoute
   '/assessments': typeof AssessmentsIndexRoute
+  '/preferences': typeof PreferencesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assessments': typeof AssessmentsRouteWithChildren
+  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/preferences': typeof PreferencesRouteWithChildren
   '/signup': typeof SignupRoute
   '/assessments/$id': typeof AssessmentsIdRoute
+  '/preferences/$id': typeof PreferencesIdRoute
   '/assessments/': typeof AssessmentsIndexRoute
+  '/preferences/': typeof PreferencesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/assessments'
+    | '/dashboard'
     | '/login'
     | '/onboarding'
+    | '/preferences'
     | '/signup'
     | '/assessments/$id'
+    | '/preferences/$id'
     | '/assessments/'
+    | '/preferences/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dashboard'
     | '/login'
     | '/onboarding'
     | '/signup'
     | '/assessments/$id'
+    | '/preferences/$id'
     | '/assessments'
+    | '/preferences'
   id:
     | '__root__'
     | '/'
     | '/assessments'
+    | '/dashboard'
     | '/login'
     | '/onboarding'
+    | '/preferences'
     | '/signup'
     | '/assessments/$id'
+    | '/preferences/$id'
     | '/assessments/'
+    | '/preferences/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssessmentsRoute: typeof AssessmentsRouteWithChildren
+  DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  PreferencesRoute: typeof PreferencesRouteWithChildren
   SignupRoute: typeof SignupRoute
 }
 
@@ -124,6 +172,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preferences': {
+      id: '/preferences'
+      path: '/preferences'
+      fullPath: '/preferences'
+      preLoaderRoute: typeof PreferencesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -140,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assessments': {
       id: '/assessments'
       path: '/assessments'
@@ -154,12 +216,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preferences/': {
+      id: '/preferences/'
+      path: '/'
+      fullPath: '/preferences/'
+      preLoaderRoute: typeof PreferencesIndexRouteImport
+      parentRoute: typeof PreferencesRoute
+    }
     '/assessments/': {
       id: '/assessments/'
       path: '/'
       fullPath: '/assessments/'
       preLoaderRoute: typeof AssessmentsIndexRouteImport
       parentRoute: typeof AssessmentsRoute
+    }
+    '/preferences/$id': {
+      id: '/preferences/$id'
+      path: '/$id'
+      fullPath: '/preferences/$id'
+      preLoaderRoute: typeof PreferencesIdRouteImport
+      parentRoute: typeof PreferencesRoute
     }
     '/assessments/$id': {
       id: '/assessments/$id'
@@ -185,11 +261,27 @@ const AssessmentsRouteWithChildren = AssessmentsRoute._addFileChildren(
   AssessmentsRouteChildren,
 )
 
+interface PreferencesRouteChildren {
+  PreferencesIdRoute: typeof PreferencesIdRoute
+  PreferencesIndexRoute: typeof PreferencesIndexRoute
+}
+
+const PreferencesRouteChildren: PreferencesRouteChildren = {
+  PreferencesIdRoute: PreferencesIdRoute,
+  PreferencesIndexRoute: PreferencesIndexRoute,
+}
+
+const PreferencesRouteWithChildren = PreferencesRoute._addFileChildren(
+  PreferencesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssessmentsRoute: AssessmentsRouteWithChildren,
+  DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  PreferencesRoute: PreferencesRouteWithChildren,
   SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport

@@ -123,6 +123,23 @@ class PreferenceBriefSerializer(serializers.ModelSerializer):
         fields = ["id", "title"]
 
 
+class PreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Preference
+        fields = [
+            "id",
+            "title",
+            "job_type",
+            "remote_option",
+            "crawl_url",
+            "crawl_source",
+            "status",
+            "created_on",
+            "updated_on",
+        ]
+        read_only_fields = ["id", "created_on", "updated_on"]
+
+
 class AssessmentSerializer(serializers.ModelSerializer):
     job = JobBriefSerializer(read_only=True)
     preference = PreferenceBriefSerializer(read_only=True)
