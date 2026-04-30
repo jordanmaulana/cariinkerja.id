@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack
 
-- Django 5.2 + Django REST Framework, Python ≥3.10, SQLite (`db.sqlite3`).
-- Dependency mgmt via `uv` (see `pyproject.toml`, `uv.lock`).
-- Lint/format via `ruff`.
-- Frontend dir exists (`frontend/`) but is empty; pnpm + Tailwind targets defined in Makefile but `static/input.css` not yet present.
-- `openai` SDK is a dependency (assessment scoring is the likely consumer).
+- Django 5.2, Python ≥3.10, SQLite (`db.sqlite3`).
+- Dep mgmt via `uv` (`pyproject.toml`, `uv.lock`); lint/format via `ruff`.
+- Static: Whitenoise with `CompressedManifestStaticFilesStorage`; Tailwind v4 wired (`static/input.css` → `static/output.css`).
+- Frontend SPA scaffold under `frontend/` (Vite + React + TS + TanStack, pnpm). Separate from Django server-rendered templates.
+- `djangorestframework` is a dependency but **not yet** in `INSTALLED_APPS` and unused — add `"rest_framework"` before introducing serializers/viewsets.
+- `openai` SDK present; expected producer of Assessment skill JSON fields.
 
 ## Common commands
 
@@ -20,7 +21,7 @@ make mmg        # makemigrations
 make migrate    # migrate
 make lint       # ruff format + ruff check --fix
 make upgrade    # uv sync + uv lock --upgrade
-make tw-run     # tailwind watch (needs static/input.css)
+make tw-run     # tailwind watch
 make tw-build   # tailwind one-shot build
 make web        # cd frontend && pnpm run dev
 ```
@@ -29,9 +30,18 @@ Direct Django (when Make target missing): `uv run manage.py <cmd>`.
 
 Run a single test: `uv run manage.py test <app>.tests.<TestClass>.<test_method>` (e.g. `uv run manage.py test jobs.tests.JobModelTests.test_create`).
 
+Job crawlers (management commands):
+
+```
+uv run manage.py crawl_indeed    "<listing-url>" [--max-pages N] [--limit N] [--sleep S] [--dry-run]
+uv run manage.py crawl_jobstreet "<listing-url>" [--max-pages N] [--limit N] [--sleep S] [--dry-run]
+```
+
+Both upsert `Job` rows by `url` inside a `transaction.atomic` block. Defaults: `--max-pages 1`, `--limit 20`, `--sleep` from each scraper's `DEFAULT_SLEEP`.
+
 ## Architecture
 
-Django project rooted at `core/` with three domain apps: `profiles`, `jobs`, `assessment`. `core` is also installed as an app (holds `BaseModel` + `AppSetting`).
+Django project rooted at `core/` with three domain apps: `profiles`, `jobs`, `assessment`. `core` is also installed as an app (holds `BaseModel` + `AppSetting` + dashboard).
 
 ### Shared base — `core/models.py`
 
@@ -40,19 +50,29 @@ Django project rooted at `core/` with three domain apps: `profiles`, `jobs`, `as
 
 ### Domain model shape
 
-- `profiles.Profile` — candidate side (full_name, bio).
-- `jobs.Job` — job posting (url, title, description, location, `JobType`, `RemoteOption` from `jobs/consts.py`).
-- `assessment.Assessment` — joins a `Job` and a `Profile` with skill match/gap JSON fields (`soft_skill_match`, `soft_skill_gap`, `hard_skill_match`, `hard_skill_gap`) plus integer `score`. This is the matching/scoring artifact between a profile and a job.
+- `profiles.Profile` — candidate identity (`full_name`, `bio`).
+- `profiles.Preference` — candidate's job preference (FK `Profile`; `title`, `job_type`, `remote_option` from `jobs/consts.py`). One Profile may have many Preferences; each Preference is what gets matched against a Job.
+- `jobs.Job` — job posting (`url`, `title`, `description`, `location`, `JobType`, `RemoteOption` from `jobs/consts.py`). Legacy: does NOT inherit `BaseModel`.
+- `assessment.Assessment` — joins `jobs.Job` + `profiles.Preference` (not Profile directly) with skill match/gap JSON list fields (`soft_skill_match`, `soft_skill_gap`, `hard_skill_match`, `hard_skill_gap`) plus integer `score`.
 
-The directional flow is: Profile + Job → Assessment (gap analysis + score). LLM calls (openai dep) are the expected producer of the JSON skill fields.
+Directional flow: **Preference + Job → Assessment** (gap analysis + score). LLM calls (openai dep) are the expected producer of the JSON skill fields.
+
+### Ingestion (Indeed / JobStreet)
+
+- Scraper logic: `jobs/scrapers/{indeed,jobstreet}.py` (HTTP fetch, parsing, normalization).
+- Django wrappers: `jobs/management/commands/crawl_{indeed,jobstreet}.py` — thin commands that invoke the scrapers and upsert `Job` rows.
 
 ### URLs / views
 
-`core/urls.py` only routes `admin/` so far. App-level `urls.py` files don't exist yet — add per-app routers and include them in `core/urls.py` when wiring endpoints. DRF is installed but not yet configured in `INSTALLED_APPS` (`rest_framework` missing) — add it before using DRF features.
+- `core/urls.py` routes: `admin/`, `login/` (`AdminLoginView`), `logout/` (Django `LogoutView`, `next_page="login"`), `dashboard/` (`DashboardView`), and `/` → redirect to `/dashboard/`.
+- `DashboardView` in `core/views.py` — superuser-gated (`SuperuserRequiredMixin`) admin overview of Profile/Job/Assessment counts, top profiles, paginated recent assessments, and 30-day trends rendered with Chart.js.
+- Templates live at the project-root `templates/` dir (configured via `TEMPLATES.DIRS`), not per-app: `templates/dashboard.html` extends `templates/dashboard_base.html`; `templates/registration/` holds the login template; `templates/admin/` holds admin overrides.
+- No app-level `urls.py` yet — wire per-app routers and include from `core/urls.py` when adding endpoints.
 
 ## Conventions
 
 - Use `BaseModel` for new models so PKs stay BSON ObjectIds and audit fields are uniform.
 - Each app declares `app_label` explicitly in `Meta` (mirrors existing models).
+- Templates go in the project-root `templates/` dir, not per-app.
 - Settings file is dev-only: `DEBUG=True`, secret key inline, `ALLOWED_HOSTS=[]`. Do not assume prod-ready config.
 - `main.py` is a leftover from `uv init` and unrelated to the Django app — ignore it.
