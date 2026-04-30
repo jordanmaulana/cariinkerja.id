@@ -14,3 +14,4 @@ node_modules/
 static/output.css
 staticfiles/
 .env
+db.sqlite3-*
