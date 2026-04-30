@@ -1,0 +1,55 @@
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="cariinkerja.id Admin Dashboard - Manage profiles, jobs, and assessments" />
+    <title>{% block title %}cariinkerja.id Admin{% endblock title %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{% static 'output.css' %}" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block head %}{% endblock head %}
+  </head>
+  <body class="bg-gray-100 text-gray-900">
+    <main class="flex h-screen overflow-hidden">
+      <aside class="w-[230px] bg-blue-500 text-white flex-shrink-0 p-4 flex flex-col justify-between">
+        <div class="flex flex-col">
+          <h1 class="text-xl font-bold mb-6">cariinkerja.id Admin</h1>
+          <nav class="space-y-2">
+            <a href="{% url 'dashboard' %}"
+               class="block px-3 py-2 rounded hover:bg-blue-700 transition">Dashboard</a>
+            <a href="{% url 'admin:profiles_profile_changelist' %}"
+               class="block px-3 py-2 rounded hover:bg-blue-700 transition">Profiles</a>
+            <a href="{% url 'admin:jobs_job_changelist' %}"
+               class="block px-3 py-2 rounded hover:bg-blue-700 transition">Jobs</a>
+            <a href="{% url 'admin:assessment_assessment_changelist' %}"
+               class="block px-3 py-2 rounded hover:bg-blue-700 transition">Assessments</a>
+            <a href="{% url 'admin:index' %}"
+               class="block px-3 py-2 rounded hover:bg-blue-700 transition">Django Admin</a>
+          </nav>
+        </div>
+        <div class="gap-4">
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="w-full mt-4 px-3 py-2 rounded bg-red-600 hover:bg-red-700 transition text-white font-semibold cursor-pointer">
+              Logout
+            </button>
+          </form>
+          <div class="text-center mt-2 text-xs text-white">v1.0.0</div>
+        </div>
+      </aside>
+      <section class="flex-1 overflow-y-auto p-6 bg-white">
+        {% if messages %}
+          <div class="mb-4 space-y-2">
+            {% for message in messages %}
+              <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-800 border border-green-200{% elif message.tags == 'error' %}bg-red-100 text-red-800 border border-red-200{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800 border border-yellow-200{% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% block content %}{% endblock content %}
+      </section>
+    </main>
+  </body>
+</html>

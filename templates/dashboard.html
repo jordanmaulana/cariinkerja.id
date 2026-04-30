@@ -1,0 +1,220 @@
+{% extends "dashboard_base.html" %}
+{% load format_number %}
+{% block title %}Dashboard — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-8 max-w-7xl mx-auto">
+    <!-- Top counters -->
+    <section class="grid grid-cols-4 gap-4">
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Total Profiles</p>
+        <p class="text-3xl font-bold">{{ profile_count|intdot }}</p>
+        <p class="text-slate-400">{{ profiles_today|intdot }} today</p>
+      </div>
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Total Jobs</p>
+        <p class="text-3xl font-bold">{{ job_count|intdot }}</p>
+        <p class="text-slate-400">{{ jobs_today|intdot }} today</p>
+      </div>
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Total Assessments</p>
+        <p class="text-3xl font-bold">{{ assessment_count|intdot }}</p>
+        <p class="text-slate-400">{{ assessments_today|intdot }} today</p>
+      </div>
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Average Score</p>
+        <p class="text-3xl font-bold">{{ avg_score_display }}</p>
+        <p class="text-slate-400">across all assessments</p>
+      </div>
+    </section>
+
+    <!-- Score distribution -->
+    <section class="grid grid-cols-4 gap-4">
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Score 0–25</p>
+        <p class="text-2xl font-bold text-red-600">{{ bucket_low|intdot }}</p>
+      </div>
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Score 26–50</p>
+        <p class="text-2xl font-bold text-orange-500">{{ bucket_mid_low|intdot }}</p>
+      </div>
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Score 51–75</p>
+        <p class="text-2xl font-bold text-yellow-600">{{ bucket_mid_high|intdot }}</p>
+      </div>
+      <div class="p-4 rounded-lg border shadow-sm space-y-2">
+        <p class="text-sm font-medium text-slate-600">Score 76–100</p>
+        <p class="text-2xl font-bold text-green-600">{{ bucket_high|intdot }}</p>
+      </div>
+    </section>
+
+    <!-- Assessments time series -->
+    <section class="grid grid-cols-1 gap-6">
+      <div class="p-6 rounded-lg border shadow-sm">
+        <h3 class="text-lg font-semibold mb-4 text-blue-600">Assessments — last 30 days</h3>
+        <div class="h-64"><canvas id="assessmentsChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Jobs by type -->
+    <section class="grid grid-cols-1 gap-6">
+      <div class="p-6 rounded-lg border shadow-sm">
+        <h3 class="text-lg font-semibold mb-4 text-indigo-600">Jobs by type</h3>
+        <div class="h-64"><canvas id="jobsByTypeChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Two-column lists -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="p-6 rounded-lg border shadow-sm">
+        <h3 class="text-lg font-semibold mb-4 text-slate-700">Jobs by Remote Option</h3>
+        <div class="space-y-3">
+          {% for row in jobs_by_remote %}
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-medium">{{ row.remote_option|default:"unspecified"|title }}</span>
+              <span class="text-sm text-slate-500">{{ row.count|intdot }} jobs</span>
+            </div>
+          {% empty %}
+            <p class="text-slate-400 text-sm">No jobs yet</p>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="p-6 rounded-lg border shadow-sm">
+        <h3 class="text-lg font-semibold mb-4 text-purple-600">Top Matched Candidates</h3>
+        <p class="text-sm text-slate-500 mb-4">Best assessment score in last 30 days</p>
+        <div class="space-y-3">
+          {% for profile in top_profiles %}
+            <a href="{% url 'admin:profiles_profile_change' profile.id %}"
+               class="block hover:bg-slate-100 transition rounded-lg">
+              <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-slate-100">
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <span class="text-sm font-semibold text-purple-600">{{ forloop.counter }}</span>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-slate-900">{{ profile.full_name|default:"(no name)" }}</p>
+                    <p class="text-xs text-slate-500">{{ profile.assessment_count|intdot }} assessments</p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm font-semibold text-slate-900">{{ profile.best_score|intdot }}</p>
+                  <p class="text-xs text-slate-500">best score</p>
+                </div>
+              </div>
+            </a>
+          {% empty %}
+            <p class="text-slate-400 text-sm">No matched candidates in last 30 days</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent assessments -->
+    <section class="p-6 rounded-lg border shadow-sm">
+      <h3 class="text-lg font-semibold mb-4 text-slate-700">Recent Assessments</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500 border-b">
+            <tr>
+              <th class="py-2">Profile</th>
+              <th class="py-2">Job</th>
+              <th class="py-2">Score</th>
+              <th class="py-2">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in recent_assessments %}
+              <tr class="border-b last:border-0">
+                <td class="py-2">
+                  <a href="{% url 'admin:assessment_assessment_change' a.id %}" class="text-blue-600 hover:underline">
+                    {{ a.profile.full_name|default:"(no name)" }}
+                  </a>
+                </td>
+                <td class="py-2">{{ a.job.title }}</td>
+                <td class="py-2 font-semibold">{{ a.score|intdot }}</td>
+                <td class="py-2 text-slate-500">{{ a.created_on|date:"Y-m-d H:i" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="py-4 text-slate-400 text-center">No assessments yet</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if recent_assessments.has_other_pages %}
+        <div class="mt-4 flex items-center justify-between text-sm">
+          <span class="text-slate-500">
+            Page {{ recent_assessments.number }} of {{ recent_assessments.paginator.num_pages }}
+          </span>
+          <div class="space-x-2">
+            {% if recent_assessments.has_previous %}
+              <a href="?page={{ recent_assessments.previous_page_number }}"
+                 class="px-3 py-1 rounded border hover:bg-slate-100">Previous</a>
+            {% endif %}
+            {% if recent_assessments.has_next %}
+              <a href="?page={{ recent_assessments.next_page_number }}"
+                 class="px-3 py-1 rounded border hover:bg-slate-100">Next</a>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+
+  <script>
+    const dailyAssessments = {{ daily_assessments_json|safe }};
+    const dateLabels = {{ date_labels_json|safe }};
+    const jobTypeLabels = {{ jobs_by_type_labels_json|safe }};
+    const jobTypeCounts = {{ jobs_by_type_counts_json|safe }};
+
+    new Chart(document.getElementById('assessmentsChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: dateLabels,
+        datasets: [{
+          label: 'Assessments',
+          data: dailyAssessments,
+          backgroundColor: 'rgba(59, 130, 246, 0.6)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } },
+          x: {
+            ticks: {
+              maxTicksLimit: 10,
+              callback: function (value) {
+                const d = new Date(this.getLabelForValue(value));
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              },
+            },
+          },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+
+    new Chart(document.getElementById('jobsByTypeChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: jobTypeLabels,
+        datasets: [{
+          label: 'Jobs',
+          data: jobTypeCounts,
+          backgroundColor: 'rgba(99, 102, 241, 0.6)',
+          borderColor: 'rgba(99, 102, 241, 1)',
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+        plugins: { legend: { display: false } },
+      },
+    });
+  </script>
+{% endblock content %}
