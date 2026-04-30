@@ -25,14 +25,14 @@ import { tokenAtom, userAtom } from "@/state/atoms"
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/assessments", label: "Assessments", icon: ClipboardCheck },
-  { to: "/preferences", label: "Preferences", icon: SlidersHorizontal },
+  { to: "/assessments", label: "Available Jobs", icon: ClipboardCheck },
+  { to: "/preferences", label: "Finder", icon: SlidersHorizontal },
 ] as const
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/assessments": "Assessments",
-  "/preferences": "Preferences",
+  "/assessments": "Available Jobs",
+  "/preferences": "Finder",
 }
 
 const THEME_KEY = "theme"

@@ -93,7 +93,7 @@ function AssessmentDetailPage() {
         <Button asChild variant="ghost" size="sm">
           <Link to="/assessments">
             <ArrowLeft className="size-4" />
-            Back to assessments
+            Back to available jobs
           </Link>
         </Button>
         {query.data && (
@@ -107,7 +107,7 @@ function AssessmentDetailPage() {
       {query.isError && (
         <Card>
           <CardContent className="py-6 text-sm text-destructive">
-            Failed to load assessment. It may not exist or you may not have access.
+            Failed to load available job. It may not exist or you may not have access.
           </CardContent>
         </Card>
       )}

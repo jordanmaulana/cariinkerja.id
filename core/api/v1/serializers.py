@@ -137,7 +137,7 @@ class PreferenceSerializer(serializers.ModelSerializer):
             "created_on",
             "updated_on",
         ]
-        read_only_fields = ["id", "created_on", "updated_on"]
+        read_only_fields = ["id", "crawl_url", "status", "created_on", "updated_on"]
 
 
 class AssessmentSerializer(serializers.ModelSerializer):

@@ -120,9 +120,9 @@ function AssessmentsPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Assessments</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Available Jobs</h2>
         <p className="text-sm text-muted-foreground">
-          Jobs matched to your preferences. Triage the pipeline.
+          Jobs matched to your Finders. Triage the pipeline.
         </p>
       </div>
 
@@ -132,7 +132,7 @@ function AssessmentsPage() {
             <CardTitle>Pipeline</CardTitle>
             <CardDescription>
               {query.data?.length ?? 0} matching{" "}
-              {(query.data?.length ?? 0) === 1 ? "assessment" : "assessments"}
+              {(query.data?.length ?? 0) === 1 ? "available job" : "available jobs"}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -169,12 +169,12 @@ function AssessmentsPage() {
           )}
           {query.isError && (
             <p className="px-6 pb-6 text-sm text-destructive">
-              Failed to load assessments.
+              Failed to load available jobs.
             </p>
           )}
           {query.data && query.data.length === 0 && !query.isLoading && (
             <p className="px-6 pb-6 text-sm text-muted-foreground">
-              No assessments match these filters.
+              No available jobs match these filters.
             </p>
           )}
           {query.data && query.data.length > 0 && (
@@ -230,8 +230,11 @@ function AssessmentsTable({
               className="cursor-pointer"
               onClick={() => onOpen(row.id)}
             >
-              <TableCell className="max-w-[260px]">
-                <span className="truncate font-medium hover:underline">
+              <TableCell className="max-w-[280px]">
+                <span
+                  className="block truncate font-medium hover:underline"
+                  title={row.job.title}
+                >
                   {row.job.title}
                 </span>
               </TableCell>

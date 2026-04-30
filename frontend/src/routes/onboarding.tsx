@@ -60,7 +60,7 @@ function OnboardingPage() {
       <div>
         <h1 className="text-2xl font-bold">Tell us about you</h1>
         <p className="text-sm text-muted-foreground">
-          Fill your profile and your first job preference to get started.
+          Fill your profile and your first Finder to get started.
         </p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
@@ -107,7 +107,7 @@ function OnboardingPage() {
         </fieldset>
 
         <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold">First preference</legend>
+          <legend className="text-sm font-semibold">First Finder</legend>
           <div className="space-y-1">
             <label htmlFor="title" className="text-sm font-medium">
               Job title

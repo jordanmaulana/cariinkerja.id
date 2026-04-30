@@ -81,9 +81,9 @@ function PreferencesPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Preferences</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Finders</h2>
           <p className="text-sm text-muted-foreground">
-            Define what you want. Each preference becomes a crawl + match feed.
+            Define what you want. Each Finder becomes a crawl + match feed.
           </p>
         </div>
         <NewPreferenceDialog />
@@ -91,7 +91,7 @@ function PreferencesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your preferences</CardTitle>
+          <CardTitle>Your Finders</CardTitle>
           <CardDescription>
             {query.data?.length ?? 0} total
           </CardDescription>
@@ -104,12 +104,12 @@ function PreferencesPage() {
           )}
           {query.isError && (
             <div className="px-6 pb-6 text-sm text-destructive">
-              Failed to load preferences.
+              Failed to load Finders.
             </div>
           )}
           {query.data && query.data.length === 0 && (
             <div className="px-6 pb-6 text-sm text-muted-foreground">
-              No preferences yet. Add one to start crawling.
+              No Finders yet. Add one to start crawling.
             </div>
           )}
           {query.data && query.data.length > 0 && (
@@ -189,7 +189,7 @@ function NewPreferenceDialog() {
       setValues(buildInitialValues())
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Failed to create preference.")
+      setError(err instanceof Error ? err.message : "Failed to create Finder.")
     },
   })
 
@@ -217,13 +217,13 @@ function NewPreferenceDialog() {
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="size-4" />
-          New preference
+          New Finder
         </Button>
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={onSubmit} className="space-y-5">
           <DialogHeader>
-            <DialogTitle>New preference</DialogTitle>
+            <DialogTitle>New Finder</DialogTitle>
             <DialogDescription>
               Set what you want. Crawl details can be added later.
             </DialogDescription>

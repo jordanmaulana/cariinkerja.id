@@ -37,9 +37,7 @@ export type PreferencePayload = {
   title?: string | null
   job_type?: JobType | null
   remote_option?: RemoteOption | null
-  crawl_url?: string | null
   crawl_source?: PreferenceSource | null
-  status?: PreferenceStatus
 }
 
 export async function listPreferences(): Promise<Preference[]> {

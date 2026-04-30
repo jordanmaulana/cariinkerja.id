@@ -12,7 +12,6 @@ import {
 import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts"
 import {
   PREFERENCE_SOURCES,
-  PREFERENCE_STATUSES,
   type Preference,
   type PreferencePayload,
 } from "@/lib/preferences"
@@ -21,9 +20,7 @@ export type PreferenceFormValues = {
   title: string
   job_type: string
   remote_option: string
-  crawl_url: string
   crawl_source: string
-  status: string
 }
 
 export function buildInitialValues(p?: Preference | null): PreferenceFormValues {
@@ -31,9 +28,7 @@ export function buildInitialValues(p?: Preference | null): PreferenceFormValues 
     title: p?.title ?? "",
     job_type: p?.job_type ?? "",
     remote_option: p?.remote_option ?? "",
-    crawl_url: p?.crawl_url ?? "",
     crawl_source: p?.crawl_source ?? "",
-    status: p?.status ?? "waiting_payment",
   }
 }
 
@@ -42,25 +37,17 @@ export function valuesToPayload(v: PreferenceFormValues): PreferencePayload {
     title: v.title.trim() || null,
     job_type: (v.job_type || null) as PreferencePayload["job_type"],
     remote_option: (v.remote_option || null) as PreferencePayload["remote_option"],
-    crawl_url: v.crawl_url.trim() || null,
     crawl_source: (v.crawl_source || null) as PreferencePayload["crawl_source"],
-    status: (v.status || "waiting_payment") as PreferencePayload["status"],
   }
 }
 
 type Props = {
   values: PreferenceFormValues
   onChange: (values: PreferenceFormValues) => void
-  showStatus?: boolean
   disabled?: boolean
 }
 
-export function PreferenceFormFields({
-  values,
-  onChange,
-  showStatus = false,
-  disabled,
-}: Props) {
+export function PreferenceFormFields({ values, onChange, disabled }: Props) {
   function update<K extends keyof PreferenceFormValues>(
     key: K,
     value: PreferenceFormValues[K],
@@ -118,22 +105,6 @@ export function PreferenceFormFields({
         </Select>
       </Field>
 
-      <Field
-        className="sm:col-span-2"
-        label="Crawl URL"
-        htmlFor="pref-crawl-url"
-        hint="Listing URL for Indeed or JobStreet — admin uses this to crawl jobs."
-      >
-        <Input
-          id="pref-crawl-url"
-          type="url"
-          value={values.crawl_url}
-          disabled={disabled}
-          onChange={(e) => update("crawl_url", e.target.value)}
-          placeholder="https://"
-        />
-      </Field>
-
       <Field label="Crawl source" htmlFor="pref-crawl-source">
         <Select
           value={values.crawl_source}
@@ -152,27 +123,6 @@ export function PreferenceFormFields({
           </SelectContent>
         </Select>
       </Field>
-
-      {showStatus && (
-        <Field label="Status" htmlFor="pref-status">
-          <Select
-            value={values.status}
-            onValueChange={(v) => update("status", v)}
-            disabled={disabled}
-          >
-            <SelectTrigger id="pref-status">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PREFERENCE_STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      )}
     </div>
   )
 }

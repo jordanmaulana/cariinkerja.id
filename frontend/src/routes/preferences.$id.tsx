@@ -70,7 +70,7 @@ function PreferenceDetailPage() {
         <Button asChild variant="ghost" size="sm">
           <Link to="/preferences">
             <ArrowLeft className="size-4" />
-            Back to preferences
+            Back to Finders
           </Link>
         </Button>
         {query.data && (
@@ -84,7 +84,7 @@ function PreferenceDetailPage() {
       {query.isError && (
         <Card>
           <CardContent className="py-6 text-sm text-destructive">
-            Failed to load preference. It may not exist.
+            Failed to load Finder. It may not exist.
           </CardContent>
         </Card>
       )}
@@ -111,7 +111,7 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
       setValues(buildInitialValues(updated))
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Failed to save preference.")
+      setError(err instanceof Error ? err.message : "Failed to save Finder.")
     },
   })
 
@@ -134,7 +134,7 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
     <form onSubmit={onSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Edit preference</CardTitle>
+          <CardTitle>Edit Finder</CardTitle>
           <CardDescription>
             Created{" "}
             {new Date(preference.created_on).toLocaleDateString(undefined, {
@@ -148,7 +148,6 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
           <PreferenceFormFields
             values={values}
             onChange={setValues}
-            showStatus
             disabled={updateMutation.isPending}
           />
           {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
@@ -198,10 +197,10 @@ function DeleteDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete preference?</DialogTitle>
+          <DialogTitle>Delete Finder?</DialogTitle>
           <DialogDescription>
-            This removes “{preference.title || "Untitled"}” and any assessments
-            tied to it. Cannot be undone.
+            This removes “{preference.title || "Untitled"}” and any available
+            jobs tied to it. Cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

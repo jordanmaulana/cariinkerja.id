@@ -76,7 +76,7 @@ function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="Assessments"
+          label="Available Jobs"
           value={data.assessments.total}
           hint={
             data.assessments.today > 0
@@ -90,7 +90,7 @@ function DashboardPage() {
           suffix={data.assessments.total > 0 ? "/100" : ""}
         />
         <StatCard
-          label="Active preferences"
+          label="Active Finders"
           value={data.preferences.active_crawls}
           hint={`${data.preferences.total} total`}
         />
@@ -142,7 +142,7 @@ function DashboardPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <div className="space-y-1">
-                <CardTitle>Recent assessments</CardTitle>
+                <CardTitle>Recent available jobs</CardTitle>
                 <CardDescription>Latest 5</CardDescription>
               </div>
               <Button asChild size="sm" variant="outline">
@@ -363,11 +363,11 @@ function EmptyState() {
         <div>
           <h3 className="text-base font-semibold">No assessments yet</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Add a preference to start crawling jobs and generating matches.
+            Add a Finder to start crawling jobs and generating matches.
           </p>
         </div>
         <Button asChild size="sm">
-          <Link to="/preferences">Manage preferences</Link>
+          <Link to="/preferences">Manage Finders</Link>
         </Button>
       </CardContent>
     </Card>
