@@ -1,9 +1,9 @@
-"""Crawl a Jobstreet Indonesia listing URL and persist Job rows.
+"""Crawl an Indeed Indonesia listing URL and persist Job rows.
 
 Example:
 
-    uv run manage.py crawl_jobstreet \\
-        "https://id.jobstreet.com/id/mobile-jobs/part-time/remote" \\
+    uv run manage.py crawl_indeed \\
+        "https://id.indeed.com/jobs?q=flutter&l=&from=searchOnHP" \\
         --max-pages 1 --dry-run
 """
 
@@ -16,21 +16,24 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from jobs.models import Job
-from jobs.scrapers import jobstreet
+from jobs.scrapers import indeed
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Crawl a Jobstreet listing URL and upsert Job rows by url."
+    help = "Crawl an Indeed listing URL and upsert Job rows by url."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "url",
-            help="Jobstreet listing URL (e.g. https://id.jobstreet.com/id/mobile-jobs/part-time/remote)",
+            help=(
+                "Indeed listing URL "
+                "(e.g. https://id.indeed.com/jobs?q=flutter&l=&from=searchOnHP)"
+            ),
         )
         parser.add_argument("--max-pages", type=int, default=1)
-        parser.add_argument("--sleep", type=float, default=jobstreet.DEFAULT_SLEEP)
+        parser.add_argument("--sleep", type=float, default=indeed.DEFAULT_SLEEP)
         parser.add_argument("--limit", type=int, default=20)
         parser.add_argument(
             "--dry-run",
@@ -44,7 +47,7 @@ class Command(BaseCommand):
             raise CommandError(f"url must be absolute: {url!r}")
 
         created = updated = skipped = 0
-        for posting in jobstreet.crawl(
+        for posting in indeed.crawl(
             url,
             max_pages=opts["max_pages"],
             sleep=opts["sleep"],
@@ -63,7 +66,7 @@ class Command(BaseCommand):
                             "location": posting["location"],
                             "job_type": posting["job_type"],
                             "remote_option": posting["remote_option"],
-                            "source": "jobstreet",
+                            "source": "indeed",
                         },
                     )
             except Exception as exc:
