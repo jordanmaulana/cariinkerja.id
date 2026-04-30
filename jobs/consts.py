@@ -1,4 +1,4 @@
-from core import models
+from django.db import models
 
 
 class JobType(models.TextChoices):
@@ -6,3 +6,9 @@ class JobType(models.TextChoices):
     PART_TIME = "part-time", "Part-time"
     CONTRACT = "contract", "Contract"
     INTERNSHIP = "internship", "Internship"
+
+
+class RemoteOption(models.TextChoices):
+    REMOTE = "remote", "Remote"
+    ON_SITE = "on-site", "On-site"
+    HYBRID = "hybrid", "Hybrid"
