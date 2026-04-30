@@ -12,8 +12,16 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Preference)
 class PreferenceAdmin(admin.ModelAdmin):
-    list_display = ("id", "profile", "title", "job_type", "remote_option", "created_on")
-    list_filter = ("job_type", "remote_option")
+    list_display = (
+        "id",
+        "profile",
+        "title",
+        "job_type",
+        "remote_option",
+        "status",
+        "created_on",
+    )
+    list_filter = ("job_type", "remote_option", "status", "crawl_source")
     search_fields = ("title", "profile__full_name")
     autocomplete_fields = ("profile",)
     readonly_fields = ("id", "created_on", "updated_on")

@@ -4,15 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('profiles', '0007_profile_user_alter_profile_actor'),
+        ("profiles", "0007_profile_user_alter_profile_actor"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='preference',
-            name='crawl_source',
-            field=models.CharField(blank=True, choices=[('jobstreet', 'JobStreet'), ('indeed', 'Indeed')], help_text='Filled by Admin', max_length=20, null=True),
+            model_name="preference",
+            name="crawl_source",
+            field=models.CharField(
+                blank=True,
+                choices=[("jobstreet", "JobStreet"), ("indeed", "Indeed")],
+                help_text="Filled by Admin",
+                max_length=20,
+                null=True,
+            ),
         ),
     ]

@@ -16,6 +16,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 
 from assessment.models import Assessment
+from assessment.tasks import crawl_and_assess_preference
 from jobs.models import Job
 from profiles.consts import Source, Status
 from profiles.models import Preference, Profile
@@ -208,4 +209,18 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
             )
 
         messages.success(request, "Preference updated.")
+        return redirect("preference_detail", pk=pref.pk)
+
+
+class PreferenceCrawlNowView(SuperuserRequiredMixin, View):
+    def post(self, request, pk):
+        pref = get_object_or_404(Preference, pk=pk)
+        if not pref.crawl_url or not pref.crawl_source:
+            messages.error(
+                request,
+                "Preference is missing crawl_url or crawl_source — fill them first.",
+            )
+        else:
+            crawl_and_assess_preference.delay(pref.id)
+            messages.success(request, f"Queued crawl + assessment for {pref}.")
         return redirect("preference_detail", pk=pref.pk)

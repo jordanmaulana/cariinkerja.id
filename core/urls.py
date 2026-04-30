@@ -8,6 +8,7 @@ from django.views.generic import RedirectView
 from core.views import (
     AdminLoginView,
     DashboardView,
+    PreferenceCrawlNowView,
     PreferenceDetailView,
     PreferenceListView,
 )
@@ -26,6 +27,11 @@ urlpatterns = [
         "preferences/<str:pk>/",
         PreferenceDetailView.as_view(),
         name="preference_detail",
+    ),
+    path(
+        "preferences/<str:pk>/crawl-now/",
+        PreferenceCrawlNowView.as_view(),
+        name="preference_crawl_now",
     ),
     path("api/", include("core.api.urls")),
     path("", RedirectView.as_view(url="/dashboard/", permanent=False), name="home"),

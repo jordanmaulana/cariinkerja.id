@@ -6,9 +6,19 @@
       <a href="{% url 'preference_list' %}" class="text-sm text-blue-600 hover:underline">← Back to preferences</a>
     </div>
 
-    <header>
-      <h2 class="text-2xl font-bold">{{ preference.title|default:"(untitled preference)" }}</h2>
-      <p class="text-slate-500 text-sm">Preference ID: {{ preference.id }}</p>
+    <header class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-2xl font-bold">{{ preference.title|default:"(untitled preference)" }}</h2>
+        <p class="text-slate-500 text-sm">Preference ID: {{ preference.id }}</p>
+      </div>
+      <form method="post" action="{% url 'preference_crawl_now' pk=preference.pk %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                {% if not preference.crawl_url or not preference.crawl_source %}disabled title="Set crawl_url and crawl_source first"{% endif %}>
+          Crawl &amp; Assess Now
+        </button>
+      </form>
     </header>
 
     <section class="p-4 rounded-lg border shadow-sm space-y-2">
