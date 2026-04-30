@@ -13,4 +13,5 @@ dependencies = [
     "lxml>=6.1.0",
     "openai>=2.33.0",
     "ruff>=0.15.12",
+    "whitenoise>=6.12.0",
 ]
