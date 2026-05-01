@@ -62,15 +62,33 @@
       </dl>
     </section>
 
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">Full profile (read-only)</h3>
+      <p class="text-xs text-slate-500">
+        Edit on the
+        <a href="{% url 'profile_detail' profile.id %}" class="text-blue-600 hover:underline">profile page</a>
+        — paste LinkedIn there to refresh.
+      </p>
+      <pre class="bg-slate-50 p-3 rounded text-xs whitespace-pre-wrap max-h-64 overflow-auto">{{ profile.full_profile|default:"(empty)" }}</pre>
+      <div class="flex flex-wrap gap-2 text-xs">
+        {% if profile.linkedin_quality_ok %}
+          <span class="px-2 py-0.5 rounded bg-green-100 text-green-800">Quality OK</span>
+        {% else %}
+          <span class="px-2 py-0.5 rounded bg-red-100 text-red-800">Sparse</span>
+        {% endif %}
+        {% if profile.open_to_work %}
+          <span class="px-2 py-0.5 rounded bg-green-100 text-green-800">Open to Work</span>
+        {% endif %}
+        {% if profile.linkedin_quality_reason %}
+          <span class="text-slate-500 italic">{{ profile.linkedin_quality_reason }}</span>
+        {% endif %}
+      </div>
+    </section>
+
     <section class="p-4 rounded-lg border shadow-sm">
       <h3 class="text-lg font-semibold mb-3">Admin fields</h3>
       <form method="post" class="space-y-4">
         {% csrf_token %}
-        <div>
-          <label for="full_profile" class="block text-sm font-medium text-slate-700">Full profile (Profile.full_profile)</label>
-          <textarea id="full_profile" name="full_profile" rows="8"
-                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm">{{ profile.full_profile|default_if_none:"" }}</textarea>
-        </div>
         <div>
           <label for="crawl_url" class="block text-sm font-medium text-slate-700">Crawl URL (Preference.crawl_url)</label>
           <input id="crawl_url" name="crawl_url" type="url"
@@ -95,6 +113,12 @@
               <option value="{{ value }}" {% if preference.status == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
+          {% if not profile.linkedin_quality_ok %}
+            <label class="mt-2 inline-flex items-center gap-1 text-xs text-slate-700">
+              <input type="checkbox" name="override_quality_gate" value="1" class="rounded border-slate-300" />
+              Override quality gate (allow advancing to RUNNING despite sparse profile)
+            </label>
+          {% endif %}
         </div>
         <div>
           <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>

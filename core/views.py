@@ -175,10 +175,10 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         pref = self._get(pk)
-        full_profile = request.POST.get("full_profile", "").strip()
         crawl_url = request.POST.get("crawl_url", "").strip()
         crawl_source = request.POST.get("crawl_source", "").strip()
         status = request.POST.get("status", "").strip()
+        override_quality = request.POST.get("override_quality_gate") == "1"
 
         if crawl_url:
             try:
@@ -195,9 +195,21 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
             messages.error(request, "Invalid crawl_source.")
             return self._render(request, pref)
 
+        moving_to_running = pref.status != Status.RUNNING and status == Status.RUNNING
+        if (
+            moving_to_running
+            and not pref.profile.linkedin_quality_ok
+            and not override_quality
+        ):
+            reason = pref.profile.linkedin_quality_reason or "no reason recorded"
+            messages.error(
+                request,
+                f"LinkedIn marked sparse: {reason}. Re-ingest the profile or "
+                "tick 'Override quality gate' to proceed.",
+            )
+            return self._render(request, pref)
+
         with transaction.atomic():
-            pref.profile.full_profile = full_profile or None
-            pref.profile.save(update_fields=["full_profile", "updated_on"])
             pref.crawl_url = crawl_url or None
             pref.crawl_source = crawl_source or None
             pref.status = status

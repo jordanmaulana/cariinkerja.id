@@ -23,6 +23,36 @@
       </dl>
     </section>
 
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">LinkedIn ingest status</h3>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">Quality</dt>
+        <dd>
+          {% if profile.linkedin_ingested_at %}
+            {% if profile.linkedin_quality_ok %}
+              <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">OK</span>
+            {% else %}
+              <span class="px-2 py-0.5 rounded text-xs bg-red-100 text-red-800">Sparse</span>
+            {% endif %}
+          {% else %}
+            <span class="text-slate-400">not ingested</span>
+          {% endif %}
+        </dd>
+        <dt class="text-slate-500">Open to Work</dt>
+        <dd>
+          {% if profile.open_to_work %}
+            <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">Yes — discount eligible</span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">No</span>
+          {% endif %}
+        </dd>
+        <dt class="text-slate-500">Reason / notes</dt>
+        <dd class="italic text-slate-600">{{ profile.linkedin_quality_reason|default:"—" }}</dd>
+        <dt class="text-slate-500">Last ingest</dt>
+        <dd>{{ profile.linkedin_ingested_at|date:"Y-m-d H:i"|default:"—" }}</dd>
+      </dl>
+    </section>
+
     <section class="p-4 rounded-lg border shadow-sm">
       <h3 class="text-lg font-semibold mb-3">Edit fields</h3>
       <form method="post" class="space-y-4">
@@ -45,9 +75,32 @@
                     class="mt-1 w-full rounded border-slate-300 border p-2 text-sm">{{ profile.bio|default_if_none:"" }}</textarea>
         </div>
         <div>
-          <label for="full_profile" class="block text-sm font-medium text-slate-700">Full profile (admin-filled)</label>
-          <textarea id="full_profile" name="full_profile" rows="10"
-                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm">{{ profile.full_profile|default_if_none:"" }}</textarea>
+          <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="open_to_work" value="1"
+                   {% if profile.open_to_work %}checked{% endif %}
+                   class="rounded border-slate-300" />
+            Open to Work (discount eligible)
+          </label>
+          <p class="text-xs text-slate-500 mt-1">Manual override. Ignored when a new LinkedIn paste runs the LLM — re-toggle after ingest if needed.</p>
+        </div>
+        <div>
+          <label for="linkedin_raw" class="block text-sm font-medium text-slate-700">LinkedIn raw paste</label>
+          <p class="text-xs text-slate-500 mb-1">Paste full LinkedIn page content. LLM cleans on save and updates the fields below.</p>
+          <textarea id="linkedin_raw" name="linkedin_raw" rows="14"
+                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm font-mono">{{ profile.linkedin_raw|default_if_none:"" }}</textarea>
+        </div>
+        <div>
+          <div class="flex items-center justify-between">
+            <label for="full_profile" class="block text-sm font-medium text-slate-700">Full profile (LLM-cleaned)</label>
+            <label class="text-xs text-slate-600 inline-flex items-center gap-1">
+              <input type="checkbox" name="manual_full_profile_override" value="1"
+                     onchange="document.getElementById('full_profile').readOnly = !this.checked"
+                     class="rounded border-slate-300" />
+              Override (edit manually, skip LLM)
+            </label>
+          </div>
+          <textarea id="full_profile" name="full_profile" rows="10" readonly
+                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm read-only:bg-slate-50">{{ profile.full_profile|default_if_none:"" }}</textarea>
         </div>
         <div>
           <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>

@@ -5,9 +5,24 @@ from profiles.models import Preference, Profile
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "id", "created_on")
+    list_display = (
+        "full_name",
+        "id",
+        "open_to_work",
+        "linkedin_quality_ok",
+        "created_on",
+    )
+    list_filter = ("open_to_work", "linkedin_quality_ok")
     search_fields = ("full_name", "bio")
-    readonly_fields = ("id", "created_on", "updated_on")
+    readonly_fields = (
+        "id",
+        "created_on",
+        "updated_on",
+        "linkedin_ingested_at",
+        "open_to_work",
+        "linkedin_quality_ok",
+        "linkedin_quality_reason",
+    )
 
 
 @admin.register(Preference)

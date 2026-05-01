@@ -44,6 +44,8 @@ class SubscriptionStatus(models.TextChoices):
 
 
 class Subscription(BaseModel):
+    # When pricing math is added, read profile.linkedin_discount_eligible
+    # (driven by Profile.open_to_work) to apply the Open-to-Work discount.
     profile = models.ForeignKey(
         "profiles.Profile",
         on_delete=models.CASCADE,

@@ -5,10 +5,12 @@ from django.core.validators import URLValidator
 from django.db import transaction
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views import View
 
 from core.views import SuperuserRequiredMixin
 from profiles.models import Profile
+from profiles.services import ingest_linkedin
 
 
 class ProfileListView(SuperuserRequiredMixin, View):
@@ -54,7 +56,9 @@ class ProfileDetailView(SuperuserRequiredMixin, View):
         full_name = request.POST.get("full_name", "").strip()
         linkedin_url = request.POST.get("linkedin_url", "").strip()
         bio = request.POST.get("bio", "").strip()
+        linkedin_raw = request.POST.get("linkedin_raw", "").strip()
         full_profile = request.POST.get("full_profile", "").strip()
+        override = request.POST.get("manual_full_profile_override") == "1"
 
         if linkedin_url:
             try:
@@ -63,20 +67,56 @@ class ProfileDetailView(SuperuserRequiredMixin, View):
                 messages.error(request, "Invalid LinkedIn URL.")
                 return self._render(request, profile)
 
-        with transaction.atomic():
-            profile.full_name = full_name or None
-            profile.linkedin_url = linkedin_url or None
-            profile.bio = bio or None
-            profile.full_profile = full_profile or None
-            profile.save(
-                update_fields=[
-                    "full_name",
-                    "linkedin_url",
-                    "bio",
-                    "full_profile",
-                    "updated_on",
-                ]
+        update_fields = ["full_name", "linkedin_url", "bio", "updated_on"]
+        profile.full_name = full_name or None
+        profile.linkedin_url = linkedin_url or None
+        profile.bio = bio or None
+
+        run_ingest = (
+            not override
+            and linkedin_raw
+            and linkedin_raw != (profile.linkedin_raw or "")
+        )
+
+        if run_ingest:
+            try:
+                result = ingest_linkedin(linkedin_raw)
+            except Exception as exc:
+                messages.error(request, f"LinkedIn ingest failed: {exc}")
+                profile.linkedin_raw = linkedin_raw
+                profile.save(update_fields=update_fields + ["linkedin_raw"])
+                return self._render(request, profile)
+            profile.linkedin_raw = linkedin_raw
+            profile.full_profile = result.cleaned_full_profile or None
+            profile.open_to_work = result.open_to_work
+            profile.linkedin_quality_ok = not result.is_sparse
+            profile.linkedin_quality_reason = (
+                result.sparse_reason or result.quality_notes or ""
             )
+            profile.linkedin_ingested_at = timezone.now()
+            update_fields += [
+                "linkedin_raw",
+                "full_profile",
+                "open_to_work",
+                "linkedin_quality_ok",
+                "linkedin_quality_reason",
+                "linkedin_ingested_at",
+            ]
+        else:
+            if override:
+                profile.full_profile = full_profile or None
+                update_fields.append("full_profile")
+            if linkedin_raw and linkedin_raw != (profile.linkedin_raw or ""):
+                profile.linkedin_raw = linkedin_raw
+                update_fields.append("linkedin_raw")
+
+            new_open_to_work = request.POST.get("open_to_work") == "1"
+            if new_open_to_work != profile.open_to_work:
+                profile.open_to_work = new_open_to_work
+                update_fields.append("open_to_work")
+
+        with transaction.atomic():
+            profile.save(update_fields=update_fields)
 
         messages.success(request, "Profile updated.")
         return redirect("profile_detail", pk=profile.pk)

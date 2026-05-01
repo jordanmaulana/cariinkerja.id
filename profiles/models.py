@@ -25,10 +25,23 @@ class Profile(BaseModel):
     suggested_full_name = models.CharField(max_length=255, blank=True, default="")
     linkedin_url = models.URLField(null=True, blank=True)
     bio = models.TextField(null=True, blank=True)
-    full_profile = models.TextField(null=True, blank=True, help_text="Filled by Admin")
+    full_profile = models.TextField(
+        null=True, blank=True, help_text="LLM-cleaned LinkedIn content"
+    )
+    linkedin_raw = models.TextField(
+        null=True, blank=True, help_text="Raw LinkedIn paste (audit / re-run source)"
+    )
+    linkedin_ingested_at = models.DateTimeField(null=True, blank=True)
+    open_to_work = models.BooleanField(default=False)
+    linkedin_quality_ok = models.BooleanField(default=False)
+    linkedin_quality_reason = models.TextField(blank=True, default="")
 
     class Meta:
         app_label = "profiles"
+
+    @property
+    def linkedin_discount_eligible(self) -> bool:
+        return bool(self.open_to_work)
 
 
 class Preference(BaseModel):
