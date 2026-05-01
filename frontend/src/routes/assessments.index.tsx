@@ -90,11 +90,14 @@ function getActionsForStatus(status: AssessmentStatus): Action[] {
   }
 }
 
+const PAGE_SIZE = 10
+
 function AssessmentsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<
     Set<AssessmentStatus>
   >(() => new Set())
   const [minScoreInput, setMinScoreInput] = useState("")
+  const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -102,16 +105,22 @@ function AssessmentsPage() {
   const minScore =
     parsed != null && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
 
+  const statuses = [...selectedStatuses].sort()
+
   const query = useQuery({
-    queryKey: ["assessments", minScore ?? null],
-    queryFn: () => listAssessments({ minScore }),
+    queryKey: ["assessments", { statuses, minScore: minScore ?? null, page }],
+    queryFn: () =>
+      listAssessments({
+        statuses: statuses.length ? statuses : undefined,
+        minScore,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
   })
 
-  const filteredRows = query.data
-    ? selectedStatuses.size === 0
-      ? query.data
-      : query.data.filter((row) => selectedStatuses.has(row.status))
-    : undefined
+  const rows = query.data?.results
+  const count = query.data?.count ?? 0
+  const numPages = query.data?.num_pages ?? 1
 
   function toggleStatus(s: AssessmentStatus, checked: boolean) {
     setSelectedStatuses((prev) => {
@@ -120,6 +129,12 @@ function AssessmentsPage() {
       else next.delete(s)
       return next
     })
+    setPage(1)
+  }
+
+  function handleMinScoreChange(value: string) {
+    setMinScoreInput(value)
+    setPage(1)
   }
 
   const mutation = useMutation({
@@ -144,8 +159,9 @@ function AssessmentsPage() {
           <div className="space-y-1">
             <CardTitle>Pipeline</CardTitle>
             <CardDescription>
-              {filteredRows?.length ?? 0} matching{" "}
-              {(filteredRows?.length ?? 0) === 1 ? "available job" : "available jobs"}
+              {count} matching{" "}
+              {count === 1 ? "available job" : "available jobs"}
+              {numPages > 1 && ` · Page ${page} of ${numPages}`}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -172,7 +188,7 @@ function AssessmentsPage() {
                 inputMode="numeric"
                 placeholder="Min score"
                 value={minScoreInput}
-                onChange={(e) => setMinScoreInput(e.target.value)}
+                onChange={(e) => handleMinScoreChange(e.target.value)}
                 className="h-8 w-32 pl-7 text-xs"
               />
             </div>
@@ -189,19 +205,44 @@ function AssessmentsPage() {
               Failed to load available jobs.
             </p>
           )}
-          {filteredRows && filteredRows.length === 0 && !query.isLoading && (
+          {rows && rows.length === 0 && !query.isLoading && (
             <p className="px-6 pb-6 text-sm text-muted-foreground">
               No available jobs match these filters.
             </p>
           )}
-          {filteredRows && filteredRows.length > 0 && (
+          {rows && rows.length > 0 && (
             <AssessmentsTable
-              rows={filteredRows}
+              rows={rows}
               isPending={mutation.isPending}
               pendingId={mutation.variables?.id}
               onAction={(id, next) => mutation.mutate({ id, next })}
               onOpen={(id) => navigate({ to: "/assessments/$id", params: { id } })}
             />
+          )}
+          {count > 0 && (
+            <div className="flex items-center justify-between gap-3 px-6 pb-6 pt-4">
+              <span className="text-xs text-muted-foreground">
+                Page {page} of {numPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || query.isFetching}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= numPages || query.isFetching}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

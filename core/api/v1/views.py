@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.paginator import EmptyPage, Paginator
 from django.db import transaction
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDate
@@ -94,13 +95,15 @@ def _user_assessments(user):
 @permission_classes([IsAuthenticated])
 def assessment_list(request):
     qs = _user_assessments(request.user).order_by("-created_on")
-    status_param = request.query_params.get("status")
-    if status_param:
-        if status_param not in AssessmentStatus.values:
-            return Response(
-                {"detail": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        qs = qs.filter(status=status_param)
+    status_values = request.query_params.getlist("status")
+    if status_values:
+        for value in status_values:
+            if value not in AssessmentStatus.values:
+                return Response(
+                    {"detail": "Invalid status."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        qs = qs.filter(status__in=status_values)
     min_score_param = request.query_params.get("min_score")
     if min_score_param:
         try:
@@ -111,7 +114,38 @@ def assessment_list(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         qs = qs.filter(score__gte=min_score)
-    return Response(AssessmentSerializer(qs, many=True).data)
+
+    try:
+        page = int(request.query_params.get("page", 1))
+    except ValueError:
+        return Response(
+            {"detail": "Invalid page."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        page_size = int(request.query_params.get("page_size", 25))
+    except ValueError:
+        return Response(
+            {"detail": "Invalid page_size."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    page = max(page, 1)
+    page_size = max(1, min(page_size, 100))
+
+    paginator = Paginator(qs, page_size)
+    try:
+        page_obj = paginator.page(page)
+        results = AssessmentSerializer(page_obj.object_list, many=True).data
+    except EmptyPage:
+        results = []
+
+    return Response(
+        {
+            "count": paginator.count,
+            "page": page,
+            "page_size": page_size,
+            "num_pages": paginator.num_pages,
+            "results": results,
+        }
+    )
 
 
 @api_view(["GET"])
