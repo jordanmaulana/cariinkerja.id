@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSetAtom } from "jotai";
-import { Briefcase, Search, Sparkles } from "lucide-react";
+import { Briefcase, Gauge, Search, Sparkles } from "lucide-react";
 
 import { LogoLockup } from "@/components/logo-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -9,7 +9,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
 } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
@@ -25,19 +24,30 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 const FEATURES = [
   {
     icon: Search,
-    title: "Set up a Finder",
-    body: "Save your preferences and the listing URLs you'd browse on Indeed or JobStreet.",
+    title: "Atur Preferensimu",
+    body: "Set preferensi, mau remote apa on-site, mau full-time apa freelance.",
+  },
+  {
+    icon: Gauge,
+    title: "AI ngasih skor kecocokan",
+    body: "Deskripsi loker dibanding profil + preferensimu dinilai pake AI, biar kamu tau seberapa cocok kamu sama loker itu.",
   },
   {
     icon: Sparkles,
-    title: "AI scores every match",
-    body: "Skor kecocokan, hard/soft skill match, dan gap analysis di setiap lowongan.",
+    title: "Jadi tau skill gaps kamu",
+    body: "Per loker kamu bakal bisa tau skill apa aja yang kamu kurang, biar kamu bisa upgrade skill itu.",
   },
   {
     icon: Briefcase,
-    title: "Lihat yang layak dilamar",
-    body: "A ranked list of Available Jobs — updated each visit, no doomscrolling.",
+    title: "Lihat statistikmu",
+    body: "Biar kamu ga omong doang apply banyak loker padahal cuma 3. Atau kalo kamu beneran apply banyak, kamu biar tau kamu layak istirahat sebentar.",
   },
+] as const;
+
+const BEFORE_YOU_BUY = [
+  "Pastiin LinkedIn-mu nggak kopong. Jangan cuma nulis education / job experience cuma title doang.",
+  "Lengkapi apapun yang bisa dilengkapi di LinkedIn-mu. Tulis semua skills, tulis About yang jujur.",
+  "Jangan beli kalo kamu masih financially struggling. Pastiin energimu buat kamu cari kerja dulu sendiri sampe kamu bisa nafas lega.",
 ] as const;
 
 function LoginPage() {
@@ -49,7 +59,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (!CLIENT_ID) {
-      setError("Google sign-in is not configured. Set VITE_GOOGLE_CLIENT_ID.");
+      setError("Google sign-in belum dikonfigurasi. Set VITE_GOOGLE_CLIENT_ID.");
       return;
     }
     let cancelled = false;
@@ -74,7 +84,7 @@ function LoginPage() {
             const msg =
               err instanceof ApiError
                 ? err.message
-                : "Sign-in failed. Try again.";
+                : "Sign-in gagal. Coba lagi.";
             setError(msg);
           }
         },
@@ -110,14 +120,23 @@ function LoginPage() {
         />
         <div className="relative">
           <LogoLockup />
+          <div className="mt-8 rounded-md border border-border bg-card/40 p-5 max-w-md">
+            <h2 className="text-sm font-semibold tracking-tight">
+              Sebelum kamu beli
+            </h2>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+              {BEFORE_YOU_BUY.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          </div>
         </div>
         <div className="relative">
           <h2 className="font-heading text-3xl xl:text-4xl font-semibold tracking-tight leading-tight">
-            Pekerjaan yang cocok, bukan sekadar banyak.
+            Cariin kamu loker yang cocok, biar kamu ga capek cari sendiri.
           </h2>
           <p className="mt-3 text-muted-foreground text-base max-w-md">
-            We crawl listings, score the match, and rank the openings worth
-            your time.
+            Manfaatin waktu luangmu buat upgrade skill yang kamu butuhin dari loker yang kamu pilih / yaudah terserah mau tidur kek apalah.
           </p>
           <ul className="mt-10 space-y-6">
             {FEATURES.map(({ icon: Icon, title, body }) => (
@@ -146,10 +165,10 @@ function LoginPage() {
           <Card className="w-full shadow-sm">
             <CardHeader>
               <h1 className="text-2xl font-heading font-semibold tracking-tight">
-                Welcome back
+                Selamat datang
               </h1>
               <CardDescription>
-                Sign in to manage your Finders and review matched roles.
+                Masuk buat liat loker apa aja yang cocok buat kamu.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5 pt-2">
@@ -169,10 +188,18 @@ function LoginPage() {
                 Belum punya akun? Otomatis dibuat saat kamu sign in.
               </p>
             </CardContent>
-            <CardFooter className="justify-center text-xs">
-              By continuing you agree to our Terms and Privacy Policy.
-            </CardFooter>
+
           </Card>
+          <div className="mt-6 lg:hidden rounded-md border border-border bg-muted/30 p-5">
+            <h2 className="text-sm font-semibold tracking-tight">
+              Sebelum kamu beli
+            </h2>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+              {BEFORE_YOU_BUY.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          </div>
         </div>
       </section>
     </main>
