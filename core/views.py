@@ -17,6 +17,8 @@ from django.views import View
 
 from assessment.models import Assessment
 from assessment.tasks import crawl_and_assess_preference
+from core.forms import PlanForm
+from core.models import Plan, Subscription, SubscriptionStatus
 from jobs.models import Job
 from profiles.consts import Source, Status
 from profiles.models import Preference, Profile
@@ -224,3 +226,147 @@ class PreferenceCrawlNowView(SuperuserRequiredMixin, View):
             crawl_and_assess_preference.delay(pref.id)
             messages.success(request, f"Queued crawl + assessment for {pref}.")
         return redirect("preference_detail", pk=pref.pk)
+
+
+class PlanListView(SuperuserRequiredMixin, View):
+    def get(self, request):
+        qs = Plan.objects.all().order_by("price")
+        paginator = Paginator(qs, 25)
+        plans = paginator.get_page(request.GET.get("page", 1))
+        return render(request, "plans/list.html", {"plans": plans})
+
+
+class PlanCreateView(SuperuserRequiredMixin, View):
+    def get(self, request):
+        return render(
+            request,
+            "plans/form.html",
+            {"form": PlanForm(), "title": "New plan", "plan": None},
+        )
+
+    def post(self, request):
+        form = PlanForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request,
+                "plans/form.html",
+                {"form": form, "title": "New plan", "plan": None},
+            )
+        plan = form.save()
+        messages.success(request, f"Created plan: {plan.name}.")
+        return redirect("plan_list")
+
+
+class PlanUpdateView(SuperuserRequiredMixin, View):
+    def get(self, request, pk):
+        plan = get_object_or_404(Plan, pk=pk)
+        return render(
+            request,
+            "plans/form.html",
+            {"form": PlanForm(instance=plan), "title": "Edit plan", "plan": plan},
+        )
+
+    def post(self, request, pk):
+        plan = get_object_or_404(Plan, pk=pk)
+        form = PlanForm(request.POST, instance=plan)
+        if not form.is_valid():
+            return render(
+                request,
+                "plans/form.html",
+                {"form": form, "title": "Edit plan", "plan": plan},
+            )
+        form.save()
+        messages.success(request, f"Updated plan: {plan.name}.")
+        return redirect("plan_list")
+
+
+class PlanDeleteView(SuperuserRequiredMixin, View):
+    def post(self, request, pk):
+        plan = get_object_or_404(Plan, pk=pk)
+        if plan.subscriptions.exists():
+            messages.error(
+                request,
+                "Cannot delete plan with existing subscriptions. Deactivate instead.",
+            )
+            return redirect("plan_list")
+        plan.delete()
+        messages.success(request, "Plan deleted.")
+        return redirect("plan_list")
+
+
+class SubscriptionListView(SuperuserRequiredMixin, View):
+    def get(self, request):
+        selected_status = request.GET.get("status") or ""
+        qs = Subscription.objects.select_related("plan", "profile").order_by(
+            "-created_on"
+        )
+        if selected_status and selected_status in SubscriptionStatus.values:
+            qs = qs.filter(status=selected_status)
+
+        paginator = Paginator(qs, 20)
+        subscriptions = paginator.get_page(request.GET.get("page", 1))
+
+        counts_rows = Subscription.objects.values("status").annotate(count=Count("id"))
+        counts_by_status = {row["status"]: row["count"] for row in counts_rows}
+        status_tabs = [
+            {"value": value, "label": label, "count": counts_by_status.get(value, 0)}
+            for value, label in SubscriptionStatus.choices
+        ]
+        total_count = sum(counts_by_status.values())
+
+        return render(
+            request,
+            "subscriptions/list.html",
+            {
+                "subscriptions": subscriptions,
+                "status_tabs": status_tabs,
+                "selected_status": selected_status,
+                "total_count": total_count,
+            },
+        )
+
+
+class SubscriptionDetailView(SuperuserRequiredMixin, View):
+    def _get(self, pk):
+        return get_object_or_404(
+            Subscription.objects.select_related("plan", "profile"), pk=pk
+        )
+
+    def get(self, request, pk):
+        sub = self._get(pk)
+        return render(
+            request,
+            "subscriptions/detail.html",
+            {"subscription": sub, "status_choices": SubscriptionStatus.choices},
+        )
+
+    def post(self, request, pk):
+        sub = self._get(pk)
+        action = request.POST.get("action", "")
+        now = timezone.now()
+        if action == "activate":
+            sub.status = SubscriptionStatus.ACTIVE
+            sub.started_at = sub.started_at or now
+            sub.expires_at = now + timedelta(days=30)
+            sub.payment_provider = sub.payment_provider or "manual"
+            sub.save(
+                update_fields=[
+                    "status",
+                    "started_at",
+                    "expires_at",
+                    "payment_provider",
+                    "updated_on",
+                ]
+            )
+            messages.success(request, "Subscription activated.")
+        elif action == "expire":
+            sub.status = SubscriptionStatus.EXPIRED
+            sub.save(update_fields=["status", "updated_on"])
+            messages.success(request, "Subscription marked expired.")
+        elif action == "cancel":
+            sub.status = SubscriptionStatus.CANCELLED
+            sub.save(update_fields=["status", "updated_on"])
+            messages.success(request, "Subscription cancelled.")
+        else:
+            messages.error(request, "Unknown action.")
+        return redirect("subscription_detail", pk=sub.pk)

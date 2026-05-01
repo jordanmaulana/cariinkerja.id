@@ -1,10 +1,11 @@
-from django.contrib.auth import authenticate, get_user_model
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
-from rest_framework.authtoken.models import Token
 
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
+from core.models import Plan, Subscription
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
 from profiles.models import Preference, Profile
@@ -12,37 +13,27 @@ from profiles.models import Preference, Profile
 User = get_user_model()
 
 
-class SignupSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=8)
-
-    def validate_email(self, value):
-        if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("Email already registered.")
-        return value
-
-    def create(self, validated_data):
-        email = validated_data["email"]
-        with transaction.atomic():
-            user = User.objects.create_user(
-                username=email, email=email, password=validated_data["password"]
-            )
-            Profile.objects.create(user=user)
-            token, _ = Token.objects.get_or_create(user=user)
-        self.context["token"] = token
-        return user
-
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+class GoogleAuthSerializer(serializers.Serializer):
+    credential = serializers.CharField()
 
     def validate(self, attrs):
-        request = self.context.get("request")
-        user = authenticate(request, email=attrs["email"], password=attrs["password"])
-        if user is None:
-            raise serializers.ValidationError("Invalid email or password.")
-        attrs["user"] = user
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+
+        client_id = settings.GOOGLE_OAUTH_CLIENT_ID
+        if not client_id:
+            raise serializers.ValidationError("Google sign-in is not configured.")
+        try:
+            claims = id_token.verify_oauth2_token(
+                attrs["credential"], google_requests.Request(), client_id
+            )
+        except ValueError:
+            raise serializers.ValidationError("Invalid Google credential.")
+        if not claims.get("email"):
+            raise serializers.ValidationError("Google account has no email.")
+        if not claims.get("email_verified"):
+            raise serializers.ValidationError("Google email is not verified.")
+        attrs["claims"] = claims
         return attrs
 
 
@@ -71,7 +62,13 @@ class ProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ["full_name", "linkedin_url", "bio", "onboarded"]
+        fields = [
+            "full_name",
+            "suggested_full_name",
+            "linkedin_url",
+            "bio",
+            "onboarded",
+        ]
 
     def get_onboarded(self, profile):
         return bool(profile.full_name)
@@ -163,3 +160,29 @@ class AssessmentSerializer(serializers.ModelSerializer):
 
 class AssessmentStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=AssessmentStatus.choices)
+
+
+class PlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Plan
+        fields = ["id", "name", "price", "preference_limit"]
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    plan = PlanSerializer(read_only=True)
+
+    class Meta:
+        model = Subscription
+        fields = [
+            "id",
+            "plan",
+            "status",
+            "started_at",
+            "expires_at",
+            "payment_link",
+            "created_on",
+        ]
+
+
+class CheckoutSerializer(serializers.Serializer):
+    plan_id = serializers.CharField()

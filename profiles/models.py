@@ -22,6 +22,7 @@ class Profile(BaseModel):
         related_name="acted_profiles",
     )
     full_name = models.CharField(max_length=255, null=True, blank=True)
+    suggested_full_name = models.CharField(max_length=255, blank=True, default="")
     linkedin_url = models.URLField(null=True, blank=True)
     bio = models.TextField(null=True, blank=True)
     full_profile = models.TextField(null=True, blank=True, help_text="Filled by Admin")

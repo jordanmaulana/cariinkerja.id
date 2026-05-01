@@ -1,0 +1,88 @@
+{% extends "dashboard_base.html" %}
+{% load format_number %}
+{% block title %}Subscription — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-3xl mx-auto">
+    <header class="flex items-center justify-between">
+      <h2 class="text-2xl font-bold">Subscription</h2>
+      <a href="{% url 'subscription_list' %}" class="text-sm text-slate-600 hover:underline">← Back</a>
+    </header>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-4">
+      <dl class="grid grid-cols-2 gap-4 text-sm">
+        <dt class="text-slate-500">ID</dt>
+        <dd class="font-mono text-xs break-all">{{ subscription.id }}</dd>
+
+        <dt class="text-slate-500">Profile</dt>
+        <dd>{{ subscription.profile.full_name|default:"(no name)" }}
+          <span class="text-xs text-slate-400">{{ subscription.profile.user.email }}</span></dd>
+
+        <dt class="text-slate-500">Plan</dt>
+        <dd>{{ subscription.plan.name }} (Rp {{ subscription.plan.price|intdot }} / {{ subscription.plan.preference_limit }} pref)</dd>
+
+        <dt class="text-slate-500">Status</dt>
+        <dd>
+          <span class="px-2 py-0.5 rounded text-xs
+            {% if subscription.status == 'PENDING' %}bg-yellow-100 text-yellow-800
+            {% elif subscription.status == 'ACTIVE' %}bg-green-100 text-green-800
+            {% elif subscription.status == 'EXPIRED' %}bg-slate-200 text-slate-700
+            {% elif subscription.status == 'CANCELLED' %}bg-red-100 text-red-800
+            {% endif %}">{{ subscription.get_status_display }}</span>
+        </dd>
+
+        <dt class="text-slate-500">Provider</dt>
+        <dd>{{ subscription.payment_provider }}</dd>
+
+        <dt class="text-slate-500">Payment ref</dt>
+        <dd class="font-mono text-xs break-all">{{ subscription.payment_ref|default:"—" }}</dd>
+
+        <dt class="text-slate-500">Payment link</dt>
+        <dd>
+          {% if subscription.payment_link %}
+            <a href="{{ subscription.payment_link }}" class="text-blue-600 hover:underline break-all" target="_blank">{{ subscription.payment_link }}</a>
+          {% else %}—{% endif %}
+        </dd>
+
+        <dt class="text-slate-500">Started</dt>
+        <dd>{{ subscription.started_at|date:"Y-m-d H:i"|default:"—" }}</dd>
+
+        <dt class="text-slate-500">Expires</dt>
+        <dd>{{ subscription.expires_at|date:"Y-m-d H:i"|default:"—" }}</dd>
+
+        <dt class="text-slate-500">Created</dt>
+        <dd>{{ subscription.created_on|date:"Y-m-d H:i" }}</dd>
+      </dl>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-3">
+      <h3 class="font-semibold">Actions</h3>
+      <div class="flex flex-wrap gap-2">
+        <form method="post" class="inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="activate" />
+          <button type="submit"
+                  class="px-3 py-2 rounded bg-green-600 text-white text-sm hover:bg-green-700"
+                  onclick="return confirm('Mark this subscription ACTIVE for 30 days?');">
+            Mark active (30d)
+          </button>
+        </form>
+        <form method="post" class="inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="expire" />
+          <button type="submit"
+                  class="px-3 py-2 rounded bg-slate-600 text-white text-sm hover:bg-slate-700">
+            Mark expired
+          </button>
+        </form>
+        <form method="post" class="inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="cancel" />
+          <button type="submit"
+                  class="px-3 py-2 rounded bg-red-600 text-white text-sm hover:bg-red-700">
+            Cancel
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
+{% endblock %}

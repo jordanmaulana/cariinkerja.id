@@ -3,20 +3,22 @@ from django.urls import path
 from core.api.v1.views import (
     assessment_detail,
     assessment_list,
+    checkout,
     dashboard_stats,
-    login,
+    google_auth,
     logout,
+    mayar_webhook,
     me,
+    my_subscription,
     onboarding,
+    plan_list,
     preference_detail,
     preference_list,
     profile_me,
-    signup,
 )
 
 urlpatterns = [
-    path("auth/signup/", signup, name="api-v1-signup"),
-    path("auth/login/", login, name="api-v1-login"),
+    path("auth/google/", google_auth, name="api-v1-auth-google"),
     path("auth/logout/", logout, name="api-v1-logout"),
     path("auth/me/", me, name="api-v1-me"),
     path("profile/me/", profile_me, name="api-v1-profile-me"),
@@ -26,4 +28,8 @@ urlpatterns = [
     path("preferences/<str:pk>/", preference_detail, name="api-v1-preference-detail"),
     path("assessments/", assessment_list, name="api-v1-assessment-list"),
     path("assessments/<str:pk>/", assessment_detail, name="api-v1-assessment-detail"),
+    path("plans/", plan_list, name="api-v1-plan-list"),
+    path("subscriptions/me/", my_subscription, name="api-v1-subscription-me"),
+    path("subscriptions/checkout/", checkout, name="api-v1-subscription-checkout"),
+    path("payments/mayar/webhook/", mayar_webhook, name="api-v1-mayar-webhook"),
 ]

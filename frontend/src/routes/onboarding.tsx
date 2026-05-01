@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSetAtom } from "jotai";
 
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
-import { submitOnboarding } from "@/lib/auth";
+import { getProfile, submitOnboarding } from "@/lib/auth";
 import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts";
 import type { JobType, RemoteOption } from "@/lib/consts";
 import { userAtom } from "@/state/atoms";
@@ -15,6 +15,21 @@ export const Route = createFileRoute("/onboarding")({
 
 function OnboardingPage() {
   const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    getProfile()
+      .then((p) => {
+        if (cancelled) return;
+        const prefill = p.full_name || p.suggested_full_name || "";
+        if (prefill) setFullName(prefill);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [bio, setBio] = useState("");
   const [title, setTitle] = useState("");

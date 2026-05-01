@@ -14,7 +14,7 @@ import { ApiError } from "@/lib/api"
 import { me } from "@/lib/auth"
 import { tokenAtom, userAtom } from "@/state/atoms"
 
-const PUBLIC_PATHS = new Set(["/login", "/signup"])
+const PUBLIC_PATHS = new Set(["/login"])
 const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, "/onboarding"])
 
 function AuthGate() {

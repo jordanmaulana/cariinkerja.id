@@ -174,6 +174,15 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-2024-08-06")
 
+MAYAR_API_KEY = os.environ.get("MAYAR_API_KEY", "")
+MAYAR_WEBHOOK_TOKEN = os.environ.get("MAYAR_WEBHOOK_TOKEN", "")
+MAYAR_BASE_URL = os.environ.get("MAYAR_BASE_URL", "https://api.mayar.id/hl/v1")
+PAYMENT_REDIRECT_URL = os.environ.get(
+    "PAYMENT_REDIRECT_URL", "http://localhost:5173/plans"
+)
+
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

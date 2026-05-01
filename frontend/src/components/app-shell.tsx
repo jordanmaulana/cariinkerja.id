@@ -2,6 +2,7 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import { useAtom, useSetAtom } from "jotai"
 import {
   ClipboardCheck,
+  CreditCard,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -27,12 +28,14 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/assessments", label: "Available Jobs", icon: ClipboardCheck },
   { to: "/preferences", label: "Finder", icon: SlidersHorizontal },
+  { to: "/plans", label: "Plans", icon: CreditCard },
 ] as const
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/assessments": "Available Jobs",
   "/preferences": "Finder",
+  "/plans": "Plans",
 }
 
 const THEME_KEY = "theme"

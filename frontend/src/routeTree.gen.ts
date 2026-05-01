@@ -9,26 +9,27 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupRouteImport } from './routes/signup'
 import { Route as PreferencesRouteImport } from './routes/preferences'
+import { Route as PlansRouteImport } from './routes/plans'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AssessmentsRouteImport } from './routes/assessments'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreferencesIndexRouteImport } from './routes/preferences.index'
+import { Route as PlansIndexRouteImport } from './routes/plans.index'
 import { Route as AssessmentsIndexRouteImport } from './routes/assessments.index'
 import { Route as PreferencesIdRouteImport } from './routes/preferences.$id'
 import { Route as AssessmentsIdRouteImport } from './routes/assessments.$id'
 
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PreferencesRoute = PreferencesRouteImport.update({
   id: '/preferences',
   path: '/preferences',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlansRoute = PlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -61,6 +62,11 @@ const PreferencesIndexRoute = PreferencesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PreferencesRoute,
 } as any)
+const PlansIndexRoute = PlansIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlansRoute,
+} as any)
 const AssessmentsIndexRoute = AssessmentsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -83,11 +89,12 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/plans': typeof PlansRouteWithChildren
   '/preferences': typeof PreferencesRouteWithChildren
-  '/signup': typeof SignupRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
   '/assessments/': typeof AssessmentsIndexRoute
+  '/plans/': typeof PlansIndexRoute
   '/preferences/': typeof PreferencesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -95,10 +102,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
-  '/signup': typeof SignupRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
   '/assessments': typeof AssessmentsIndexRoute
+  '/plans': typeof PlansIndexRoute
   '/preferences': typeof PreferencesIndexRoute
 }
 export interface FileRoutesById {
@@ -108,11 +115,12 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/plans': typeof PlansRouteWithChildren
   '/preferences': typeof PreferencesRouteWithChildren
-  '/signup': typeof SignupRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
   '/assessments/': typeof AssessmentsIndexRoute
+  '/plans/': typeof PlansIndexRoute
   '/preferences/': typeof PreferencesIndexRoute
 }
 export interface FileRouteTypes {
@@ -123,11 +131,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/onboarding'
+    | '/plans'
     | '/preferences'
-    | '/signup'
     | '/assessments/$id'
     | '/preferences/$id'
     | '/assessments/'
+    | '/plans/'
     | '/preferences/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -135,10 +144,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/onboarding'
-    | '/signup'
     | '/assessments/$id'
     | '/preferences/$id'
     | '/assessments'
+    | '/plans'
     | '/preferences'
   id:
     | '__root__'
@@ -147,11 +156,12 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/onboarding'
+    | '/plans'
     | '/preferences'
-    | '/signup'
     | '/assessments/$id'
     | '/preferences/$id'
     | '/assessments/'
+    | '/plans/'
     | '/preferences/'
   fileRoutesById: FileRoutesById
 }
@@ -161,24 +171,24 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  PlansRoute: typeof PlansRouteWithChildren
   PreferencesRoute: typeof PreferencesRouteWithChildren
-  SignupRoute: typeof SignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/preferences': {
       id: '/preferences'
       path: '/preferences'
       fullPath: '/preferences'
       preLoaderRoute: typeof PreferencesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plans': {
+      id: '/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof PlansRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -223,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreferencesIndexRouteImport
       parentRoute: typeof PreferencesRoute
     }
+    '/plans/': {
+      id: '/plans/'
+      path: '/'
+      fullPath: '/plans/'
+      preLoaderRoute: typeof PlansIndexRouteImport
+      parentRoute: typeof PlansRoute
+    }
     '/assessments/': {
       id: '/assessments/'
       path: '/'
@@ -261,6 +278,16 @@ const AssessmentsRouteWithChildren = AssessmentsRoute._addFileChildren(
   AssessmentsRouteChildren,
 )
 
+interface PlansRouteChildren {
+  PlansIndexRoute: typeof PlansIndexRoute
+}
+
+const PlansRouteChildren: PlansRouteChildren = {
+  PlansIndexRoute: PlansIndexRoute,
+}
+
+const PlansRouteWithChildren = PlansRoute._addFileChildren(PlansRouteChildren)
+
 interface PreferencesRouteChildren {
   PreferencesIdRoute: typeof PreferencesIdRoute
   PreferencesIndexRoute: typeof PreferencesIndexRoute
@@ -281,8 +308,8 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  PlansRoute: PlansRouteWithChildren,
   PreferencesRoute: PreferencesRouteWithChildren,
-  SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,0 +1,47 @@
+{% extends "dashboard_base.html" %}
+{% block title %}{{ title }} — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-2xl mx-auto">
+    <header class="flex items-center justify-between">
+      <h2 class="text-2xl font-bold">{{ title }}</h2>
+      <a href="{% url 'plan_list' %}" class="text-sm text-slate-600 hover:underline">← Back to plans</a>
+    </header>
+
+    <form method="post" class="space-y-4 p-4 rounded-lg border shadow-sm">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="p-3 rounded bg-red-50 text-red-800 text-sm">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.name.id_for_label }}">Name</label>
+        {{ form.name }}
+        {% if form.name.errors %}<p class="text-xs text-red-600">{{ form.name.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.price.id_for_label }}">Price (IDR)</label>
+        {{ form.price }}
+        {% if form.price.errors %}<p class="text-xs text-red-600">{{ form.price.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.preference_limit.id_for_label }}">Preference limit</label>
+        {{ form.preference_limit }}
+        {% if form.preference_limit.errors %}<p class="text-xs text-red-600">{{ form.preference_limit.errors.0 }}</p>{% endif %}
+      </div>
+
+      <label class="flex items-center gap-2 text-sm">
+        {{ form.is_active }}
+        <span>Active (visible to users)</span>
+      </label>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <a href="{% url 'plan_list' %}" class="px-4 py-2 rounded border text-sm hover:bg-slate-50">Cancel</a>
+        <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
+          Save
+        </button>
+      </div>
+    </form>
+  </main>
+{% endblock %}

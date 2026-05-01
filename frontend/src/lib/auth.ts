@@ -12,6 +12,7 @@ export type AuthResponse = { token: string; user: AuthUser };
 
 export type ProfileMe = {
   full_name: string | null;
+  suggested_full_name: string;
   linkedin_url: string | null;
   bio: string | null;
   onboarded: boolean;
@@ -31,26 +32,10 @@ function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-export async function signup(payload: {
-  email: string;
-  password: string;
-}): Promise<AuthResponse> {
-  const res = await api<AuthResponse>("/auth/signup/", {
+export async function googleSignIn(credential: string): Promise<AuthResponse> {
+  const res = await api<AuthResponse>("/auth/google/", {
     method: "POST",
-    body: JSON.stringify(payload),
-    skipAuth: true,
-  });
-  setToken(res.token);
-  return res;
-}
-
-export async function login(payload: {
-  email: string;
-  password: string;
-}): Promise<AuthResponse> {
-  const res = await api<AuthResponse>("/auth/login/", {
-    method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ credential }),
     skipAuth: true,
   });
   setToken(res.token);

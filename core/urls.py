@@ -8,9 +8,15 @@ from django.views.generic import RedirectView
 from core.views import (
     AdminLoginView,
     DashboardView,
+    PlanCreateView,
+    PlanDeleteView,
+    PlanListView,
+    PlanUpdateView,
     PreferenceCrawlNowView,
     PreferenceDetailView,
     PreferenceListView,
+    SubscriptionDetailView,
+    SubscriptionListView,
 )
 
 urlpatterns = [
@@ -32,6 +38,16 @@ urlpatterns = [
         "preferences/<str:pk>/crawl-now/",
         PreferenceCrawlNowView.as_view(),
         name="preference_crawl_now",
+    ),
+    path("plans/", PlanListView.as_view(), name="plan_list"),
+    path("plans/new/", PlanCreateView.as_view(), name="plan_create"),
+    path("plans/<str:pk>/edit/", PlanUpdateView.as_view(), name="plan_update"),
+    path("plans/<str:pk>/delete/", PlanDeleteView.as_view(), name="plan_delete"),
+    path("subscriptions/", SubscriptionListView.as_view(), name="subscription_list"),
+    path(
+        "subscriptions/<str:pk>/",
+        SubscriptionDetailView.as_view(),
+        name="subscription_detail",
     ),
     path("assessments/", include("assessment.urls")),
     path("profiles/", include("profiles.urls")),

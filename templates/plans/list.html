@@ -1,0 +1,70 @@
+{% extends "dashboard_base.html" %}
+{% load format_number %}
+{% block title %}Plans — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-7xl mx-auto">
+    <header class="flex items-center justify-between">
+      <h2 class="text-2xl font-bold">Plans</h2>
+      <a href="{% url 'plan_create' %}"
+         class="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">+ New plan</a>
+    </header>
+
+    <section class="p-4 rounded-lg border shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500">
+            <tr class="border-b">
+              <th class="py-2">Name</th>
+              <th class="py-2 text-right">Price (Rp)</th>
+              <th class="py-2 text-right">Preference limit</th>
+              <th class="py-2">Active</th>
+              <th class="py-2">Created</th>
+              <th class="py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in plans %}
+              <tr class="border-b last:border-0 hover:bg-slate-50">
+                <td class="py-2 font-medium">{{ p.name }}</td>
+                <td class="py-2 text-right tabular-nums">{{ p.price|intdot }}</td>
+                <td class="py-2 text-right tabular-nums">{{ p.preference_limit }}</td>
+                <td class="py-2">
+                  {% if p.is_active %}
+                    <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">Active</span>
+                  {% else %}
+                    <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">Inactive</span>
+                  {% endif %}
+                </td>
+                <td class="py-2 text-slate-500">{{ p.created_on|date:"Y-m-d" }}</td>
+                <td class="py-2 text-right space-x-2">
+                  <a href="{% url 'plan_update' p.id %}" class="text-blue-600 hover:underline text-sm">Edit</a>
+                  <form method="post" action="{% url 'plan_delete' p.id %}" class="inline"
+                        onsubmit="return confirm('Delete plan {{ p.name|escapejs }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="text-red-600 hover:underline text-sm">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="py-4 text-slate-400 text-center">No plans yet. Create one.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if plans.has_other_pages %}
+        <div class="mt-4 flex items-center justify-between text-sm">
+          <span class="text-slate-500">Page {{ plans.number }} of {{ plans.paginator.num_pages }}</span>
+          <div class="space-x-2">
+            {% if plans.has_previous %}
+              <a href="?page={{ plans.previous_page_number }}" class="px-3 py-1 rounded border hover:bg-slate-100">Previous</a>
+            {% endif %}
+            {% if plans.has_next %}
+              <a href="?page={{ plans.next_page_number }}" class="px-3 py-1 rounded border hover:bg-slate-100">Next</a>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+{% endblock %}

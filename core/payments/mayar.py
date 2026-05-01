@@ -1,0 +1,68 @@
+import httpx
+from django.conf import settings
+
+
+class MayarError(Exception):
+    pass
+
+
+def _base_url() -> str:
+    return getattr(settings, "MAYAR_BASE_URL", "") or "https://api.mayar.id/hl/v1"
+
+
+def create_payment_link(
+    *,
+    name: str,
+    amount: int,
+    email: str,
+    description: str,
+    redirect_url: str,
+    mobile: str = "",
+) -> dict:
+    api_key = settings.MAYAR_API_KEY
+    if not api_key:
+        raise MayarError("MAYAR_API_KEY not configured.")
+
+    payload = {
+        "name": name,
+        "amount": amount,
+        "email": email,
+        "description": description,
+        "redirectUrl": redirect_url,
+    }
+    if mobile:
+        payload["mobile"] = mobile
+
+    try:
+        resp = httpx.post(
+            f"{_base_url()}/payment/create",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=15,
+        )
+    except httpx.HTTPError as exc:
+        raise MayarError(f"Mayar request failed: {exc}") from exc
+
+    if resp.status_code >= 400:
+        raise MayarError(f"Mayar {resp.status_code}: {resp.text}")
+
+    body = resp.json()
+    data = body.get("data") or {}
+    link = data.get("link")
+    transaction_id = data.get("id") or data.get("transaction_id")
+    if not link or not transaction_id:
+        raise MayarError(f"Mayar response missing link/id: {body}")
+    return {"link": link, "transaction_id": str(transaction_id)}
+
+
+def verify_webhook(request) -> bool:
+    expected = getattr(settings, "MAYAR_WEBHOOK_TOKEN", "") or ""
+    if not expected:
+        return False
+    received = request.headers.get("X-Callback-Token") or request.headers.get(
+        "x-callback-token"
+    )
+    return received == expected

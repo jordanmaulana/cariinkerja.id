@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from django.conf import settings as dj_settings
+from django.contrib.auth import get_user_model
 from django.core.paginator import EmptyPage, Paginator
 from django.db import transaction
 from django.db.models import Avg, Count, Q
@@ -17,38 +19,50 @@ from assessment.models import Assessment
 from core.api.v1.serializers import (
     AssessmentSerializer,
     AssessmentStatusUpdateSerializer,
-    LoginSerializer,
+    CheckoutSerializer,
+    GoogleAuthSerializer,
     OnboardingSerializer,
+    PlanSerializer,
     PreferenceSerializer,
     ProfileSerializer,
-    SignupSerializer,
+    SubscriptionSerializer,
     UserSerializer,
 )
+from core.models import Plan, Subscription, SubscriptionStatus
+from core.payments.mayar import MayarError, create_payment_link, verify_webhook
 from profiles.consts import Status as PreferenceStatus
-from profiles.models import Preference
+from profiles.models import Preference, Profile
+
+User = get_user_model()
 
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
-def signup(request):
-    serializer = SignupSerializer(data=request.data)
+def google_auth(request):
+    serializer = GoogleAuthSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    user = serializer.save()
-    token = serializer.context["token"]
+    claims = serializer.validated_data["claims"]
+    email = claims["email"].lower()
+    google_name = (claims.get("name") or "").strip()
+    with transaction.atomic():
+        user = User.objects.filter(email__iexact=email).first()
+        created = False
+        if user is None:
+            user = User.objects.create_user(username=email, email=email)
+            created = True
+        profile, _ = Profile.objects.get_or_create(user=user)
+        if (
+            google_name
+            and not profile.full_name
+            and profile.suggested_full_name != google_name
+        ):
+            profile.suggested_full_name = google_name
+            profile.save()
+        token, _ = Token.objects.get_or_create(user=user)
     return Response(
         {"token": token.key, "user": UserSerializer(user).data},
-        status=status.HTTP_201_CREATED,
+        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
     )
-
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def login(request):
-    serializer = LoginSerializer(data=request.data, context={"request": request})
-    serializer.is_valid(raise_exception=True)
-    user = serializer.validated_data["user"]
-    token, _ = Token.objects.get_or_create(user=user)
-    return Response({"token": token.key, "user": UserSerializer(user).data})
 
 
 @api_view(["POST"])
@@ -118,9 +132,7 @@ def assessment_list(request):
     try:
         page = int(request.query_params.get("page", 1))
     except ValueError:
-        return Response(
-            {"detail": "Invalid page."}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"detail": "Invalid page."}, status=status.HTTP_400_BAD_REQUEST)
     try:
         page_size = int(request.query_params.get("page_size", 25))
     except ValueError:
@@ -253,6 +265,128 @@ def preference_detail(request, pk):
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def plan_list(request):
+    qs = Plan.objects.filter(is_active=True).order_by("price")
+    return Response(PlanSerializer(qs, many=True).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_subscription(request):
+    profile = getattr(request.user, "profile", None)
+    if profile is None:
+        return Response(
+            {"detail": "Profile missing for user."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    sub = (
+        Subscription.objects.filter(profile=profile)
+        .select_related("plan")
+        .order_by("-created_on")
+        .first()
+    )
+    if sub is None:
+        return Response(
+            {"detail": "No subscription."}, status=status.HTTP_404_NOT_FOUND
+        )
+    return Response(SubscriptionSerializer(sub).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def checkout(request):
+    profile = getattr(request.user, "profile", None)
+    if profile is None:
+        return Response(
+            {"detail": "Profile missing for user."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    serializer = CheckoutSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    plan = get_object_or_404(
+        Plan, pk=serializer.validated_data["plan_id"], is_active=True
+    )
+
+    with transaction.atomic():
+        sub = Subscription.objects.create(
+            profile=profile,
+            plan=plan,
+            status=SubscriptionStatus.PENDING,
+            payment_provider="mayar",
+        )
+
+    redirect_url = dj_settings.PAYMENT_REDIRECT_URL
+    try:
+        link = create_payment_link(
+            name=profile.full_name or request.user.email,
+            amount=plan.price,
+            email=request.user.email,
+            description=f"{plan.name} subscription (1 month)",
+            redirect_url=redirect_url,
+        )
+    except MayarError as exc:
+        sub.delete()
+        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    sub.payment_link = link["link"]
+    sub.payment_ref = link["transaction_id"]
+    sub.save(update_fields=["payment_link", "payment_ref", "updated_on"])
+
+    return Response(
+        {
+            "subscription_id": sub.id,
+            "payment_link": sub.payment_link,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def mayar_webhook(request):
+    if not verify_webhook(request):
+        return Response(
+            {"detail": "Invalid token."}, status=status.HTTP_401_UNAUTHORIZED
+        )
+    event = request.data.get("event") or ""
+    data = request.data.get("data") or {}
+    payment_ref = str(data.get("id") or data.get("transaction_id") or "")
+    if not payment_ref:
+        return Response(
+            {"detail": "Missing transaction id."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    sub = Subscription.objects.filter(payment_ref=payment_ref).first()
+    if sub is None:
+        return Response(
+            {"detail": "Subscription not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if event in {"payment.received", "payment.success", "PAYMENT_RECEIVED"}:
+        if sub.status != SubscriptionStatus.ACTIVE:
+            now = timezone.now()
+            sub.status = SubscriptionStatus.ACTIVE
+            sub.started_at = now
+            sub.expires_at = now + timedelta(days=30)
+            sub.save(
+                update_fields=[
+                    "status",
+                    "started_at",
+                    "expires_at",
+                    "updated_on",
+                ]
+            )
+    elif event in {"payment.failed", "payment.expired"}:
+        if sub.status == SubscriptionStatus.PENDING:
+            sub.status = SubscriptionStatus.CANCELLED
+            sub.save(update_fields=["status", "updated_on"])
+
+    return Response({"ok": True})
 
 
 @api_view(["GET", "PATCH"])
