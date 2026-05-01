@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -22,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   type Assessment,
   type AssessmentStatus,
@@ -36,10 +36,7 @@ export const Route = createFileRoute("/assessments/")({
   component: AssessmentsPage,
 })
 
-type TabValue = "all" | AssessmentStatus
-
-const TAB_LABELS: Record<TabValue, string> = {
-  all: "All",
+const STATUS_LABEL: Record<AssessmentStatus, string> = {
   new: "New",
   seen: "Seen",
   applied: "Applied",
@@ -94,20 +91,36 @@ function getActionsForStatus(status: AssessmentStatus): Action[] {
 }
 
 function AssessmentsPage() {
-  const [tab, setTab] = useState<TabValue>("all")
+  const [selectedStatuses, setSelectedStatuses] = useState<
+    Set<AssessmentStatus>
+  >(() => new Set())
   const [minScoreInput, setMinScoreInput] = useState("")
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const statusFilter = tab === "all" ? undefined : tab
   const parsed = minScoreInput === "" ? undefined : Number(minScoreInput)
   const minScore =
     parsed != null && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
 
   const query = useQuery({
-    queryKey: ["assessments", tab, minScore ?? null],
-    queryFn: () => listAssessments({ status: statusFilter, minScore }),
+    queryKey: ["assessments", minScore ?? null],
+    queryFn: () => listAssessments({ minScore }),
   })
+
+  const filteredRows = query.data
+    ? selectedStatuses.size === 0
+      ? query.data
+      : query.data.filter((row) => selectedStatuses.has(row.status))
+    : undefined
+
+  function toggleStatus(s: AssessmentStatus, checked: boolean) {
+    setSelectedStatuses((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(s)
+      else next.delete(s)
+      return next
+    })
+  }
 
   const mutation = useMutation({
     mutationFn: ({ id, next }: { id: string; next: AssessmentStatus }) =>
@@ -131,21 +144,25 @@ function AssessmentsPage() {
           <div className="space-y-1">
             <CardTitle>Pipeline</CardTitle>
             <CardDescription>
-              {query.data?.length ?? 0} matching{" "}
-              {(query.data?.length ?? 0) === 1 ? "available job" : "available jobs"}
+              {filteredRows?.length ?? 0} matching{" "}
+              {(filteredRows?.length ?? 0) === 1 ? "available job" : "available jobs"}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Tabs value={tab} onValueChange={(v) => setTab(v as TabValue)}>
-              <TabsList>
-                <TabsTrigger value="all">{TAB_LABELS.all}</TabsTrigger>
-                {ASSESSMENT_STATUSES.map((s) => (
-                  <TabsTrigger key={s} value={s}>
-                    {TAB_LABELS[s]}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+            <div className="flex flex-wrap items-center gap-3">
+              {ASSESSMENT_STATUSES.map((s) => (
+                <label
+                  key={s}
+                  className="flex cursor-pointer items-center gap-2 text-sm"
+                >
+                  <Checkbox
+                    checked={selectedStatuses.has(s)}
+                    onCheckedChange={(c) => toggleStatus(s, c === true)}
+                  />
+                  {STATUS_LABEL[s]}
+                </label>
+              ))}
+            </div>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -172,14 +189,14 @@ function AssessmentsPage() {
               Failed to load available jobs.
             </p>
           )}
-          {query.data && query.data.length === 0 && !query.isLoading && (
+          {filteredRows && filteredRows.length === 0 && !query.isLoading && (
             <p className="px-6 pb-6 text-sm text-muted-foreground">
               No available jobs match these filters.
             </p>
           )}
-          {query.data && query.data.length > 0 && (
+          {filteredRows && filteredRows.length > 0 && (
             <AssessmentsTable
-              rows={query.data}
+              rows={filteredRows}
               isPending={mutation.isPending}
               pendingId={mutation.variables?.id}
               onAction={(id, next) => mutation.mutate({ id, next })}

@@ -131,9 +131,7 @@ def dashboard_stats(request):
         bucket_mid_high=Count("id", filter=Q(score__gt=50, score__lte=75)),
         bucket_high=Count("id", filter=Q(score__gt=75)),
     )
-    by_status_rows = (
-        assessments.values("status").annotate(count=Count("id")).order_by()
-    )
+    by_status_rows = assessments.values("status").annotate(count=Count("id")).order_by()
     by_status = {row["status"]: row["count"] for row in by_status_rows}
     for value in AssessmentStatus.values:
         by_status.setdefault(value, 0)
@@ -203,9 +201,7 @@ def preference_list(request):
     serializer = PreferenceSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     pref = serializer.save(profile=profile)
-    return Response(
-        PreferenceSerializer(pref).data, status=status.HTTP_201_CREATED
-    )
+    return Response(PreferenceSerializer(pref).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET", "PATCH", "PUT", "DELETE"])
