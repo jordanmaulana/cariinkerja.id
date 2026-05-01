@@ -1,0 +1,131 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Assessment detail — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-4xl mx-auto">
+    <div>
+      <a href="{% url 'assessment_list' %}" class="text-sm text-blue-600 hover:underline">← Back to assessments</a>
+    </div>
+
+    <header class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-2xl font-bold">{{ job.title|default:"(untitled job)" }}</h2>
+        <p class="text-slate-500 text-sm">Assessment ID: {{ assessment.id }}</p>
+      </div>
+      <form method="post" action="{% url 'assessment_reassess' pk=assessment.pk %}">
+        {% csrf_token %}
+        <button type="submit"
+                class="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">
+          Re-assess
+        </button>
+      </form>
+    </header>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">Score &amp; verdict</h3>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">Score</dt>
+        <dd class="font-semibold">{{ assessment.score }}</dd>
+        <dt class="text-slate-500">Verdict</dt>
+        <dd class="whitespace-pre-wrap">{{ assessment.verdict|default:"—" }}</dd>
+        <dt class="text-slate-500">Created</dt>
+        <dd>{{ assessment.created_on|date:"Y-m-d H:i" }}</dd>
+        <dt class="text-slate-500">Updated</dt>
+        <dd>{{ assessment.updated_on|date:"Y-m-d H:i" }}</dd>
+      </dl>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <h3 class="text-lg font-semibold mb-2">Hard skills — match</h3>
+        {% if assessment.hard_skill_match %}
+          <ul class="list-disc list-inside text-sm space-y-1">
+            {% for s in assessment.hard_skill_match %}<li>{{ s }}</li>{% endfor %}
+          </ul>
+        {% else %}<p class="text-sm text-slate-400">—</p>{% endif %}
+      </div>
+      <div>
+        <h3 class="text-lg font-semibold mb-2">Hard skills — gap</h3>
+        {% if assessment.hard_skill_gap %}
+          <ul class="list-disc list-inside text-sm space-y-1">
+            {% for s in assessment.hard_skill_gap %}<li>{{ s }}</li>{% endfor %}
+          </ul>
+        {% else %}<p class="text-sm text-slate-400">—</p>{% endif %}
+      </div>
+      <div>
+        <h3 class="text-lg font-semibold mb-2">Soft skills — match</h3>
+        {% if assessment.soft_skill_match %}
+          <ul class="list-disc list-inside text-sm space-y-1">
+            {% for s in assessment.soft_skill_match %}<li>{{ s }}</li>{% endfor %}
+          </ul>
+        {% else %}<p class="text-sm text-slate-400">—</p>{% endif %}
+      </div>
+      <div>
+        <h3 class="text-lg font-semibold mb-2">Soft skills — gap</h3>
+        {% if assessment.soft_skill_gap %}
+          <ul class="list-disc list-inside text-sm space-y-1">
+            {% for s in assessment.soft_skill_gap %}<li>{{ s }}</li>{% endfor %}
+          </ul>
+        {% else %}<p class="text-sm text-slate-400">—</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">Job</h3>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">Title</dt>
+        <dd>{{ job.title|default:"—" }}</dd>
+        <dt class="text-slate-500">Company</dt>
+        <dd>{{ job.company|default:"—" }}</dd>
+        <dt class="text-slate-500">Location</dt>
+        <dd>{{ job.location|default:"—" }}</dd>
+        <dt class="text-slate-500">Job type</dt>
+        <dd>{{ job.get_job_type_display|default:"—" }}</dd>
+        <dt class="text-slate-500">Remote option</dt>
+        <dd>{{ job.get_remote_option_display|default:"—" }}</dd>
+        <dt class="text-slate-500">URL</dt>
+        <dd>
+          {% if job.url %}
+            <a href="{{ job.url }}" class="text-blue-600 hover:underline" target="_blank" rel="noopener">{{ job.url }}</a>
+          {% else %}—{% endif %}
+        </dd>
+      </dl>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">Preference &amp; profile</h3>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">Candidate</dt>
+        <dd>
+          <a href="{% url 'preference_detail' preference.id %}" class="text-blue-600 hover:underline">
+            {{ profile.full_name|default:"(no name)" }}
+          </a>
+        </dd>
+        <dt class="text-slate-500">Preference title</dt>
+        <dd>{{ preference.title|default:"—" }}</dd>
+        <dt class="text-slate-500">Preference job type</dt>
+        <dd>{{ preference.get_job_type_display|default:"—" }}</dd>
+        <dt class="text-slate-500">Preference remote option</dt>
+        <dd>{{ preference.get_remote_option_display|default:"—" }}</dd>
+      </dl>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm">
+      <h3 class="text-lg font-semibold mb-3">Status</h3>
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label for="status" class="block text-sm font-medium text-slate-700">Status</label>
+          <select id="status" name="status"
+                  class="mt-1 w-full rounded border-slate-300 border p-2 text-sm bg-white">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if assessment.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+        </div>
+      </form>
+    </section>
+  </main>
+{% endblock %}

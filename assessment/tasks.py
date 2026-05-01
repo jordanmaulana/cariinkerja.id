@@ -91,3 +91,29 @@ def assess_job(job_id: str, preference_id: str):
         },
     )
     return "created" if created else "skipped"
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def reassess_assessment(assessment_id: str):
+    assessment = Assessment.objects.select_related("job", "preference__profile").get(
+        id=assessment_id
+    )
+    result = assess(assessment.job, assessment.preference)
+    assessment.soft_skill_match = result.soft_skill_match
+    assessment.soft_skill_gap = result.soft_skill_gap
+    assessment.hard_skill_match = result.hard_skill_match
+    assessment.hard_skill_gap = result.hard_skill_gap
+    assessment.score = result.score
+    assessment.verdict = result.verdict
+    assessment.save(
+        update_fields=[
+            "soft_skill_match",
+            "soft_skill_gap",
+            "hard_skill_match",
+            "hard_skill_gap",
+            "score",
+            "verdict",
+            "updated_on",
+        ]
+    )
+    return "reassessed"
