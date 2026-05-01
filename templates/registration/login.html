@@ -9,7 +9,15 @@
   <body class="bg-gray-100">
     <main class="flex h-screen overflow-hidden">
       <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md h-min m-auto">
-        <h2 class="text-2xl font-semibold text-center mb-6">cariinkerja.id Admin Login</h2>
+        <div class="flex items-center justify-center gap-2 mb-6 text-blue-600">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7" aria-hidden="true">
+            <circle cx="24" cy="24" r="20"/>
+            <circle cx="24" cy="24" r="11"/>
+            <path d="M24 13l1.6 4.4L30 19l-4.4 1.6L24 25l-1.6-4.4L18 19l4.4-1.6Z" fill="currentColor" stroke="none"/>
+            <path d="M24 17v14M17 24h14"/>
+          </svg>
+          <h2 class="text-2xl font-semibold text-gray-900">cariinkerja<span class="opacity-70">.id</span> Admin</h2>
+        </div>
         {% if form.errors %}
           <div class="bg-red-100 text-red-700 p-4 rounded mb-4">
             Username or password incorrect.

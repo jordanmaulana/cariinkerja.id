@@ -5,13 +5,11 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
-  Moon,
   SlidersHorizontal,
-  Sun,
 } from "lucide-react"
-import { useEffect, useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { LogoMark } from "@/components/logo-mark"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,25 +36,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/plans": "Plans",
 }
 
-const THEME_KEY = "theme"
-
-function useTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light"
-    const stored = localStorage.getItem(THEME_KEY)
-    if (stored === "dark" || stored === "light") return stored
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light"
-  })
-  useEffect(() => {
-    const root = document.documentElement
-    root.classList.toggle("dark", theme === "dark")
-    localStorage.setItem(THEME_KEY, theme)
-  }, [theme])
-  return { theme, toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")) }
-}
-
 function pageTitle(pathname: string) {
   const exact = PAGE_TITLES[pathname]
   if (exact) return exact
@@ -77,7 +56,6 @@ export function AppShell() {
   const setToken = useSetAtom(tokenAtom)
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const { theme, toggle } = useTheme()
 
   async function onLogout() {
     await logout()
@@ -90,10 +68,10 @@ export function AppShell() {
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
         <div className="flex h-14 items-center gap-2 border-b px-5">
+          <LogoMark className="size-5 text-primary" />
           <span className="text-sm font-semibold tracking-tight">
-            cariinkerja
+            cariinkerja<span className="opacity-60">.id</span>
           </span>
-          <span className="text-xs text-muted-foreground">.id</span>
         </div>
         <nav className="flex flex-col gap-1 p-3">
           {NAV.map(({ to, label, icon: Icon }) => {
@@ -124,18 +102,7 @@ export function AppShell() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Toggle theme"
-              onClick={toggle}
-            >
-              {theme === "dark" ? (
-                <Sun className="size-4" />
-              ) : (
-                <Moon className="size-4" />
-              )}
-            </Button>
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

@@ -3,6 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSetAtom } from "jotai";
 import { Briefcase, Search, Sparkles } from "lucide-react";
 
+import { LogoLockup } from "@/components/logo-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Card,
   CardContent,
@@ -37,22 +39,6 @@ const FEATURES = [
     body: "A ranked list of Available Jobs — updated each visit, no doomscrolling.",
   },
 ] as const;
-
-function LogoMark() {
-  return (
-    <div className="flex items-center gap-2">
-      <div
-        aria-hidden
-        className="size-8 rounded-md bg-primary text-primary-foreground grid place-items-center"
-      >
-        <Sparkles className="size-4" />
-      </div>
-      <span className="font-heading text-lg font-semibold tracking-tight">
-        cariinkerja.id
-      </span>
-    </div>
-  );
-}
 
 function LoginPage() {
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -109,6 +95,9 @@ function LoginPage() {
 
   return (
     <main className="relative min-h-svh w-full grid lg:grid-cols-2">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       <section className="hidden lg:flex flex-col justify-between p-12 border-r border-border bg-muted/30 relative overflow-hidden">
         <div
           aria-hidden
@@ -120,7 +109,7 @@ function LoginPage() {
           }}
         />
         <div className="relative">
-          <LogoMark />
+          <LogoLockup />
         </div>
         <div className="relative">
           <h2 className="font-heading text-3xl xl:text-4xl font-semibold tracking-tight leading-tight">
@@ -152,7 +141,7 @@ function LoginPage() {
       <section className="flex items-center justify-center p-6 sm:p-10 relative">
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-6 flex items-center gap-2 justify-center">
-            <LogoMark />
+            <LogoLockup />
           </div>
           <Card className="w-full shadow-sm">
             <CardHeader>

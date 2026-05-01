@@ -13,7 +13,15 @@
     <main class="flex h-screen overflow-hidden">
       <aside class="w-[230px] bg-blue-500 text-white flex-shrink-0 p-4 flex flex-col justify-between">
         <div class="flex flex-col">
-          <h1 class="text-xl font-bold mb-6">cariinkerja.id Admin</h1>
+          <h1 class="text-xl font-bold mb-6 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6" aria-hidden="true">
+              <circle cx="24" cy="24" r="20"/>
+              <circle cx="24" cy="24" r="11"/>
+              <path d="M24 13l1.6 4.4L30 19l-4.4 1.6L24 25l-1.6-4.4L18 19l4.4-1.6Z" fill="currentColor" stroke="none"/>
+              <path d="M24 17v14M17 24h14"/>
+            </svg>
+            <span>cariinkerja<span class="opacity-70">.id</span> Admin</span>
+          </h1>
           <nav class="space-y-2">
             <a href="{% url 'dashboard' %}"
                class="block px-3 py-2 rounded hover:bg-blue-700 transition">Dashboard</a>
