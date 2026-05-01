@@ -1,0 +1,79 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Jobs — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-7xl mx-auto">
+    <header class="flex items-center justify-between">
+      <h2 class="text-2xl font-bold">Jobs</h2>
+    </header>
+
+    <nav class="flex flex-wrap gap-2">
+      <a href="{% url 'job_list' %}"
+         class="px-3 py-1 rounded border text-sm {% if not selected_job_type %}bg-blue-600 text-white border-blue-600{% else %}hover:bg-slate-100{% endif %}">
+        All
+        <span class="ml-1 text-xs opacity-80">({{ total_count }})</span>
+      </a>
+      {% for tab in job_type_tabs %}
+        <a href="?job_type={{ tab.value }}"
+           class="px-3 py-1 rounded border text-sm {% if selected_job_type == tab.value %}bg-blue-600 text-white border-blue-600{% else %}hover:bg-slate-100{% endif %}">
+          {{ tab.label }}
+          <span class="ml-1 text-xs opacity-80">({{ tab.count }})</span>
+        </a>
+      {% endfor %}
+    </nav>
+
+    <section class="p-4 rounded-lg border shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500">
+            <tr class="border-b">
+              <th class="py-2">Title</th>
+              <th class="py-2">Company</th>
+              <th class="py-2">Location</th>
+              <th class="py-2">Job type</th>
+              <th class="py-2">Remote</th>
+              <th class="py-2">Assessments</th>
+              <th class="py-2">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for j in jobs %}
+              <tr class="border-b last:border-0 hover:bg-slate-50">
+                <td class="py-2">
+                  <a href="{% url 'job_detail' j.id %}" class="text-blue-600 hover:underline">
+                    {{ j.title|truncatechars:60 }}
+                  </a>
+                </td>
+                <td class="py-2">{{ j.company|default:"—" }}</td>
+                <td class="py-2">{{ j.location|default:"—" }}</td>
+                <td class="py-2">{{ j.get_job_type_display|default:"—" }}</td>
+                <td class="py-2">{{ j.get_remote_option_display|default:"—" }}</td>
+                <td class="py-2">{{ j.assessment_count }}</td>
+                <td class="py-2 text-slate-500">{{ j.created_on|date:"Y-m-d H:i" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="py-4 text-slate-400 text-center">No jobs match this filter.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if jobs.has_other_pages %}
+        <div class="mt-4 flex items-center justify-between text-sm">
+          <span class="text-slate-500">
+            Page {{ jobs.number }} of {{ jobs.paginator.num_pages }}
+          </span>
+          <div class="space-x-2">
+            {% if jobs.has_previous %}
+              <a href="?page={{ jobs.previous_page_number }}{% if selected_job_type %}&job_type={{ selected_job_type }}{% endif %}"
+                 class="px-3 py-1 rounded border hover:bg-slate-100">Previous</a>
+            {% endif %}
+            {% if jobs.has_next %}
+              <a href="?page={{ jobs.next_page_number }}{% if selected_job_type %}&job_type={{ selected_job_type }}{% endif %}"
+                 class="px-3 py-1 rounded border hover:bg-slate-100">Next</a>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+{% endblock %}

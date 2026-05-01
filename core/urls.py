@@ -34,6 +34,8 @@ urlpatterns = [
         name="preference_crawl_now",
     ),
     path("assessments/", include("assessment.urls")),
+    path("profiles/", include("profiles.urls")),
+    path("jobs/", include("jobs.urls")),
     path("api/", include("core.api.urls")),
     path("", RedirectView.as_view(url="/dashboard/", permanent=False), name="home"),
 ]

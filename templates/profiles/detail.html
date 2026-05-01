@@ -1,0 +1,101 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Profile detail — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-4xl mx-auto">
+    <div>
+      <a href="{% url 'profile_list' %}" class="text-sm text-blue-600 hover:underline">← Back to profiles</a>
+    </div>
+
+    <header>
+      <h2 class="text-2xl font-bold">{{ profile.full_name|default:"(no name)" }}</h2>
+      <p class="text-slate-500 text-sm">Profile ID: {{ profile.id }}</p>
+    </header>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-2">
+      <h3 class="text-lg font-semibold">Meta</h3>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">User</dt>
+        <dd>{{ profile.user|default:"—" }}</dd>
+        <dt class="text-slate-500">Created</dt>
+        <dd>{{ profile.created_on|date:"Y-m-d H:i" }}</dd>
+        <dt class="text-slate-500">Updated</dt>
+        <dd>{{ profile.updated_on|date:"Y-m-d H:i" }}</dd>
+      </dl>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm">
+      <h3 class="text-lg font-semibold mb-3">Edit fields</h3>
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label for="full_name" class="block text-sm font-medium text-slate-700">Full name</label>
+          <input id="full_name" name="full_name" type="text"
+                 value="{{ profile.full_name|default_if_none:"" }}"
+                 class="mt-1 w-full rounded border-slate-300 border p-2 text-sm" />
+        </div>
+        <div>
+          <label for="linkedin_url" class="block text-sm font-medium text-slate-700">LinkedIn URL</label>
+          <input id="linkedin_url" name="linkedin_url" type="url"
+                 value="{{ profile.linkedin_url|default_if_none:"" }}"
+                 class="mt-1 w-full rounded border-slate-300 border p-2 text-sm" />
+        </div>
+        <div>
+          <label for="bio" class="block text-sm font-medium text-slate-700">Bio</label>
+          <textarea id="bio" name="bio" rows="4"
+                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm">{{ profile.bio|default_if_none:"" }}</textarea>
+        </div>
+        <div>
+          <label for="full_profile" class="block text-sm font-medium text-slate-700">Full profile (admin-filled)</label>
+          <textarea id="full_profile" name="full_profile" rows="10"
+                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm">{{ profile.full_profile|default_if_none:"" }}</textarea>
+        </div>
+        <div>
+          <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="p-4 rounded-lg border shadow-sm">
+      <h3 class="text-lg font-semibold mb-3">Preferences ({{ preferences|length }})</h3>
+      {% if preferences %}
+        <table class="w-full text-sm">
+          <thead class="text-left text-slate-500">
+            <tr class="border-b">
+              <th class="py-2">Title</th>
+              <th class="py-2">Job type</th>
+              <th class="py-2">Remote</th>
+              <th class="py-2">Status</th>
+              <th class="py-2">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pref in preferences %}
+              <tr class="border-b last:border-0 hover:bg-slate-50">
+                <td class="py-2">
+                  <a href="{% url 'preference_detail' pref.id %}" class="text-blue-600 hover:underline">
+                    {{ pref.title|default:"(untitled)" }}
+                  </a>
+                </td>
+                <td class="py-2">{{ pref.get_job_type_display|default:"—" }}</td>
+                <td class="py-2">{{ pref.get_remote_option_display|default:"—" }}</td>
+                <td class="py-2">
+                  <span class="px-2 py-0.5 rounded text-xs
+                    {% if pref.status == 'waiting_payment' %}bg-yellow-100 text-yellow-800
+                    {% elif pref.status == 'waiting_admin' %}bg-orange-100 text-orange-800
+                    {% elif pref.status == 'running' %}bg-green-100 text-green-800
+                    {% elif pref.status == 'expired' %}bg-slate-200 text-slate-700
+                    {% else %}bg-slate-100 text-slate-700{% endif %}">
+                    {{ pref.get_status_display }}
+                  </span>
+                </td>
+                <td class="py-2 text-slate-500">{{ pref.created_on|date:"Y-m-d H:i" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-slate-400 text-sm">No preferences yet.</p>
+      {% endif %}
+    </section>
+  </main>
+{% endblock %}
