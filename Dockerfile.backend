@@ -21,7 +21,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 COPY . .
 COPY --from=tw /app/static/output.css ./static/output.css
-RUN uv run manage.py collectstatic --noinput
+RUN uv run manage.py collectstatic --noinput --ignore=input.css
 COPY docker/backend-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 EXPOSE 8000
