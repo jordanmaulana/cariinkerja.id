@@ -1,0 +1,16 @@
+.git
+.gitignore
+.venv
+node_modules
+frontend/node_modules
+frontend/dist
+db.sqlite3
+db.sqlite3-*
+staticfiles
+__pycache__
+*.pyc
+*.pyo
+.env
+.env.docker
+pgdata
+.DS_Store

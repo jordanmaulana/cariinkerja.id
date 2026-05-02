@@ -35,3 +35,15 @@ worker:
 
 beat:
 	uv run celery -A core beat -l info
+
+compose-up:
+	docker compose up --build
+
+compose-down:
+	docker compose down
+
+compose-logs:
+	docker compose logs -f
+
+compose-sh:
+	docker compose exec backend sh

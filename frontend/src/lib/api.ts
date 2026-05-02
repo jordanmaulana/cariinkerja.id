@@ -10,6 +10,8 @@ export class ApiError extends Error {
 
 export type ApiInit = RequestInit & { skipAuth?: boolean };
 
+const API_BASE = `${import.meta.env.VITE_API_URL ?? ""}/api/v1`;
+
 export async function api<T>(path: string, init?: ApiInit): Promise<T> {
   const { skipAuth, ...rest } = init ?? {};
   const token =
@@ -22,7 +24,7 @@ export async function api<T>(path: string, init?: ApiInit): Promise<T> {
   };
   if (token) headers["Authorization"] = `Token ${token}`;
 
-  const res = await fetch(`/api/v1${path}`, { ...rest, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...rest, headers });
   if (res.status === 204) return undefined as T;
 
   const text = await res.text();
