@@ -48,7 +48,7 @@ Both upsert `Job` rows by `url` inside a `transaction.atomic` block. Defaults: `
 
 ## Architecture
 
-Django project rooted at `core/` with three domain apps: `profiles`, `jobs`, `assessment`. `core` is also installed as an app (holds `BaseModel` + `AppSetting` + dashboard + REST API surface).
+Django project rooted at `core/` with four domain apps: `profiles`, `jobs`, `assessment`, `billing`. `core` is also installed as an app (holds `BaseModel` + `AppSetting` + dashboard + REST API surface). The `billing` app owns `Plan`, `Subscription`, `SubscriptionStatus`, and `effective_price` (Open-to-Work discount logic).
 
 ### Shared base — `core/models.py`
 

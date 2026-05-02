@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import timedelta
 
 from django.conf import settings as dj_settings
@@ -6,6 +8,7 @@ from django.core.paginator import EmptyPage, Paginator
 from django.db import transaction
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDate
+from django.http import HttpResponseForbidden, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -13,6 +16,8 @@ from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+
+from core.realtime import _client as redis_client, user_channel
 
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
@@ -28,12 +33,27 @@ from core.api.v1.serializers import (
     SubscriptionSerializer,
     UserSerializer,
 )
-from core.models import Plan, Subscription, SubscriptionStatus, effective_price
-from core.payments.mayar import MayarError, create_payment_link, verify_webhook
+from billing.models import Plan, Subscription, SubscriptionStatus, effective_price
+from core.payments.mayar import (
+    MayarError,
+    PAID_STATUSES,
+    create_payment_link,
+    get_payment_status,
+    verify_webhook,
+)
+from core.payments.subscriptions import (
+    activate_subscription,
+    cancel_pending_subscription,
+)
+from core.tasks import (
+    CHECKOUT_POLL_INTERVAL_SECONDS,
+    poll_subscription_after_checkout,
+)
 from profiles.consts import Status as PreferenceStatus
 from profiles.models import Preference, Profile
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
@@ -348,6 +368,7 @@ def checkout(request):
             email=request.user.email,
             description=description,
             redirect_url=redirect_url,
+            mobile=profile.phone or "",
         )
     except MayarError as exc:
         sub.delete()
@@ -356,6 +377,10 @@ def checkout(request):
     sub.payment_link = link["link"]
     sub.payment_ref = link["transaction_id"]
     sub.save(update_fields=["payment_link", "payment_ref", "updated_on"])
+
+    poll_subscription_after_checkout.apply_async(
+        args=[sub.id], countdown=CHECKOUT_POLL_INTERVAL_SECONDS
+    )
 
     return Response(
         {
@@ -369,45 +394,156 @@ def checkout(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def mayar_webhook(request):
+    logger.info(
+        "mayar webhook hit: remote=%s ct=%s",
+        request.META.get("REMOTE_ADDR"),
+        request.content_type,
+    )
     if not verify_webhook(request):
+        logger.warning("mayar webhook: token verify failed")
         return Response(
             {"detail": "Invalid token."}, status=status.HTTP_401_UNAUTHORIZED
         )
     event = request.data.get("event") or ""
     data = request.data.get("data") or {}
     payment_ref = str(data.get("id") or data.get("transaction_id") or "")
+    logger.info(
+        "mayar webhook payload: event=%r payment_ref=%r data_keys=%s",
+        event,
+        payment_ref,
+        sorted(data.keys()) if isinstance(data, dict) else None,
+    )
     if not payment_ref:
+        logger.warning("mayar webhook: missing payment_ref; raw=%s", request.data)
         return Response(
             {"detail": "Missing transaction id."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     sub = Subscription.objects.filter(payment_ref=payment_ref).first()
     if sub is None:
+        logger.warning(
+            "mayar webhook: subscription not found for payment_ref=%s event=%s",
+            payment_ref,
+            event,
+        )
         return Response(
             {"detail": "Subscription not found."},
             status=status.HTTP_404_NOT_FOUND,
         )
 
     if event in {"payment.received", "payment.success", "PAYMENT_RECEIVED"}:
-        if sub.status != SubscriptionStatus.ACTIVE:
-            now = timezone.now()
-            sub.status = SubscriptionStatus.ACTIVE
-            sub.started_at = now
-            sub.expires_at = now + timedelta(days=30)
-            sub.save(
-                update_fields=[
-                    "status",
-                    "started_at",
-                    "expires_at",
-                    "updated_on",
-                ]
+        logger.info(
+            "mayar webhook: activating subscription id=%s event=%s",
+            sub.id,
+            event,
+        )
+        try:
+            activate_subscription(sub)
+        except Exception:
+            logger.exception(
+                "mayar webhook: activate_subscription failed sub=%s", sub.id
+            )
+            return Response(
+                {"detail": "Internal error."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
     elif event in {"payment.failed", "payment.expired"}:
-        if sub.status == SubscriptionStatus.PENDING:
-            sub.status = SubscriptionStatus.CANCELLED
-            sub.save(update_fields=["status", "updated_on"])
+        logger.info(
+            "mayar webhook: cancelling pending subscription id=%s event=%s",
+            sub.id,
+            event,
+        )
+        try:
+            cancel_pending_subscription(sub)
+        except Exception:
+            logger.exception(
+                "mayar webhook: cancel_pending_subscription failed sub=%s",
+                sub.id,
+            )
+            return Response(
+                {"detail": "Internal error."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+    else:
+        logger.warning(
+            "mayar webhook: unhandled event=%r for sub=%s status=%s",
+            event,
+            sub.id,
+            sub.status,
+        )
 
     return Response({"ok": True})
+
+
+SSE_PING_SECONDS = 15
+
+
+def subscription_stream(request):
+    """SSE stream of user-scoped events (token via ?token=... query param).
+
+    EventSource cannot send custom headers, so we authenticate via the
+    DRF auth token in the query string. Each open connection holds a
+    sync worker — fine for the small expected concurrency on the plans
+    page, revisit (gthread/async) before scaling.
+    """
+    token_key = request.GET.get("token") or ""
+    try:
+        token = Token.objects.select_related("user").get(key=token_key)
+    except Token.DoesNotExist:
+        return HttpResponseForbidden("invalid token")
+    user = token.user
+
+    def event_gen():
+        pubsub = redis_client().pubsub(ignore_subscribe_messages=True)
+        pubsub.subscribe(user_channel(user.id))
+        try:
+            yield ": connected\n\n"
+            last_ping = time.monotonic()
+            while True:
+                msg = pubsub.get_message(timeout=1.0)
+                if msg and msg.get("type") == "message":
+                    data = msg["data"]
+                    if isinstance(data, bytes):
+                        data = data.decode()
+                    yield f"data: {data}\n\n"
+                if time.monotonic() - last_ping > SSE_PING_SECONDS:
+                    yield ": ping\n\n"
+                    last_ping = time.monotonic()
+        finally:
+            pubsub.close()
+
+    resp = StreamingHttpResponse(event_gen(), content_type="text/event-stream")
+    resp["Cache-Control"] = "no-cache"
+    resp["X-Accel-Buffering"] = "no"
+    return resp
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def subscription_recheck(request, pk):
+    profile = getattr(request.user, "profile", None)
+    if profile is None:
+        return Response(
+            {"detail": "Profile missing for user."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    sub = get_object_or_404(
+        Subscription.objects.select_related("plan"), pk=pk, profile=profile
+    )
+    if sub.status == SubscriptionStatus.ACTIVE:
+        return Response(SubscriptionSerializer(sub).data)
+    if sub.status != SubscriptionStatus.PENDING or not sub.payment_ref:
+        return Response(
+            {"detail": "Subscription is not pending payment."},
+            status=status.HTTP_409_CONFLICT,
+        )
+    try:
+        result = get_payment_status(sub.payment_ref)
+    except MayarError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+    if result["status"] in PAID_STATUSES:
+        activate_subscription(sub)
+    return Response(SubscriptionSerializer(sub).data)
 
 
 @api_view(["GET", "PATCH"])

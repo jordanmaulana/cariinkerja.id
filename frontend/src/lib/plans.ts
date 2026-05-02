@@ -49,6 +49,14 @@ export async function checkout(planId: string): Promise<CheckoutResponse> {
   });
 }
 
+export async function recheckSubscription(
+  subscriptionId: string,
+): Promise<Subscription> {
+  return api<Subscription>(`/subscriptions/${subscriptionId}/recheck/`, {
+    method: "POST",
+  });
+}
+
 export function formatRupiah(amount: number): string {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 }

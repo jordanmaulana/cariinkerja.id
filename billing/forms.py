@@ -1,6 +1,6 @@
 from django import forms
 
-from core.models import Plan
+from billing.models import Plan
 
 
 class PlanForm(forms.ModelForm):

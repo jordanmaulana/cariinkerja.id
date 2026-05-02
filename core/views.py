@@ -17,8 +17,8 @@ from django.views import View
 
 from assessment.models import Assessment
 from assessment.tasks import crawl_and_assess_preference
-from core.forms import PlanForm
-from core.models import Plan, Subscription, SubscriptionStatus
+from billing.forms import PlanForm
+from billing.models import Plan, Subscription, SubscriptionStatus
 from jobs.models import Job
 from profiles.consts import Source, Status
 from profiles.models import Preference, Profile

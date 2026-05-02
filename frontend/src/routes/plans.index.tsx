@@ -1,5 +1,6 @@
+import { useCallback } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +20,9 @@ import {
   formatRupiah,
   getMySubscription,
   listPlans,
+  recheckSubscription,
 } from "@/lib/plans"
+import { useUserEvents, type UserEvent } from "@/lib/realtime"
 
 export const Route = createFileRoute("/plans/")({
   component: PlansPage,
@@ -60,6 +63,26 @@ function PlansPage() {
     },
   })
 
+  const queryClient = useQueryClient()
+  const recheckMutation = useMutation({
+    mutationFn: (subscriptionId: string) => recheckSubscription(subscriptionId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["subscription", "me"], data)
+    },
+  })
+
+  useUserEvents(
+    useCallback(
+      (e: UserEvent) => {
+        if (e.event === "subscription.activated") {
+          queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
+          queryClient.invalidateQueries({ queryKey: ["plans"] })
+        }
+      },
+      [queryClient],
+    ),
+  )
+
   const sub = subQuery.data
   const activePlanId =
     sub && sub.status === "ACTIVE" ? sub.plan.id : null
@@ -73,7 +96,17 @@ function PlansPage() {
         </p>
       </div>
 
-      <CurrentSubscriptionBanner sub={sub} loading={subQuery.isLoading} />
+      <CurrentSubscriptionBanner
+        sub={sub}
+        loading={subQuery.isLoading}
+        onRecheck={() => sub && recheckMutation.mutate(sub.id)}
+        rechecking={recheckMutation.isPending}
+        recheckError={
+          recheckMutation.isError && recheckMutation.error instanceof Error
+            ? recheckMutation.error.message
+            : null
+        }
+      />
 
       {plansQuery.isLoading && (
         <div className="grid gap-4 md:grid-cols-3">
@@ -121,9 +154,15 @@ function PlansPage() {
 function CurrentSubscriptionBanner({
   sub,
   loading,
+  onRecheck,
+  rechecking,
+  recheckError,
 }: {
   sub: Subscription | null | undefined
   loading: boolean
+  onRecheck: () => void
+  rechecking: boolean
+  recheckError: string | null
 }) {
   if (loading) return <Skeleton className="h-20 w-full" />
   if (!sub) {
@@ -169,7 +208,20 @@ function CurrentSubscriptionBanner({
             {sub.status === "EXPIRED" && <>Subscription expired. Renew below.</>}
             {sub.status === "CANCELLED" && <>Cancelled.</>}
           </CardDescription>
+          {recheckError && (
+            <p className="text-xs text-destructive">{recheckError}</p>
+          )}
         </div>
+        {sub.status === "PENDING" && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRecheck}
+            disabled={rechecking}
+          >
+            {rechecking ? "Checking…" : "I paid, refresh"}
+          </Button>
+        )}
       </CardHeader>
     </Card>
   )

@@ -1,0 +1,25 @@
+@mayarBase = https://api.mayar.club/hl/v1
+@mayarToken = eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ZmYzODVkZS1hMTZkLTQ3M2EtYmIzYy03OWFiOWZhNzdhYzYiLCJhY2NvdW50SWQiOiJhM2U0NDVkYS1iNmYzLTQ5YTktOWNhYy0xNjQzNWFlNDJlZjMiLCJjcmVhdGVkQXQiOiIxNzc3MTk1OTUzNjQxIiwicm9sZSI6ImRldmVsb3BlciIsInN1YiI6ImpvcmRhbm1hdWxhbmEyNkBnbWFpbC5jb20iLCJuYW1lIjoiam9yZGFuIG1hdWxhbmEiLCJsaW5rIjoiam9yZGFuLW1hdWxhbmEiLCJpc1NlbGZEb21haW4iOm51bGwsImlhdCI6MTc3NzE5NTk1M30.MwVqni9FWyvR0hQdxcNWsp5lUPCysZvTHNDi-rtAWc_KxcCYHWicebr8pegiq286qjIQXwoLtMh_ceHP7ZF2jrXV9cxFBJjEI1zLXJxE0omZylmwR5YqSNQT2HUwqbRgKe8zk5yUFCpQpWwehEEK9Cy1CeesWuYrGZa7U-mAU1WwNZkZj3_CmQWTOuO0YSaUGtVJd_pcNOkY3TDvIq-jVk1-rJEb354kDYlbiph2DvGYpezuLiQG82nX6rxuB9V3Ju0AG3_Y2tkALJn2R9HbW3ZNBuWe_W_N8N-hrb7IIdD9sFMV6r4-Q5AdxiaFuLonoebpsYlTeirNxZoTMmu37Q
+
+### Register webhook URL (use Tailscale funnel / ngrok / cloudflared tunnel during dev)
+### Verified live: POST works, GET returns 404. Body is required.
+POST {{mayarBase}}/webhook/register
+Authorization: Bearer {{mayarToken}}
+Content-Type: application/json
+
+{
+    "urlHook": "https://jordans-mac-mini.tail7d99a4.ts.net/api/v1/payments/mayar/webhook/"
+}
+
+### List webhook history
+GET {{mayarBase}}/webhook/history
+Authorization: Bearer {{mayarToken}}
+
+### Trigger test webhook (POST + body with urlHook required)
+POST {{mayarBase}}/webhook/test
+Authorization: Bearer {{mayarToken}}
+Content-Type: application/json
+
+{
+    "urlHook": "https://jordans-mac-mini.tail7d99a4.ts.net/api/v1/payments/mayar/webhook/"
+}

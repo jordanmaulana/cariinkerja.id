@@ -13,6 +13,7 @@ export type AuthResponse = { token: string; user: AuthUser };
 export type ProfileMe = {
   full_name: string | null;
   suggested_full_name: string;
+  phone: string | null;
   linkedin_url: string | null;
   bio: string | null;
   onboarded: boolean;
@@ -60,6 +61,7 @@ export async function getProfile(): Promise<ProfileMe> {
 
 export async function submitOnboarding(payload: {
   full_name: string;
+  phone: string;
   linkedin_url?: string;
   bio?: string;
   title: string;

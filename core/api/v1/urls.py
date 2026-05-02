@@ -15,6 +15,8 @@ from core.api.v1.views import (
     preference_detail,
     preference_list,
     profile_me,
+    subscription_recheck,
+    subscription_stream,
 )
 
 urlpatterns = [
@@ -30,6 +32,14 @@ urlpatterns = [
     path("assessments/<str:pk>/", assessment_detail, name="api-v1-assessment-detail"),
     path("plans/", plan_list, name="api-v1-plan-list"),
     path("subscriptions/me/", my_subscription, name="api-v1-subscription-me"),
+    path(
+        "subscriptions/stream/", subscription_stream, name="api-v1-subscription-stream"
+    ),
     path("subscriptions/checkout/", checkout, name="api-v1-subscription-checkout"),
+    path(
+        "subscriptions/<str:pk>/recheck/",
+        subscription_recheck,
+        name="api-v1-subscription-recheck",
+    ),
     path("payments/mayar/webhook/", mayar_webhook, name="api-v1-mayar-webhook"),
 ]

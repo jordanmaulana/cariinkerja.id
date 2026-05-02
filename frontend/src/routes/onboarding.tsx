@@ -15,6 +15,7 @@ export const Route = createFileRoute("/onboarding")({
 
 function OnboardingPage() {
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -23,6 +24,7 @@ function OnboardingPage() {
         if (cancelled) return;
         const prefill = p.full_name || p.suggested_full_name || "";
         if (prefill) setFullName(prefill);
+        if (p.phone) setPhone(p.phone);
       })
       .catch(() => {});
     return () => {
@@ -49,6 +51,7 @@ function OnboardingPage() {
     try {
       await submitOnboarding({
         full_name: fullName,
+        phone,
         linkedin_url: linkedinUrl || undefined,
         bio: bio || undefined,
         title,
@@ -75,7 +78,8 @@ function OnboardingPage() {
       <div>
         <h1 className="text-2xl font-bold">Tell us about you</h1>
         <p className="text-sm text-muted-foreground">
-          Fill your profile and your first Finder to get started.
+          Fill your profile and your first Finder to get started. Phone number
+          is required so we can process your payment.
         </p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
@@ -93,6 +97,23 @@ function OnboardingPage() {
               onChange={(e) => setFullName(e.target.value)}
               className="w-full rounded border px-3 py-2"
             />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="phone" className="text-sm font-medium">
+              Phone number
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              required
+              placeholder="08xxxxxxxxxx"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+            />
+            <p className="text-xs text-muted-foreground">
+              Required for payment processing.
+            </p>
           </div>
           <div className="space-y-1">
             <label htmlFor="linkedin_url" className="text-sm font-medium">

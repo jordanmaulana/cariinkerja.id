@@ -1,0 +1,15 @@
+
+
+// Create Invoice
+POST https://api.mayar.club/hl/v1/payment/create
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzZTRlYWEyMC0zYTI1LTRjMjEtOTZhNC0zNjdiMTY5NTZhNWYiLCJhY2NvdW50SWQiOiIwNzZjZTkyZS1mMTA1LTQxMTItOWYwYi1mZjUxZTZmNjdkYjUiLCJjcmVhdGVkQXQiOiIxNzc3MTk1NDk0NzE5Iiwicm9sZSI6ImRldmVsb3BlciIsInN1YiI6ImpvcmRhbm1hdWxhbmEyNkBnbWFpbC5jb20iLCJuYW1lIjoiS2FrIEpvZSBQcm9qZWN0cyIsImxpbmsiOiJqb3JkYW4tbWF1bGFuYSIsImlzU2VsZkRvbWFpbiI6bnVsbCwiaWF0IjoxNzc3MTk1NDk0fQ.mR6faa6BpGQ7QCFWBpWrlZ_3dGuLrzMAzlJo0FhqXWJAL8WDKi1wLzjE0DEEJrzm7NfK3M7ksYyFITfN36reb98L2Rt9iGJw9ZvfJA_0zUuwhwhYM98bdZx1XL0oWsYahsUaqzrvlc1_8cqDvYtsyKqH9HO_UpYc7HzF1n7wr-3-deL0MkDE4TG-rBfxpAHcFQS1Vn9aj3hwgCZhgeoBgRNLotASY16uc-LRVhy2RXLtSTQ6zjw-oV0K_PCsH5A5rwOUadT6T5lW_W-dAsAD666SvtEZGWQxOqNs83P4baIaVQOCn26VWBtPbeFjoVqBm512KLIQ-UrGmyjGFsXI1A
+
+{
+    "name": "Azumii",
+    "email": "azumiikecee@gmail.com",
+    "amount": 170000,
+    "mobile": "08996136751",
+    "redirectUrl": "https://web.mayar.id/",
+    "description": "Testing ReqPayment",
+    "expiredAt": "2025-12-29T09:41:09.401Z"
+}

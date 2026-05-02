@@ -23,6 +23,7 @@ class Profile(BaseModel):
     )
     full_name = models.CharField(max_length=255, null=True, blank=True)
     suggested_full_name = models.CharField(max_length=255, blank=True, default="")
+    phone = models.CharField(max_length=32, null=True, blank=True)
     linkedin_url = models.URLField(null=True, blank=True)
     bio = models.TextField(null=True, blank=True)
     full_profile = models.TextField(
@@ -64,7 +65,7 @@ class Preference(BaseModel):
         help_text="Filled by Admin",
     )
     status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.WAITING_PAYMENT
+        max_length=20, choices=Status.choices, default=Status.WAITING_ADMIN
     )
 
     class Meta:

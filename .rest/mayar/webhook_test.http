@@ -1,0 +1,53 @@
+@base = http://127.0.0.1:8000/api/v1
+@token = e9ad32fcfa9d35cd85604e3cb17a4107fd3f0dc47ed6338eead06896576092b549dc954e19eebecc19ff30153ba1de4a66ee3c1b0c8b71e8427d93cb2a0d580b
+
+### payment.received — full real Mayar payload (matches Subscription.payment_ref)
+POST {{base}}/payments/mayar/webhook/
+Content-Type: application/json
+X-Callback-Token: {{token}}
+
+{
+    "event": "payment.received",
+    "data": {
+        "id": "eef37d27-6e9e-4a42-9ad8-9ea3129378a4",
+        "transactionId": "eef37d27-6e9e-4a42-9ad8-9ea3129378a4",
+        "status": "SUCCESS",
+        "transactionStatus": "created",
+        "createdAt": "2026-05-02T12:22:16.160Z",
+        "updatedAt": "2026-05-02T12:22:26.821Z",
+        "merchantId": "6ff385de-a16d-473a-bb3c-79ab9fa77ac6",
+        "merchantName": "jordan maulana",
+        "merchantEmail": "jordanmaulana26@gmail.com",
+        "customerId": "43c598f7-20d2-44bf-b08e-a4aad9fc2ec0",
+        "customerName": "Jordan Maulana",
+        "customerEmail": "jordanmaulana26@gmail.com",
+        "customerMobile": "08996136751",
+        "amount": 49000,
+        "paymentLinkAmount": 49000,
+        "isAdminFeeBorneByCustomer": null,
+        "isChannelFeeBorneByCustomer": null,
+        "productId": "7ce6dfec-60d4-43aa-89ee-f4a77fb950f0",
+        "productName": "Penagihan",
+        "productDescription": "Basic subscription (1 month) (Open-to-Work discount)",
+        "productType": "payment_request",
+        "pixelFbp": null,
+        "pixelFbc": null,
+        "qty": 1,
+        "couponUsed": null,
+        "paymentMethod": "QRIS",
+        "nettAmount": 49000
+    }
+}
+
+### Negative: missing X-Callback-Token → 401
+POST {{base}}/payments/mayar/webhook/
+Content-Type: application/json
+
+{"event":"payment.received","data":{"id":"eef37d27-6e9e-4a42-9ad8-9ea3129378a4"}}
+
+### Negative: unknown payment_ref → 404
+POST {{base}}/payments/mayar/webhook/
+Content-Type: application/json
+X-Callback-Token: {{token}}
+
+{"event":"payment.received","data":{"id":"does-not-exist"}}

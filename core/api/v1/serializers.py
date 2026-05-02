@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
-from core.models import Plan, Subscription, effective_price
+from billing.models import Plan, Subscription, effective_price
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
 from profiles.models import Preference, Profile
@@ -65,6 +65,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = [
             "full_name",
             "suggested_full_name",
+            "phone",
             "linkedin_url",
             "bio",
             "onboarded",
@@ -78,6 +79,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class OnboardingSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
+    phone = serializers.CharField(max_length=32)
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     bio = serializers.CharField(required=False, allow_blank=True)
     title = serializers.CharField(max_length=255)
@@ -90,6 +92,7 @@ class OnboardingSerializer(serializers.Serializer):
         with transaction.atomic():
             profile = user.profile
             profile.full_name = data["full_name"]
+            profile.phone = data["phone"]
             profile.linkedin_url = data.get("linkedin_url") or None
             profile.bio = data.get("bio") or None
             profile.save()

@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "assessment",
     "jobs",
     "profiles",
+    "billing",
     "core",
 ]
 
@@ -185,6 +186,7 @@ CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/
 CELERY_RESULT_BACKEND = os.environ.get(
     "CELERY_RESULT_BACKEND", "redis://localhost:6379/1"
 )
+REDIS_URL = os.environ.get("REDIS_URL", CELERY_BROKER_URL)
 CELERY_TIMEZONE = "Asia/Jakarta"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TASK_ACKS_LATE = True
@@ -213,3 +215,25 @@ CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "core.payments": {"level": "INFO", "propagate": True},
+        "core.api": {"level": "INFO", "propagate": True},
+        "billing": {"level": "INFO", "propagate": True},
+    },
+}

@@ -6,6 +6,7 @@ from django.urls import reverse
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
+from jobs.consts import JobType, RemoteOption
 from profiles.consts import Source, Status
 from profiles.models import Preference, Profile
 from profiles.services import LinkedInIngest, ingest_linkedin
@@ -292,3 +293,48 @@ class PreferenceDetailAPITests(TestCase):
         self.assertEqual(resp.status_code, 200)
         pref.refresh_from_db()
         self.assertEqual(pref.crawl_source, "")
+
+
+class OnboardingAPITests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("user", "user@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user)
+        token, _ = Token.objects.get_or_create(user=self.user)
+        self.api = APIClient()
+        self.api.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self.url = reverse("api-v1-onboarding")
+        self.payload = {
+            "full_name": "Jane Doe",
+            "phone": "08123456789",
+            "title": "Backend Engineer",
+            "job_type": JobType.FULL_TIME,
+            "remote_option": RemoteOption.REMOTE,
+        }
+
+    def test_onboarding_persists_phone_and_creates_preference(self):
+        resp = self.api.post(self.url, self.payload, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["phone"], "08123456789")
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.phone, "08123456789")
+        self.assertEqual(self.profile.full_name, "Jane Doe")
+        pref = Preference.objects.get(profile=self.profile)
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+        self.assertEqual(pref.title, "Backend Engineer")
+
+    def test_onboarding_missing_phone_rejected(self):
+        payload = dict(self.payload)
+        del payload["phone"]
+        resp = self.api.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("phone", resp.data)
+        self.profile.refresh_from_db()
+        self.assertFalse(self.profile.phone)
+        self.assertFalse(Preference.objects.filter(profile=self.profile).exists())
+
+    def test_onboarding_blank_phone_rejected(self):
+        payload = dict(self.payload, phone="")
+        resp = self.api.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("phone", resp.data)
+        self.assertFalse(Preference.objects.filter(profile=self.profile).exists())

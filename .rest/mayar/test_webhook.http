@@ -1,0 +1,42 @@
+@mayarBase = https://api.mayar.club/hl/v1
+@mayarToken = e9ad32fcfa9d35cd85604e3cb17a4107fd3f0dc47ed6338eead06896576092b549dc954e19eebecc19ff30153ba1de4a66ee3c1b0c8b71e8427d93cb2a0d580b
+
+### Alternative: /invoice/create — supports line items and extraData (carries our internal ids)
+### Use this if we want richer line items on the receipt; otherwise prefer payment/create.
+POST https://jordans-mac-mini.tail7d99a4.ts.net/api/v1/payments/mayar/webhook/
+Authorization: Bearer {{mayarToken}}
+X-Callback-Token: {{mayarToken}}
+Content-Type: application/json
+
+{
+  "event": "testing",
+  "data": {
+    "id": "123456789",
+    "status": "SUCCESS",
+    "createdAt": 1701310589229,
+    "updatedAt": 1701310589229,
+    "merchantId": "12345",
+    "merchantName": "Merchant Demo",
+    "merchantEmail": "example.merchant@myr.id",
+    "customerName": "Customer Demo",
+    "customerEmail": "example.customer@myr.id",
+    "customerMobile": "0123456789",
+    "amount": 100000,
+    "isAdminFeeBorneByCustomer": true,
+    "isChannelFeeBorneByCustomer": true,
+    "productId": "11223344",
+    "productName": "Product Example",
+    "productType": "digital_product",
+    "custom_field": [
+      {
+        "name": "Label Input",
+        "description": "Input description",
+        "fieldType": "text",
+        "isRequired": false,
+        "key": "0011223344",
+        "type": "string",
+        "value": "Value Input"
+      }
+    ]
+  }
+}
