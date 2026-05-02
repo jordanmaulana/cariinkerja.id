@@ -46,9 +46,9 @@ function DashboardPage() {
   })
   const recent = useQuery({
     queryKey: ["dashboard", "recent"],
-    queryFn: () => listAssessments(),
+    queryFn: () => listAssessments({ pageSize: 5 }),
     staleTime: 30_000,
-    select: (rows) => rows.slice(0, 5),
+    select: (page) => page.results,
   })
 
   if (stats.isLoading) {
