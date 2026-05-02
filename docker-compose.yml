@@ -33,6 +33,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/login/"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
 
   worker:
     build:
@@ -50,6 +56,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      backend:
+        condition: service_healthy
 
   beat:
     build:
@@ -74,7 +82,7 @@ services:
       - "django_celery_beat.schedulers:DatabaseScheduler"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     build:
