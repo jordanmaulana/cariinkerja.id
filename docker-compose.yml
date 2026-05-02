@@ -34,7 +34,7 @@ services:
       redis:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/login/"]
+      test: ["CMD", "curl", "-fsS", "-H", "Host: api.cariinkerja.id", "http://localhost:8000/login/"]
       interval: 5s
       timeout: 3s
       retries: 30
