@@ -186,15 +186,26 @@ function PlanCard({
   isPending: boolean
   onSubscribe: () => void
 }) {
+  const discounted = plan.effective_price < plan.price
   return (
     <Card className={isCurrent ? "border-primary" : ""}>
       <CardHeader>
         <CardTitle>{plan.name}</CardTitle>
         <CardDescription>
           <span className="text-2xl font-semibold text-foreground">
-            {formatRupiah(plan.price)}
+            {formatRupiah(plan.effective_price)}
           </span>
+          {discounted && (
+            <span className="ml-2 text-sm text-muted-foreground line-through">
+              {formatRupiah(plan.price)}
+            </span>
+          )}
           <span className="ml-1 text-sm text-muted-foreground">/ month</span>
+          {discounted && (
+            <Badge variant="secondary" className="ml-2">
+              Open to Work
+            </Badge>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

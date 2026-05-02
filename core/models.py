@@ -2,9 +2,28 @@ from bson.objectid import ObjectId
 from django.contrib.auth.models import User
 from django.db import models
 
+OPEN_TO_WORK_DISCOUNT_PRICE = 49000
+
 
 def make_object_id():
     return str(ObjectId())
+
+
+def effective_price(plan, profile, cheapest_id=None):
+    if profile is None or not profile.linkedin_discount_eligible:
+        return plan.price
+    if cheapest_id is None:
+        cheapest_id = (
+            Plan.objects.filter(is_active=True)
+            .order_by("price")
+            .values_list("id", flat=True)
+            .first()
+        )
+    if plan.id != cheapest_id:
+        return plan.price
+    if plan.price <= OPEN_TO_WORK_DISCOUNT_PRICE:
+        return plan.price
+    return OPEN_TO_WORK_DISCOUNT_PRICE
 
 
 class BaseModel(models.Model):
@@ -44,8 +63,6 @@ class SubscriptionStatus(models.TextChoices):
 
 
 class Subscription(BaseModel):
-    # When pricing math is added, read profile.linkedin_discount_eligible
-    # (driven by Profile.open_to_work) to apply the Open-to-Work discount.
     profile = models.ForeignKey(
         "profiles.Profile",
         on_delete=models.CASCADE,

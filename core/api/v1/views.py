@@ -28,7 +28,7 @@ from core.api.v1.serializers import (
     SubscriptionSerializer,
     UserSerializer,
 )
-from core.models import Plan, Subscription, SubscriptionStatus
+from core.models import Plan, Subscription, SubscriptionStatus, effective_price
 from core.payments.mayar import MayarError, create_payment_link, verify_webhook
 from profiles.consts import Status as PreferenceStatus
 from profiles.models import Preference, Profile
@@ -273,7 +273,13 @@ def preference_detail(request, pk):
 @permission_classes([AllowAny])
 def plan_list(request):
     qs = Plan.objects.filter(is_active=True).order_by("price")
-    return Response(PlanSerializer(qs, many=True).data)
+    cheapest_id = qs.values_list("id", flat=True).first()
+    serializer = PlanSerializer(
+        qs,
+        many=True,
+        context={"request": request, "cheapest_plan_id": cheapest_id},
+    )
+    return Response(serializer.data)
 
 
 @api_view(["GET"])
@@ -322,12 +328,16 @@ def checkout(request):
         )
 
     redirect_url = dj_settings.PAYMENT_REDIRECT_URL
+    amount = effective_price(plan, profile)
+    description = f"{plan.name} subscription (1 month)"
+    if amount < plan.price:
+        description += " (Open-to-Work discount)"
     try:
         link = create_payment_link(
             name=profile.full_name or request.user.email,
-            amount=plan.price,
+            amount=amount,
             email=request.user.email,
-            description=f"{plan.name} subscription (1 month)",
+            description=description,
             redirect_url=redirect_url,
         )
     except MayarError as exc:

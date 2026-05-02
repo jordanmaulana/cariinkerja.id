@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
-from core.models import Plan, Subscription
+from core.models import Plan, Subscription, effective_price
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
 from profiles.models import Preference, Profile
@@ -68,7 +68,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "linkedin_url",
             "bio",
             "onboarded",
+            "open_to_work",
         ]
+        read_only_fields = ["open_to_work"]
 
     def get_onboarded(self, profile):
         return bool(profile.full_name)
@@ -163,9 +165,20 @@ class AssessmentStatusUpdateSerializer(serializers.Serializer):
 
 
 class PlanSerializer(serializers.ModelSerializer):
+    effective_price = serializers.SerializerMethodField()
+
     class Meta:
         model = Plan
-        fields = ["id", "name", "price", "preference_limit"]
+        fields = ["id", "name", "price", "effective_price", "preference_limit"]
+
+    def get_effective_price(self, plan):
+        request = self.context.get("request")
+        profile = None
+        if request is not None and request.user.is_authenticated:
+            profile = getattr(request.user, "profile", None)
+        return effective_price(
+            plan, profile, cheapest_id=self.context.get("cheapest_plan_id")
+        )
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):

@@ -4,6 +4,7 @@ export type Plan = {
   id: string;
   name: string;
   price: number;
+  effective_price: number;
   preference_limit: number;
 };
 
@@ -29,7 +30,7 @@ export type CheckoutResponse = {
 };
 
 export async function listPlans(): Promise<Plan[]> {
-  return api<Plan[]>("/plans/", { skipAuth: true });
+  return api<Plan[]>("/plans/");
 }
 
 export async function getMySubscription(): Promise<Subscription | null> {
