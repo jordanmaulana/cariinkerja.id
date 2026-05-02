@@ -31,7 +31,7 @@ web:
 	cd frontend && pnpm run dev
 
 worker:
-	uv run celery -A core worker -l info
+	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES uv run celery -A core worker -l info
 
 beat:
 	uv run celery -A core beat -l info

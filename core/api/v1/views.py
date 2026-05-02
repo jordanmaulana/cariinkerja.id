@@ -100,9 +100,9 @@ def onboarding(request):
 
 
 def _user_assessments(user):
-    return Assessment.objects.filter(preference__profile__user=user).select_related(
-        "job", "preference"
-    )
+    return Assessment.objects.filter(
+        preference__profile__user=user, is_relevant=True
+    ).select_related("job", "preference")
 
 
 @api_view(["GET"])
@@ -167,7 +167,9 @@ def dashboard_stats(request):
     today = timezone.localdate()
     thirty_days_ago = today - timedelta(days=29)
 
-    assessments = Assessment.objects.filter(preference__profile__user=user)
+    assessments = Assessment.objects.filter(
+        preference__profile__user=user, is_relevant=True
+    )
     agg = assessments.aggregate(
         total=Count("id"),
         today=Count("id", filter=Q(created_on__date=today)),

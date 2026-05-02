@@ -1,6 +1,7 @@
 from django.conf import settings
-from openai import OpenAI
 from pydantic import BaseModel, Field
+
+from core.openai import get_prompt_manager
 
 
 class SkillAssessment(BaseModel):
@@ -12,10 +13,23 @@ class SkillAssessment(BaseModel):
     verdict: str
 
 
+class RelevanceCheck(BaseModel):
+    is_relevant: bool
+    reason: str
+
+
 SYSTEM_PROMPT = (
     "You assess candidate fit for a job posting. "
     "Return matched and missing soft & hard skills, a 0-100 score, "
     "and a short verdict (1-3 sentences) explaining the score."
+)
+
+RELEVANCE_SYSTEM_PROMPT = (
+    "Decide if a job posting is plausibly in the same field as the candidate's "
+    "preference. Return is_relevant=false ONLY when the fields are clearly "
+    "unrelated (e.g. software developer vs housekeeper, accountant vs truck "
+    "driver). When in doubt, return true — borderline fits go to the full "
+    "scorer downstream."
 )
 
 
@@ -34,13 +48,24 @@ def assess(job, preference) -> SkillAssessment:
         f"JOB LOCATION: {job.location}\n"
         f"JOB DESCRIPTION:\n{job.description}"
     )
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    resp = client.chat.completions.parse(
-        model=settings.OPENAI_MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_msg},
-        ],
+    return get_prompt_manager().parse(
+        system=SYSTEM_PROMPT,
+        user=user_msg,
         response_format=SkillAssessment,
     )
-    return resp.choices[0].message.parsed
+
+
+def check_relevance(job, preference) -> RelevanceCheck:
+    user_msg = (
+        f"PREFERENCE TITLE: {preference.title}\n"
+        f"PREFERENCE JOB TYPE: {preference.job_type}\n\n"
+        f"JOB TITLE: {job.title}\n"
+        f"JOB COMPANY: {job.company}\n"
+        f"JOB DESCRIPTION (first 1500 chars):\n{(job.description or '')[:1500]}"
+    )
+    return get_prompt_manager().parse(
+        system=RELEVANCE_SYSTEM_PROMPT,
+        user=user_msg,
+        response_format=RelevanceCheck,
+        model=getattr(settings, "OPENAI_RELEVANCE_MODEL", "gpt-4o-mini"),
+    )

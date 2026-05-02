@@ -18,6 +18,7 @@ class Assessment(BaseModel):
     hard_skill_gap = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
     verdict = models.TextField(null=True, blank=True, help_text="Verdict by AI")
+    is_relevant = models.BooleanField(default=True)
 
     score = models.IntegerField()
 

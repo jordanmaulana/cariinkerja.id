@@ -6,7 +6,7 @@ from celery import shared_task
 from django.db import transaction
 
 from assessment.models import Assessment
-from assessment.services import assess
+from assessment.services import assess, check_relevance
 from jobs.models import Job
 from jobs.scrapers import indeed, jobstreet
 from profiles.consts import Source, Status
@@ -77,6 +77,20 @@ def assess_job(job_id: str, preference_id: str):
         return "skipped"
     job = Job.objects.get(id=job_id)
     pref = Preference.objects.select_related("profile").get(id=preference_id)
+
+    relevance = check_relevance(job, pref)
+    if not relevance.is_relevant:
+        Assessment.objects.get_or_create(
+            job=job,
+            preference=pref,
+            defaults={
+                "is_relevant": False,
+                "score": 0,
+                "verdict": f"Filtered as irrelevant: {relevance.reason}",
+            },
+        )
+        return "irrelevant"
+
     result = assess(job, pref)
     _, created = Assessment.objects.get_or_create(
         job=job,
@@ -98,7 +112,32 @@ def reassess_assessment(assessment_id: str):
     assessment = Assessment.objects.select_related("job", "preference__profile").get(
         id=assessment_id
     )
+
+    relevance = check_relevance(assessment.job, assessment.preference)
+    if not relevance.is_relevant:
+        assessment.is_relevant = False
+        assessment.score = 0
+        assessment.verdict = f"Filtered as irrelevant: {relevance.reason}"
+        assessment.soft_skill_match = []
+        assessment.soft_skill_gap = []
+        assessment.hard_skill_match = []
+        assessment.hard_skill_gap = []
+        assessment.save(
+            update_fields=[
+                "is_relevant",
+                "score",
+                "verdict",
+                "soft_skill_match",
+                "soft_skill_gap",
+                "hard_skill_match",
+                "hard_skill_gap",
+                "updated_on",
+            ]
+        )
+        return "irrelevant"
+
     result = assess(assessment.job, assessment.preference)
+    assessment.is_relevant = True
     assessment.soft_skill_match = result.soft_skill_match
     assessment.soft_skill_gap = result.soft_skill_gap
     assessment.hard_skill_match = result.hard_skill_match
@@ -107,6 +146,7 @@ def reassess_assessment(assessment_id: str):
     assessment.verdict = result.verdict
     assessment.save(
         update_fields=[
+            "is_relevant",
             "soft_skill_match",
             "soft_skill_gap",
             "hard_skill_match",
