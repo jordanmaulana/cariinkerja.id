@@ -259,14 +259,23 @@ def preference_detail(request, pk):
     if request.method == "GET":
         return Response(PreferenceSerializer(pref).data)
     if request.method == "DELETE":
+        if pref.status != PreferenceStatus.WAITING_PAYMENT:
+            return Response(
+                {"detail": "Finder cannot be deleted after submission."},
+                status=status.HTTP_409_CONFLICT,
+            )
         pref.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    was_running = pref.status == PreferenceStatus.RUNNING
     serializer = PreferenceSerializer(
         pref, data=request.data, partial=request.method == "PATCH"
     )
     serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
+    pref = serializer.save()
+    if was_running:
+        pref.status = PreferenceStatus.WAITING_ADMIN
+        pref.save(update_fields=["status", "updated_on"])
+    return Response(PreferenceSerializer(pref).data)
 
 
 @api_view(["GET"])

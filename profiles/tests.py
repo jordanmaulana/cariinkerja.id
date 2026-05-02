@@ -3,8 +3,10 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from rest_framework.authtoken.models import Token
+from rest_framework.test import APIClient
 
-from profiles.consts import Status
+from profiles.consts import Source, Status
 from profiles.models import Preference, Profile
 from profiles.services import LinkedInIngest, ingest_linkedin
 
@@ -201,3 +203,92 @@ class PreferenceQualityGateTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.pref.refresh_from_db()
         self.assertEqual(self.pref.status, Status.RUNNING)
+
+
+class PreferenceDetailAPITests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("user", "user@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="User")
+        token, _ = Token.objects.get_or_create(user=self.user)
+        self.api = APIClient()
+        self.api.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self.url = lambda pk: reverse("api-v1-preference-detail", args=[pk])
+
+    def _pref(self, status=Status.WAITING_PAYMENT, **kwargs):
+        return Preference.objects.create(
+            profile=self.profile, title="Engineer", status=status, **kwargs
+        )
+
+    def test_patch_running_flips_to_waiting_admin(self):
+        pref = self._pref(status=Status.RUNNING)
+        resp = self.api.patch(self.url(pref.id), {"title": "New"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["status"], Status.WAITING_ADMIN)
+        self.assertEqual(resp.data["title"], "New")
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, Status.WAITING_ADMIN)
+        self.assertEqual(pref.title, "New")
+
+    def test_patch_waiting_payment_keeps_status(self):
+        pref = self._pref(status=Status.WAITING_PAYMENT)
+        resp = self.api.patch(self.url(pref.id), {"title": "X"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+        self.assertEqual(pref.title, "X")
+
+    def test_patch_waiting_admin_keeps_status(self):
+        pref = self._pref(status=Status.WAITING_ADMIN)
+        resp = self.api.patch(self.url(pref.id), {"title": "X"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, Status.WAITING_ADMIN)
+
+    def test_patch_expired_keeps_status(self):
+        pref = self._pref(status=Status.EXPIRED)
+        resp = self.api.patch(self.url(pref.id), {"title": "X"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, Status.EXPIRED)
+
+    def test_delete_allowed_when_waiting_payment(self):
+        pref = self._pref(status=Status.WAITING_PAYMENT)
+        resp = self.api.delete(self.url(pref.id))
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Preference.objects.filter(pk=pref.id).exists())
+
+    def test_delete_blocked_when_waiting_admin(self):
+        pref = self._pref(status=Status.WAITING_ADMIN)
+        resp = self.api.delete(self.url(pref.id))
+        self.assertEqual(resp.status_code, 409)
+        self.assertTrue(Preference.objects.filter(pk=pref.id).exists())
+
+    def test_delete_blocked_when_running(self):
+        pref = self._pref(status=Status.RUNNING)
+        resp = self.api.delete(self.url(pref.id))
+        self.assertEqual(resp.status_code, 409)
+        self.assertTrue(Preference.objects.filter(pk=pref.id).exists())
+
+    def test_delete_blocked_when_expired(self):
+        pref = self._pref(status=Status.EXPIRED)
+        resp = self.api.delete(self.url(pref.id))
+        self.assertEqual(resp.status_code, 409)
+        self.assertTrue(Preference.objects.filter(pk=pref.id).exists())
+
+    def test_user_cannot_set_status_directly(self):
+        pref = self._pref(status=Status.WAITING_PAYMENT)
+        resp = self.api.patch(
+            self.url(pref.id), {"status": Status.RUNNING}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200)
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+
+    def test_user_cannot_set_crawl_source(self):
+        pref = self._pref(status=Status.WAITING_PAYMENT, crawl_source="")
+        resp = self.api.patch(
+            self.url(pref.id), {"crawl_source": Source.INDEED}, format="json"
+        )
+        self.assertEqual(resp.status_code, 200)
+        pref.refresh_from_db()
+        self.assertEqual(pref.crawl_source, "")

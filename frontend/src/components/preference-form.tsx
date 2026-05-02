@@ -10,17 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts"
-import {
-  PREFERENCE_SOURCES,
-  type Preference,
-  type PreferencePayload,
-} from "@/lib/preferences"
+import { type Preference, type PreferencePayload } from "@/lib/preferences"
 
 export type PreferenceFormValues = {
   title: string
   job_type: string
   remote_option: string
-  crawl_source: string
 }
 
 export function buildInitialValues(p?: Preference | null): PreferenceFormValues {
@@ -28,7 +23,6 @@ export function buildInitialValues(p?: Preference | null): PreferenceFormValues 
     title: p?.title ?? "",
     job_type: p?.job_type ?? "",
     remote_option: p?.remote_option ?? "",
-    crawl_source: p?.crawl_source ?? "",
   }
 }
 
@@ -37,7 +31,6 @@ export function valuesToPayload(v: PreferenceFormValues): PreferencePayload {
     title: v.title.trim() || null,
     job_type: (v.job_type || null) as PreferencePayload["job_type"],
     remote_option: (v.remote_option || null) as PreferencePayload["remote_option"],
-    crawl_source: (v.crawl_source || null) as PreferencePayload["crawl_source"],
   }
 }
 
@@ -99,25 +92,6 @@ export function PreferenceFormFields({ values, onChange, disabled }: Props) {
             {REMOTE_OPTIONS.map((r) => (
               <SelectItem key={r.value} value={r.value}>
                 {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <Field label="Crawl source" htmlFor="pref-crawl-source">
-        <Select
-          value={values.crawl_source}
-          onValueChange={(v) => update("crawl_source", v)}
-          disabled={disabled}
-        >
-          <SelectTrigger id="pref-crawl-source">
-            <SelectValue placeholder="Unset" />
-          </SelectTrigger>
-          <SelectContent>
-            {PREFERENCE_SOURCES.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
               </SelectItem>
             ))}
           </SelectContent>

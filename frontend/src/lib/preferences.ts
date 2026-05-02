@@ -28,16 +28,10 @@ export const PREFERENCE_STATUSES: { value: PreferenceStatus; label: string }[] =
   { value: "expired", label: "Expired" },
 ]
 
-export const PREFERENCE_SOURCES: { value: PreferenceSource; label: string }[] = [
-  { value: "jobstreet", label: "JobStreet" },
-  { value: "indeed", label: "Indeed" },
-]
-
 export type PreferencePayload = {
   title?: string | null
   job_type?: JobType | null
   remote_option?: RemoteOption | null
-  crawl_source?: PreferenceSource | null
 }
 
 export async function listPreferences(): Promise<Preference[]> {

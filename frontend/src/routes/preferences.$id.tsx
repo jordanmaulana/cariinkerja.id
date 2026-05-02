@@ -101,6 +101,8 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
     buildInitialValues(preference),
   )
   const [error, setError] = useState<string | null>(null)
+  const isRunning = preference.status === "running"
+  const canDelete = preference.status === "waiting_payment"
 
   const updateMutation = useMutation({
     mutationFn: (v: PreferenceFormValues) =>
@@ -145,6 +147,12 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {isRunning && (
+            <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+              This Finder is currently running. Saving will pause the crawl and
+              send it back to admin for review before it resumes.
+            </div>
+          )}
           <PreferenceFormFields
             values={values}
             onChange={setValues}
@@ -155,11 +163,15 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
       </Card>
 
       <div className="flex items-center justify-between">
-        <DeleteDialog
-          preference={preference}
-          isDeleting={deleteMutation.isPending}
-          onConfirm={() => deleteMutation.mutate()}
-        />
+        {canDelete ? (
+          <DeleteDialog
+            preference={preference}
+            isDeleting={deleteMutation.isPending}
+            onConfirm={() => deleteMutation.mutate()}
+          />
+        ) : (
+          <span />
+        )}
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -170,7 +182,11 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
             Reset
           </Button>
           <Button type="submit" disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "Saving…" : "Save changes"}
+            {updateMutation.isPending
+              ? "Saving…"
+              : isRunning
+                ? "Submit changes for review"
+                : "Save changes"}
           </Button>
         </div>
       </div>
