@@ -30,7 +30,7 @@ const ReactQueryDevtools = import.meta.env.DEV
   )
   : () => null
 
-const PUBLIC_PATHS = new Set(["/login"])
+const PUBLIC_PATHS = new Set(["/", "/login"])
 const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, "/onboarding"])
 
 function describeEvent(e: UserEvent): string | null {
