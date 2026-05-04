@@ -204,6 +204,9 @@ PAYMENT_REDIRECT_URL = os.environ.get(
 
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
+SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
+
 CORS_ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",")
