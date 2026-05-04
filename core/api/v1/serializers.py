@@ -70,8 +70,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "bio",
             "onboarded",
             "open_to_work",
+            "whitelist",
         ]
-        read_only_fields = ["open_to_work"]
+        read_only_fields = ["open_to_work", "whitelist"]
 
     def get_onboarded(self, profile):
         return bool(profile.full_name)

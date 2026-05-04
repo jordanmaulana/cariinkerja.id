@@ -10,9 +10,11 @@ class ProfileAdmin(admin.ModelAdmin):
         "id",
         "open_to_work",
         "linkedin_quality_ok",
+        "whitelist",
         "created_on",
     )
-    list_filter = ("open_to_work", "linkedin_quality_ok")
+    list_editable = ("whitelist",)
+    list_filter = ("open_to_work", "linkedin_quality_ok", "whitelist")
     search_fields = ("full_name", "bio")
     readonly_fields = (
         "id",

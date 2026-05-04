@@ -4,15 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('profiles', '0011_profile_phone'),
+        ("profiles", "0011_profile_phone"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='preference',
-            name='status',
-            field=models.CharField(choices=[('waiting_payment', 'Waiting Payment'), ('waiting_admin', 'Waiting Admin'), ('running', 'Running'), ('expired', 'Expired')], default='waiting_admin', max_length=20),
+            model_name="preference",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("waiting_payment", "Waiting Payment"),
+                    ("waiting_admin", "Waiting Admin"),
+                    ("running", "Running"),
+                    ("expired", "Expired"),
+                ],
+                default="waiting_admin",
+                max_length=20,
+            ),
         ),
     ]

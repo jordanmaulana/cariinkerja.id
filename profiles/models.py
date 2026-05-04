@@ -36,6 +36,10 @@ class Profile(BaseModel):
     open_to_work = models.BooleanField(default=False)
     linkedin_quality_ok = models.BooleanField(default=False)
     linkedin_quality_reason = models.TextField(blank=True, default="")
+    whitelist = models.BooleanField(
+        default=False,
+        help_text="Bypass plan limits (preference cap, future crawl caps).",
+    )
 
     class Meta:
         app_label = "profiles"

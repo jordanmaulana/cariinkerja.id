@@ -71,9 +71,7 @@ def poll_subscription_after_checkout(self, subscription_id: str):
         logger.info("poll_after_checkout: sub=%s missing, drop", subscription_id)
         return
     if sub.status != SubscriptionStatus.PENDING:
-        logger.info(
-            "poll_after_checkout: sub=%s status=%s, stop", sub.id, sub.status
-        )
+        logger.info("poll_after_checkout: sub=%s status=%s, stop", sub.id, sub.status)
         return
     if not sub.payment_ref:
         logger.info("poll_after_checkout: sub=%s no payment_ref, drop", sub.id)
@@ -87,12 +85,8 @@ def poll_subscription_after_checkout(self, subscription_id: str):
     try:
         result = get_payment_status(sub.payment_ref)
     except MayarError as exc:
-        logger.warning(
-            "poll_after_checkout: sub=%s mayar error %s, retry", sub.id, exc
-        )
-        raise self.retry(
-            countdown=CHECKOUT_POLL_INTERVAL_SECONDS, max_retries=None
-        )
+        logger.warning("poll_after_checkout: sub=%s mayar error %s, retry", sub.id, exc)
+        raise self.retry(countdown=CHECKOUT_POLL_INTERVAL_SECONDS, max_retries=None)
 
     status_str = result["status"]
     if status_str in PAID_STATUSES:
@@ -102,6 +96,4 @@ def poll_subscription_after_checkout(self, subscription_id: str):
         cancel_pending_subscription(sub)
         return
 
-    self.apply_async(
-        args=[subscription_id], countdown=CHECKOUT_POLL_INTERVAL_SECONDS
-    )
+    self.apply_async(args=[subscription_id], countdown=CHECKOUT_POLL_INTERVAL_SECONDS)

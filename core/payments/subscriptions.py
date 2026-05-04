@@ -38,9 +38,7 @@ def activate_subscription(sub: Subscription) -> bool:
         status=PreferenceStatus.WAITING_PAYMENT,
     )
     pref_ids = list(pending_prefs.values_list("id", flat=True))
-    unlocked = pending_prefs.update(
-        status=PreferenceStatus.RUNNING, updated_on=now
-    )
+    unlocked = pending_prefs.update(status=PreferenceStatus.RUNNING, updated_on=now)
     logger.info(
         "activate_subscription: sub=%s ACTIVE expires_at=%s preferences_unlocked=%d",
         sub.id,

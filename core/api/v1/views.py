@@ -266,6 +266,22 @@ def preference_list(request):
             {"detail": "Profile missing for user."},
             status=status.HTTP_404_NOT_FOUND,
         )
+    if not profile.whitelist:
+        active_sub = (
+            Subscription.objects.filter(
+                profile=profile, status=SubscriptionStatus.ACTIVE
+            )
+            .select_related("plan")
+            .order_by("-created_on")
+            .first()
+        )
+        if active_sub is not None:
+            used = Preference.objects.filter(profile=profile).count()
+            if used >= active_sub.plan.preference_limit:
+                return Response(
+                    {"detail": "Preference limit reached for current plan."},
+                    status=status.HTTP_409_CONFLICT,
+                )
     serializer = PreferenceSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     pref = serializer.save(profile=profile)
