@@ -22,7 +22,7 @@ def notify_preference_created(preference_id: str) -> None:
         return
     profile = pref.profile
     name = profile.full_name or (profile.user.email if profile.user_id else "unknown")
-    admin_path = reverse("admin:profiles_preference_change", args=[pref.id])
+    admin_path = reverse("preference_detail", args=[pref.id])
     admin_url = f"{settings.SITE_URL}{admin_path}"
     lines = [
         "**New Preference created**",
@@ -47,8 +47,4 @@ def crawl_linkedin_for_profile(profile_id: str, preference_id: str) -> str:
         return "skipped_no_url"
 
     crawl_and_ingest_linkedin(profile)
-
-    updated = Preference.objects.filter(
-        pk=preference_id, status=Status.WAITING_ADMIN
-    ).update(status=Status.WAITING_PAYMENT)
-    return "flipped" if updated else "no_status_change"
+    return "no_status_change"

@@ -17,7 +17,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from core.realtime import _client as redis_client, user_channel
+from core.realtime import _client as redis_client, publish, user_channel
 
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
@@ -666,4 +666,12 @@ def assessment_detail(request, pk):
     with transaction.atomic():
         assessment.status = serializer.validated_data["status"]
         assessment.save(update_fields=["status", "updated_on"])
+    publish(
+        user_channel(request.user.id),
+        {
+            "event": "assessment.status_changed",
+            "assessment_id": assessment.id,
+            "status": assessment.status,
+        },
+    )
     return Response(AssessmentSerializer(assessment).data)

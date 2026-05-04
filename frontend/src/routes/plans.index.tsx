@@ -1,4 +1,3 @@
-import { useCallback } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check } from "lucide-react"
@@ -27,7 +26,6 @@ import {
   listPlans,
   recheckSubscription,
 } from "@/lib/plans"
-import { useUserEvents, type UserEvent } from "@/lib/realtime"
 
 export const Route = createFileRoute("/plans/")({
   component: PlansPage,
@@ -83,19 +81,6 @@ function PlansPage() {
       queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
     },
   })
-
-  useUserEvents(
-    useCallback(
-      (e: UserEvent) => {
-        if (e.event === "subscription.activated") {
-          queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
-          queryClient.invalidateQueries({ queryKey: ["plans"] })
-        }
-        queryClient.invalidateQueries({ queryKey: ["payment-gate"] })
-      },
-      [queryClient],
-    ),
-  )
 
   const sub = subQuery.data
   const activePlanId =

@@ -1,15 +1,17 @@
-import { Suspense, lazy, useEffect } from "react"
+import { Suspense, lazy, useCallback, useEffect } from "react"
 import {
   Outlet,
   createRootRoute,
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router"
+import { useQueryClient } from "@tanstack/react-query"
 import { useAtom } from "jotai"
 
 import { AppShell } from "@/components/app-shell"
 import { ApiError } from "@/lib/api"
 import { me } from "@/lib/auth"
+import { useUserEvents, type UserEvent } from "@/lib/realtime"
 import { tokenAtom, userAtom } from "@/state/atoms"
 
 const TanStackRouterDevtools = import.meta.env.DEV
@@ -30,11 +32,38 @@ const ReactQueryDevtools = import.meta.env.DEV
 const PUBLIC_PATHS = new Set(["/login"])
 const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, "/onboarding"])
 
+function useRealtimeSync() {
+  const queryClient = useQueryClient()
+  const handler = useCallback(
+    (e: UserEvent) => {
+      switch (e.event) {
+        case "assessment.status_changed":
+          if (typeof e.assessment_id === "string") {
+            queryClient.invalidateQueries({
+              queryKey: ["assessment", e.assessment_id],
+            })
+          }
+          queryClient.invalidateQueries({ queryKey: ["assessments"] })
+          break
+        case "subscription.activated":
+          queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
+          queryClient.invalidateQueries({ queryKey: ["plans"] })
+          queryClient.invalidateQueries({ queryKey: ["payment-gate"] })
+          break
+      }
+    },
+    [queryClient],
+  )
+  useUserEvents(handler)
+}
+
 function AuthGate() {
   const [token, setToken] = useAtom(tokenAtom)
   const [user, setUser] = useAtom(userAtom)
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  useRealtimeSync()
 
   useEffect(() => {
     if (!token || user) return

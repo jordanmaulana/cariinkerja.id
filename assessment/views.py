@@ -7,6 +7,7 @@ from django.views import View
 from assessment.consts import Status
 from assessment.models import Assessment
 from assessment.tasks import reassess_assessment
+from core.realtime import publish, user_channel
 from core.views import SuperuserRequiredMixin
 
 
@@ -42,7 +43,10 @@ class AssessmentListView(SuperuserRequiredMixin, View):
 class AssessmentDetailView(SuperuserRequiredMixin, View):
     def _get(self, pk):
         return get_object_or_404(
-            Assessment.objects.select_related("job", "preference__profile"), pk=pk
+            Assessment.objects.select_related(
+                "job", "preference__profile__user"
+            ),
+            pk=pk,
         )
 
     def _render(self, request, assessment):
@@ -69,6 +73,18 @@ class AssessmentDetailView(SuperuserRequiredMixin, View):
             return self._render(request, assessment)
         assessment.status = status
         assessment.save(update_fields=["status", "updated_on"])
+        user_id = getattr(
+            getattr(assessment.preference.profile, "user", None), "id", None
+        )
+        if user_id is not None:
+            publish(
+                user_channel(user_id),
+                {
+                    "event": "assessment.status_changed",
+                    "assessment_id": assessment.id,
+                    "status": assessment.status,
+                },
+            )
         messages.success(request, "Assessment updated.")
         return redirect("assessment_detail", pk=assessment.pk)
 
