@@ -20,11 +20,5 @@ done
 echo "==> django migrate"
 docker compose exec -T backend uv run manage.py migrate --noinput
 
-echo "==> django collectstatic"
-docker compose exec -T backend uv run manage.py collectstatic --noinput
-
-echo "==> restart backend / worker / beat / frontend"
-docker compose restart backend worker beat frontend
-
 echo "==> done"
 docker compose ps
