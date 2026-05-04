@@ -52,17 +52,17 @@ function getActionsForStatus(status: AssessmentStatus): Action[] {
   switch (status) {
     case "new":
       return [
-        { label: "Mark seen", next: "seen", variant: "outline" },
+        { label: "Mark reviewed", next: "seen", variant: "outline" },
         { label: "Reject", next: "rejected", variant: "destructive" },
       ]
     case "seen":
       return [
-        { label: "Mark applied", next: "applied", variant: "default" },
+        { label: "I applied", next: "applied", variant: "default" },
         { label: "Reject", next: "rejected", variant: "destructive" },
       ]
     case "applied":
       return [
-        { label: "Mark accepted", next: "accepted", variant: "default" },
+        { label: "Got an offer", next: "accepted", variant: "default" },
         { label: "Reject", next: "rejected", variant: "destructive" },
       ]
     default:

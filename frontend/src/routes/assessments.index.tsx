@@ -332,7 +332,10 @@ function AssessmentsTable({
             <TableRow
               key={row.id}
               className="cursor-pointer"
-              onClick={() => onOpen(row.id)}
+              onClick={() => {
+                if (row.status === "new") onAction(row.id, "seen")
+                onOpen(row.id)
+              }}
             >
               <TableCell className="max-w-[280px]">
                 <span
