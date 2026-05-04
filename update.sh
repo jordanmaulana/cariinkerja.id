@@ -7,18 +7,18 @@ echo "==> git pull"
 git pull --ff-only
 
 echo "==> docker compose build"
-docker compose build
+docker compose --env-file .env.docker build
 
 echo "==> docker compose up -d"
-docker compose up -d
+docker compose --env-file .env.docker up -d
 
 echo "==> waiting for postgres healthy"
-until [ "$(docker compose ps -q postgres | xargs -I{} docker inspect -f '{{.State.Health.Status}}' {})" = "healthy" ]; do
+until [ "$(docker compose --env-file .env.docker ps -q postgres | xargs -I{} docker inspect -f '{{.State.Health.Status}}' {})" = "healthy" ]; do
   sleep 2
 done
 
 echo "==> django migrate"
-docker compose exec -T backend uv run manage.py migrate --noinput
+docker compose --env-file .env.docker exec -T backend uv run manage.py migrate --noinput
 
 echo "==> done"
-docker compose ps
+docker compose --env-file .env.docker ps
