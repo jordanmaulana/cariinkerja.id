@@ -3,11 +3,13 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from billing.models import Plan, Subscription, SubscriptionStatus
-from profiles.models import Profile
+from profiles.consts import Status as PreferenceStatus
+from profiles.models import Preference, Profile
 
 
 def _mock_link(transaction_id="tx-1", link="https://pay.mayar.id/abc"):
@@ -171,3 +173,102 @@ class MySubscriptionTests(TestCase):
         resp = self.api.get(self.url)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["id"], active.id)
+
+
+class PaymentGateTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("u", "u@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="U")
+        token, _ = Token.objects.get_or_create(user=self.user)
+        self.api = APIClient()
+        self.api.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self.gate_url = reverse("api-v1-payment-gate")
+        self.checkout_url = reverse("api-v1-subscription-checkout")
+        self.plan = Plan.objects.create(name="A", price=10000, preference_limit=1)
+
+    def test_gate_open_when_no_preferences_and_not_ingested(self):
+        resp = self.api.get(self.gate_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data, {"locked": False})
+
+    def test_gate_locked_on_waiting_admin_preference(self):
+        Preference.objects.create(
+            profile=self.profile,
+            title="x",
+            status=PreferenceStatus.WAITING_ADMIN,
+        )
+        resp = self.api.get(self.gate_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data["locked"])
+        self.assertEqual(resp.data["code"], "waiting_admin")
+        self.assertIn("admin", resp.data["detail"].lower())
+
+    def test_gate_locked_on_sparse_linkedin(self):
+        self.profile.linkedin_ingested_at = timezone.now()
+        self.profile.linkedin_quality_ok = False
+        self.profile.linkedin_quality_reason = "headline only, no experiences"
+        self.profile.save()
+        resp = self.api.get(self.gate_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data["locked"])
+        self.assertEqual(resp.data["code"], "linkedin_quality")
+        self.assertEqual(resp.data["detail"], "headline only, no experiences")
+
+    def test_gate_quality_takes_precedence_over_waiting_admin(self):
+        self.profile.linkedin_ingested_at = timezone.now()
+        self.profile.linkedin_quality_ok = False
+        self.profile.linkedin_quality_reason = "sparse"
+        self.profile.save()
+        Preference.objects.create(
+            profile=self.profile,
+            title="x",
+            status=PreferenceStatus.WAITING_ADMIN,
+        )
+        resp = self.api.get(self.gate_url)
+        self.assertEqual(resp.data["code"], "linkedin_quality")
+
+    def test_gate_open_when_only_waiting_payment(self):
+        Preference.objects.create(
+            profile=self.profile,
+            title="x",
+            status=PreferenceStatus.WAITING_PAYMENT,
+        )
+        resp = self.api.get(self.gate_url)
+        self.assertEqual(resp.data, {"locked": False})
+
+    def test_gate_open_when_quality_ok_false_but_not_ingested(self):
+        self.profile.linkedin_quality_ok = False
+        self.profile.save()
+        resp = self.api.get(self.gate_url)
+        self.assertEqual(resp.data, {"locked": False})
+
+    @patch("core.api.v1.views.poll_subscription_after_checkout")
+    @patch("core.api.v1.views.create_payment_link")
+    def test_checkout_blocked_on_waiting_admin(self, link, _poll):
+        Preference.objects.create(
+            profile=self.profile,
+            title="x",
+            status=PreferenceStatus.WAITING_ADMIN,
+        )
+        resp = self.api.post(
+            self.checkout_url, {"plan_id": self.plan.id}, format="json"
+        )
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(resp.data["code"], "waiting_admin")
+        self.assertEqual(Subscription.objects.filter(profile=self.profile).count(), 0)
+        link.assert_not_called()
+
+    @patch("core.api.v1.views.poll_subscription_after_checkout")
+    @patch("core.api.v1.views.create_payment_link")
+    def test_checkout_blocked_on_linkedin_quality(self, link, _poll):
+        self.profile.linkedin_ingested_at = timezone.now()
+        self.profile.linkedin_quality_ok = False
+        self.profile.linkedin_quality_reason = "too sparse"
+        self.profile.save()
+        resp = self.api.post(
+            self.checkout_url, {"plan_id": self.plan.id}, format="json"
+        )
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(resp.data["code"], "linkedin_quality")
+        self.assertEqual(resp.data["detail"], "too sparse")
+        link.assert_not_called()

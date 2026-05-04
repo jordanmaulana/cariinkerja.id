@@ -17,6 +17,8 @@ export type ProfileMe = {
   linkedin_url: string | null;
   bio: string | null;
   onboarded: boolean;
+  linkedin_quality_ok: boolean;
+  linkedin_quality_reason: string;
 };
 
 const TOKEN_KEY = "token";

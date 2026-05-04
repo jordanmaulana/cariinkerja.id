@@ -3,6 +3,10 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check } from "lucide-react"
 
+import {
+  PaymentGateBanner,
+  usePaymentGate,
+} from "@/components/payment-gate-banner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -56,6 +60,8 @@ function PlansPage() {
     queryFn: getMySubscription,
     retry: false,
   })
+  const gateQuery = usePaymentGate()
+  const locked = gateQuery.data?.locked === true
 
   const checkoutMutation = useMutation({
     mutationFn: (planId: string) => checkout(planId),
@@ -85,6 +91,7 @@ function PlansPage() {
           queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
           queryClient.invalidateQueries({ queryKey: ["plans"] })
         }
+        queryClient.invalidateQueries({ queryKey: ["payment-gate"] })
       },
       [queryClient],
     ),
@@ -105,6 +112,8 @@ function PlansPage() {
           Pick a plan to start matching jobs to your profile.
         </p>
       </div>
+
+      <PaymentGateBanner />
 
       <CurrentSubscriptionBanner
         sub={sub}
@@ -152,6 +161,7 @@ function PlansPage() {
                 checkoutMutation.variables === plan.id
               }
               isPendingOther={hasPendingSub && plan.id !== pendingPlanId}
+              locked={locked}
               onSubscribe={() => checkoutMutation.mutate(plan.id)}
             />
           ))}
@@ -269,12 +279,14 @@ function PlanCard({
   isCurrent,
   isPending,
   isPendingOther,
+  locked,
   onSubscribe,
 }: {
   plan: Plan
   isCurrent: boolean
   isPending: boolean
   isPendingOther: boolean
+  locked: boolean
   onSubscribe: () => void
 }) {
   const discounted = plan.effective_price < plan.price
@@ -317,7 +329,7 @@ function PlanCard({
         </ul>
         <Button
           className="w-full"
-          disabled={isCurrent || isPending || isPendingOther}
+          disabled={isCurrent || isPending || isPendingOther || locked}
           onClick={onSubscribe}
         >
           {isCurrent
@@ -326,7 +338,9 @@ function PlanCard({
               ? "Redirecting…"
               : isPendingOther
                 ? "Resume or cancel pending"
-                : "Subscribe"}
+                : locked
+                  ? "Locked"
+                  : "Subscribe"}
         </Button>
       </CardContent>
     </Card>

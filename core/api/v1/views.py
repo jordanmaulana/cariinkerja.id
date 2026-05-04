@@ -254,6 +254,39 @@ def _user_preferences(user):
     return Preference.objects.filter(profile__user=user).order_by("-created_on")
 
 
+def _payment_gate(profile):
+    if profile.linkedin_ingested_at and not profile.linkedin_quality_ok:
+        return {
+            "code": "linkedin_quality",
+            "detail": profile.linkedin_quality_reason
+            or "LinkedIn profile needs more detail before payment.",
+        }
+    waiting_admin = Preference.objects.filter(
+        profile=profile, status=PreferenceStatus.WAITING_ADMIN
+    ).exists()
+    if waiting_admin:
+        return {
+            "code": "waiting_admin",
+            "detail": "Your LinkedIn is still being reviewed by admin.",
+        }
+    return None
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def payment_gate(request):
+    profile = getattr(request.user, "profile", None)
+    if profile is None:
+        return Response(
+            {"detail": "Profile missing for user."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    gate = _payment_gate(profile)
+    if gate is None:
+        return Response({"locked": False})
+    return Response({"locked": True, **gate})
+
+
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def preference_list(request):
@@ -367,6 +400,13 @@ def checkout(request):
     plan = get_object_or_404(
         Plan, pk=serializer.validated_data["plan_id"], is_active=True
     )
+
+    gate = _payment_gate(profile)
+    if gate is not None:
+        return Response(
+            {"locked": True, **gate},
+            status=status.HTTP_409_CONFLICT,
+        )
 
     with transaction.atomic():
         existing = (

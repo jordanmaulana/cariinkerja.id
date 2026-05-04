@@ -2,6 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts"
 
+import {
+  PaymentGateBanner,
+  usePaymentGate,
+} from "@/components/payment-gate-banner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { listAssessments, type AssessmentStatus } from "@/lib/assessments"
 import { getDashboardStats, type DashboardStats } from "@/lib/dashboard"
+import { listPreferences } from "@/lib/preferences"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/dashboard")({
@@ -50,6 +55,14 @@ function DashboardPage() {
     staleTime: 30_000,
     select: (page) => page.results,
   })
+  const gate = usePaymentGate()
+  const prefs = useQuery({
+    queryKey: ["preferences"],
+    queryFn: listPreferences,
+  })
+  const hasWaitingPayment =
+    !gate.data?.locked &&
+    !!prefs.data?.some((p) => p.status === "waiting_payment")
 
   if (stats.isLoading) {
     return <DashboardSkeleton />
@@ -73,6 +86,9 @@ function DashboardPage() {
           Snapshot of your job-match activity. Updated on each visit.
         </p>
       </div>
+
+      <PaymentGateBanner />
+      {hasWaitingPayment && <WaitingPaymentBanner />}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
@@ -353,6 +369,24 @@ function RecentList({
         </li>
       ))}
     </ul>
+  )
+}
+
+function WaitingPaymentBanner() {
+  return (
+    <Card className="border-primary/40 bg-primary/5">
+      <CardHeader className="flex-row items-center justify-between gap-3">
+        <div className="space-y-1">
+          <CardTitle className="text-base">Finder approved</CardTitle>
+          <CardDescription>
+            Pick a plan to start matching jobs to your profile.
+          </CardDescription>
+        </div>
+        <Button asChild size="sm">
+          <Link to="/plans">Pick a plan</Link>
+        </Button>
+      </CardHeader>
+    </Card>
   )
 }
 

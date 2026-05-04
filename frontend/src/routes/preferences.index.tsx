@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 
@@ -9,6 +9,7 @@ import {
   type PreferenceFormValues,
   valuesToPayload,
 } from "@/components/preference-form"
+import { PaymentGateBanner } from "@/components/payment-gate-banner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -89,6 +90,8 @@ function PreferencesPage() {
         <NewPreferenceDialog />
       </div>
 
+      <PaymentGateBanner />
+
       <Card>
         <CardHeader>
           <CardTitle>Your Finders</CardTitle>
@@ -122,6 +125,7 @@ function PreferencesPage() {
                   <TableHead>Source</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,6 +159,18 @@ function PreferencesPage() {
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(p.created_on).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {p.status === "waiting_payment" && (
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Link to="/plans">Pick a plan</Link>
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -71,8 +71,15 @@ class ProfileSerializer(serializers.ModelSerializer):
             "onboarded",
             "open_to_work",
             "whitelist",
+            "linkedin_quality_ok",
+            "linkedin_quality_reason",
         ]
-        read_only_fields = ["open_to_work", "whitelist"]
+        read_only_fields = [
+            "open_to_work",
+            "whitelist",
+            "linkedin_quality_ok",
+            "linkedin_quality_reason",
+        ]
 
     def get_onboarded(self, profile):
         return bool(profile.full_name)

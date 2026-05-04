@@ -29,6 +29,16 @@ export type CheckoutResponse = {
   payment_link: string;
 };
 
+export type PaymentGateCode = "waiting_admin" | "linkedin_quality";
+
+export type PaymentGate =
+  | { locked: false }
+  | { locked: true; code: PaymentGateCode; detail: string };
+
+export async function getPaymentGate(): Promise<PaymentGate> {
+  return api<PaymentGate>("/payment-gate/");
+}
+
 export async function listPlans(): Promise<Plan[]> {
   return api<Plan[]>("/plans/");
 }

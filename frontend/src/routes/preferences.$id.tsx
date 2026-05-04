@@ -9,6 +9,7 @@ import {
   type PreferenceFormValues,
   valuesToPayload,
 } from "@/components/preference-form"
+import { PaymentGateBanner } from "@/components/payment-gate-banner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -89,9 +90,47 @@ function PreferenceDetailPage() {
         </Card>
       )}
 
+      {query.data && <StateNotice preference={query.data} />}
+      <PaymentGateBanner />
+
       {query.data && <PreferenceEditor key={query.data.id} preference={query.data} />}
     </div>
   )
+}
+
+function StateNotice({ preference }: { preference: Preference }) {
+  if (preference.status === "waiting_admin") {
+    return (
+      <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950">
+        <CardHeader>
+          <CardTitle className="text-base text-amber-900 dark:text-amber-100">
+            Admin is reviewing your LinkedIn
+          </CardTitle>
+          <CardDescription className="text-amber-900/80 dark:text-amber-100/80">
+            You will be able to pick a plan once your profile is approved.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+  if (preference.status === "waiting_payment") {
+    return (
+      <Card className="border-primary/40 bg-primary/5">
+        <CardHeader className="flex-row items-center justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="text-base">Finder approved</CardTitle>
+            <CardDescription>
+              Pick a plan to start matching jobs.
+            </CardDescription>
+          </div>
+          <Button asChild size="sm">
+            <Link to="/plans">Pick a plan</Link>
+          </Button>
+        </CardHeader>
+      </Card>
+    )
+  }
+  return null
 }
 
 function PreferenceEditor({ preference }: { preference: Preference }) {

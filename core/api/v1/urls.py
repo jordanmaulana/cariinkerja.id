@@ -12,6 +12,7 @@ from core.api.v1.views import (
     me,
     my_subscription,
     onboarding,
+    payment_gate,
     plan_list,
     preference_detail,
     preference_list,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("preferences/<str:pk>/", preference_detail, name="api-v1-preference-detail"),
     path("assessments/", assessment_list, name="api-v1-assessment-list"),
     path("assessments/<str:pk>/", assessment_detail, name="api-v1-assessment-detail"),
+    path("payment-gate/", payment_gate, name="api-v1-payment-gate"),
     path("plans/", plan_list, name="api-v1-plan-list"),
     path("subscriptions/me/", my_subscription, name="api-v1-subscription-me"),
     path(
