@@ -135,8 +135,8 @@ const PAGE_SIZE = 10
 function AssessmentsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<
     Set<AssessmentStatus>
-  >(() => new Set())
-  const [minScoreInput, setMinScoreInput] = useState("")
+  >(() => new Set(["new"]))
+  const [minScoreInput, setMinScoreInput] = useState("80")
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
