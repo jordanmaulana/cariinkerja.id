@@ -36,14 +36,8 @@ worker:
 beat:
 	uv run celery -A core beat -l info
 
-compose-up:
-	docker compose --env-file .env.docker up --build
-
-compose-down:
+dock:
 	docker compose --env-file .env.docker down
-
-compose-logs:
+	docker compose --env-file .env.docker build
+	docker compose --env-file .env.docker up -d
 	docker compose --env-file .env.docker logs -f
-
-compose-sh:
-	docker compose --env-file .env.docker exec backend sh

@@ -1,18 +1,31 @@
-import { useEffect } from "react"
+import { Suspense, lazy, useEffect } from "react"
 import {
   Outlet,
   createRootRoute,
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router"
-import { TanStackRouterDevtools } from "@tanstack/router-devtools"
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { useAtom } from "jotai"
 
 import { AppShell } from "@/components/app-shell"
 import { ApiError } from "@/lib/api"
 import { me } from "@/lib/auth"
 import { tokenAtom, userAtom } from "@/state/atoms"
+
+const TanStackRouterDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import("@tanstack/router-devtools").then((m) => ({
+        default: m.TanStackRouterDevtools,
+      })),
+    )
+  : () => null
+const ReactQueryDevtools = import.meta.env.DEV
+  ? lazy(() =>
+      import("@tanstack/react-query-devtools").then((m) => ({
+        default: m.ReactQueryDevtools,
+      })),
+    )
+  : () => null
 
 const PUBLIC_PATHS = new Set(["/login"])
 const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, "/onboarding"])
@@ -69,8 +82,10 @@ export const Route = createRootRoute({
   component: () => (
     <>
       <AuthGate />
-      <TanStackRouterDevtools />
-      <ReactQueryDevtools initialIsOpen={false} />
+      <Suspense fallback={null}>
+        <TanStackRouterDevtools />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </Suspense>
     </>
   ),
 })
