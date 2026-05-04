@@ -57,6 +57,14 @@ export async function recheckSubscription(
   });
 }
 
+export async function cancelPendingSubscription(): Promise<{
+  subscription_id: string;
+}> {
+  return api<{ subscription_id: string }>("/subscriptions/cancel-pending/", {
+    method: "POST",
+  });
+}
+
 export function formatRupiah(amount: number): string {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 }

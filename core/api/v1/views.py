@@ -336,9 +336,13 @@ def my_subscription(request):
             {"detail": "Profile missing for user."},
             status=status.HTTP_404_NOT_FOUND,
         )
+    base = Subscription.objects.filter(profile=profile).select_related("plan")
     sub = (
-        Subscription.objects.filter(profile=profile)
-        .select_related("plan")
+        base.filter(status=SubscriptionStatus.ACTIVE).order_by("-created_on").first()
+        or base.filter(status=SubscriptionStatus.PENDING)
+        .order_by("-created_on")
+        .first()
+        or base.filter(status=SubscriptionStatus.EXPIRED)
         .order_by("-created_on")
         .first()
     )
@@ -365,6 +369,30 @@ def checkout(request):
     )
 
     with transaction.atomic():
+        existing = (
+            Subscription.objects.select_for_update()
+            .filter(profile=profile, status=SubscriptionStatus.PENDING)
+            .order_by("-created_on")
+            .first()
+        )
+        if existing is not None:
+            if existing.plan_id == plan.id:
+                return Response(
+                    {
+                        "subscription_id": existing.id,
+                        "payment_link": existing.payment_link,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            return Response(
+                {
+                    "detail": "You already have a pending payment. Resume or cancel it first.",
+                    "pending_subscription_id": existing.id,
+                    "pending_plan_id": existing.plan_id,
+                    "payment_link": existing.payment_link,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         sub = Subscription.objects.create(
             profile=profile,
             plan=plan,
@@ -405,6 +433,31 @@ def checkout(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cancel_pending(request):
+    profile = getattr(request.user, "profile", None)
+    if profile is None:
+        return Response(
+            {"detail": "Profile missing for user."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    with transaction.atomic():
+        sub = (
+            Subscription.objects.select_for_update()
+            .filter(profile=profile, status=SubscriptionStatus.PENDING)
+            .order_by("-created_on")
+            .first()
+        )
+        if sub is None:
+            return Response(
+                {"detail": "No pending subscription."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        cancel_pending_subscription(sub)
+    return Response({"subscription_id": sub.id}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])

@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   type Plan,
   type Subscription,
+  cancelPendingSubscription,
   checkout,
   formatRupiah,
   getMySubscription,
@@ -70,6 +71,12 @@ function PlansPage() {
       queryClient.setQueryData(["subscription", "me"], data)
     },
   })
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelPendingSubscription(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
+    },
+  })
 
   useUserEvents(
     useCallback(
@@ -86,6 +93,9 @@ function PlansPage() {
   const sub = subQuery.data
   const activePlanId =
     sub && sub.status === "ACTIVE" ? sub.plan.id : null
+  const pendingPlanId =
+    sub && sub.status === "PENDING" ? sub.plan.id : null
+  const hasPendingSub = pendingPlanId !== null
 
   return (
     <div className="space-y-6">
@@ -104,6 +114,13 @@ function PlansPage() {
         recheckError={
           recheckMutation.isError && recheckMutation.error instanceof Error
             ? recheckMutation.error.message
+            : null
+        }
+        onCancel={() => cancelMutation.mutate()}
+        cancelling={cancelMutation.isPending}
+        cancelError={
+          cancelMutation.isError && cancelMutation.error instanceof Error
+            ? cancelMutation.error.message
             : null
         }
       />
@@ -134,6 +151,7 @@ function PlansPage() {
                 checkoutMutation.isPending &&
                 checkoutMutation.variables === plan.id
               }
+              isPendingOther={hasPendingSub && plan.id !== pendingPlanId}
               onSubscribe={() => checkoutMutation.mutate(plan.id)}
             />
           ))}
@@ -157,12 +175,18 @@ function CurrentSubscriptionBanner({
   onRecheck,
   rechecking,
   recheckError,
+  onCancel,
+  cancelling,
+  cancelError,
 }: {
   sub: Subscription | null | undefined
   loading: boolean
   onRecheck: () => void
   rechecking: boolean
   recheckError: string | null
+  onCancel: () => void
+  cancelling: boolean
+  cancelError: string | null
 }) {
   if (loading) return <Skeleton className="h-20 w-full" />
   if (!sub) {
@@ -211,16 +235,29 @@ function CurrentSubscriptionBanner({
           {recheckError && (
             <p className="text-xs text-destructive">{recheckError}</p>
           )}
+          {cancelError && (
+            <p className="text-xs text-destructive">{cancelError}</p>
+          )}
         </div>
         {sub.status === "PENDING" && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRecheck}
-            disabled={rechecking}
-          >
-            {rechecking ? "Checking…" : "I paid, refresh"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRecheck}
+              disabled={rechecking || cancelling}
+            >
+              {rechecking ? "Checking…" : "I paid, refresh"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              disabled={rechecking || cancelling}
+            >
+              {cancelling ? "Cancelling…" : "Cancel"}
+            </Button>
+          </div>
         )}
       </CardHeader>
     </Card>
@@ -231,11 +268,13 @@ function PlanCard({
   plan,
   isCurrent,
   isPending,
+  isPendingOther,
   onSubscribe,
 }: {
   plan: Plan
   isCurrent: boolean
   isPending: boolean
+  isPendingOther: boolean
   onSubscribe: () => void
 }) {
   const discounted = plan.effective_price < plan.price
@@ -278,14 +317,16 @@ function PlanCard({
         </ul>
         <Button
           className="w-full"
-          disabled={isCurrent || isPending}
+          disabled={isCurrent || isPending || isPendingOther}
           onClick={onSubscribe}
         >
           {isCurrent
             ? "Current plan"
             : isPending
               ? "Redirecting…"
-              : "Subscribe"}
+              : isPendingOther
+                ? "Resume or cancel pending"
+                : "Subscribe"}
         </Button>
       </CardContent>
     </Card>

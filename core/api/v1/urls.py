@@ -3,6 +3,7 @@ from django.urls import path
 from core.api.v1.views import (
     assessment_detail,
     assessment_list,
+    cancel_pending,
     checkout,
     dashboard_stats,
     google_auth,
@@ -36,6 +37,11 @@ urlpatterns = [
         "subscriptions/stream/", subscription_stream, name="api-v1-subscription-stream"
     ),
     path("subscriptions/checkout/", checkout, name="api-v1-subscription-checkout"),
+    path(
+        "subscriptions/cancel-pending/",
+        cancel_pending,
+        name="api-v1-subscription-cancel-pending",
+    ),
     path(
         "subscriptions/<str:pk>/recheck/",
         subscription_recheck,
