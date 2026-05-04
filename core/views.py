@@ -19,6 +19,7 @@ from assessment.models import Assessment
 from assessment.tasks import crawl_and_assess_preference
 from billing.forms import PlanForm
 from billing.models import Plan, Subscription, SubscriptionStatus
+from core.realtime import publish, user_channel
 from jobs.models import Job
 from profiles.consts import Source, Status
 from profiles.models import Preference, Profile
@@ -220,6 +221,17 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
                     "status",
                     "updated_on",
                 ]
+            )
+
+        user_id = getattr(getattr(pref.profile, "user", None), "id", None)
+        if user_id is not None:
+            publish(
+                user_channel(user_id),
+                {
+                    "event": "preference.status_changed",
+                    "preference_id": pref.id,
+                    "status": pref.status,
+                },
             )
 
         messages.success(request, "Preference updated.")

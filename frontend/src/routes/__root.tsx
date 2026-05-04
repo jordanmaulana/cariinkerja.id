@@ -50,6 +50,15 @@ function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ["plans"] })
           queryClient.invalidateQueries({ queryKey: ["payment-gate"] })
           break
+        case "preference.status_changed":
+          queryClient.invalidateQueries({ queryKey: ["preferences"] })
+          if (typeof e.preference_id === "string") {
+            queryClient.invalidateQueries({
+              queryKey: ["preference", e.preference_id],
+            })
+          }
+          queryClient.invalidateQueries({ queryKey: ["payment-gate"] })
+          break
       }
     },
     [queryClient],
