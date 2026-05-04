@@ -5,6 +5,7 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
+  MessageCircle,
   SlidersHorizontal,
 } from "lucide-react"
 
@@ -147,6 +148,20 @@ export function AppShell() {
             <Outlet />
           </div>
         </main>
+        <footer className="border-t px-4 py-4 md:px-8">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-center gap-2 text-xs text-muted-foreground">
+            <span>Butuh bantuan? Hubungi admin via</span>
+            <a
+              href="https://wa.me/6285138530082"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
+            >
+              <MessageCircle className="size-3.5" />
+              WhatsApp
+            </a>
+          </div>
+        </footer>
       </div>
     </div>
   )

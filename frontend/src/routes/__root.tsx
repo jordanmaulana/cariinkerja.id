@@ -14,17 +14,17 @@ import { tokenAtom, userAtom } from "@/state/atoms"
 
 const TanStackRouterDevtools = import.meta.env.DEV
   ? lazy(() =>
-      import("@tanstack/router-devtools").then((m) => ({
-        default: m.TanStackRouterDevtools,
-      })),
-    )
+    import("@tanstack/router-devtools").then((m) => ({
+      default: m.TanStackRouterDevtools,
+    })),
+  )
   : () => null
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() =>
-      import("@tanstack/react-query-devtools").then((m) => ({
-        default: m.ReactQueryDevtools,
-      })),
-    )
+    import("@tanstack/react-query-devtools").then((m) => ({
+      default: m.ReactQueryDevtools,
+    })),
+  )
   : () => null
 
 const PUBLIC_PATHS = new Set(["/login"])
