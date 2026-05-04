@@ -41,6 +41,7 @@ class SubscriptionStatus(models.TextChoices):
     ACTIVE = "ACTIVE", "Active"
     EXPIRED = "EXPIRED", "Expired"
     CANCELLED = "CANCELLED", "Cancelled"
+    REPLACED = "REPLACED", "Replaced"
 
 
 class Subscription(BaseModel):
@@ -62,6 +63,17 @@ class Subscription(BaseModel):
     payment_provider = models.CharField(max_length=16, default="mayar")
     payment_ref = models.CharField(max_length=128, blank=True, default="")
     payment_link = models.URLField(blank=True, default="")
+    amount_paid = models.PositiveIntegerField(
+        default=0, help_text="IDR actually paid (post-discount, post-credit)"
+    )
+    replaces = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="replaced_by_subs",
+        help_text="Old subscription this upgrade replaces.",
+    )
 
     class Meta:
         app_label = "billing"

@@ -12,7 +12,26 @@ export type SubscriptionStatus =
   | "PENDING"
   | "ACTIVE"
   | "EXPIRED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REPLACED";
+
+export type UpgradeQuote = {
+  current_plan_id: string;
+  new_plan_id: string;
+  seconds_remaining: number;
+  days_remaining: number;
+  amount_paid_old: number;
+  credit_value: number;
+  bonus_seconds: number;
+  bonus_days: number;
+  charge: number;
+  new_expires_at_estimate: string;
+};
+
+export type UpgradeQuoteError = {
+  detail: string;
+  code: "no_active_sub" | "downgrade" | "same_plan";
+};
 
 export type Subscription = {
   id: string;
@@ -57,6 +76,14 @@ export async function checkout(planId: string): Promise<CheckoutResponse> {
     method: "POST",
     body: JSON.stringify({ plan_id: planId }),
   });
+}
+
+export async function getUpgradeQuote(
+  planId: string,
+): Promise<UpgradeQuote> {
+  return api<UpgradeQuote>(
+    `/subscriptions/upgrade-quote/?plan_id=${encodeURIComponent(planId)}`,
+  );
 }
 
 export async function recheckSubscription(

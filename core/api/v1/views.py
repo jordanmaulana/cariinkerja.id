@@ -34,6 +34,11 @@ from core.api.v1.serializers import (
     UserSerializer,
 )
 from billing.models import Plan, Subscription, SubscriptionStatus, effective_price
+from billing.upgrades import (
+    UpgradeNotAllowed,
+    compute_upgrade_quote,
+    get_active_subscription,
+)
 from core.payments.mayar import (
     MayarError,
     PAID_STATUSES,
@@ -408,6 +413,19 @@ def checkout(request):
             status=status.HTTP_409_CONFLICT,
         )
 
+    active_sub = get_active_subscription(profile)
+    is_upgrade = False
+    if active_sub is not None and active_sub.plan_id != plan.id:
+        if plan.price <= active_sub.plan.price:
+            return Response(
+                {
+                    "detail": "Downgrade is not available.",
+                    "code": "downgrade",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        is_upgrade = True
+
     with transaction.atomic():
         existing = (
             Subscription.objects.select_for_update()
@@ -433,18 +451,39 @@ def checkout(request):
                 },
                 status=status.HTTP_409_CONFLICT,
             )
-        sub = Subscription.objects.create(
-            profile=profile,
-            plan=plan,
-            status=SubscriptionStatus.PENDING,
-            payment_provider="mayar",
-        )
+        if is_upgrade:
+            try:
+                quote = compute_upgrade_quote(profile, plan, current_sub=active_sub)
+            except UpgradeNotAllowed as exc:
+                return Response(
+                    {"detail": exc.detail, "code": exc.code},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            sub = Subscription.objects.create(
+                profile=profile,
+                plan=plan,
+                status=SubscriptionStatus.PENDING,
+                payment_provider="mayar",
+                replaces=active_sub,
+            )
+            amount = quote["charge"]
+            description = (
+                f"Upgrade {active_sub.plan.name}→{plan.name} "
+                f"(+{quote['bonus_days']:.1f}d bonus)"
+            )
+        else:
+            sub = Subscription.objects.create(
+                profile=profile,
+                plan=plan,
+                status=SubscriptionStatus.PENDING,
+                payment_provider="mayar",
+            )
+            amount = effective_price(plan, profile)
+            description = f"{plan.name} subscription (1 month)"
+            if amount < plan.price:
+                description += " (Open-to-Work discount)"
 
     redirect_url = dj_settings.PAYMENT_REDIRECT_URL
-    amount = effective_price(plan, profile)
-    description = f"{plan.name} subscription (1 month)"
-    if amount < plan.price:
-        description += " (Open-to-Work discount)"
     try:
         link = create_payment_link(
             name=profile.full_name or request.user.email,
@@ -460,7 +499,15 @@ def checkout(request):
 
     sub.payment_link = link["link"]
     sub.payment_ref = link["transaction_id"]
-    sub.save(update_fields=["payment_link", "payment_ref", "updated_on"])
+    sub.amount_paid = amount
+    sub.save(
+        update_fields=[
+            "payment_link",
+            "payment_ref",
+            "amount_paid",
+            "updated_on",
+        ]
+    )
 
     poll_subscription_after_checkout.apply_async(
         args=[sub.id], countdown=CHECKOUT_POLL_INTERVAL_SECONDS
@@ -473,6 +520,32 @@ def checkout(request):
         },
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def upgrade_quote(request):
+    profile = getattr(request.user, "profile", None)
+    if profile is None:
+        return Response(
+            {"detail": "Profile missing for user."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    plan_id = request.query_params.get("plan_id")
+    if not plan_id:
+        return Response(
+            {"detail": "plan_id is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    plan = get_object_or_404(Plan, pk=plan_id, is_active=True)
+    try:
+        quote = compute_upgrade_quote(profile, plan)
+    except UpgradeNotAllowed as exc:
+        return Response(
+            {"detail": exc.detail, "code": exc.code},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(quote)
 
 
 @api_view(["POST"])

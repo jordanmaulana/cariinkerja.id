@@ -1,5 +1,6 @@
+import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check, Loader2 } from "lucide-react"
 
 import {
@@ -15,15 +16,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   type Plan,
   type PaymentGate,
   type Subscription,
+  type UpgradeQuote,
   cancelPendingSubscription,
   checkout,
   formatRupiah,
   getMySubscription,
+  getUpgradeQuote,
   listPlans,
   recheckSubscription,
 } from "@/lib/plans"
@@ -38,6 +49,7 @@ const STATUS_LABEL: Record<Subscription["status"], string> = {
   ACTIVE: "Active",
   EXPIRED: "Expired",
   CANCELLED: "Cancelled",
+  REPLACED: "Replaced",
 }
 
 const STATUS_VARIANT: Record<
@@ -48,6 +60,7 @@ const STATUS_VARIANT: Record<
   ACTIVE: "default",
   EXPIRED: "outline",
   CANCELLED: "destructive",
+  REPLACED: "outline",
 }
 
 const GATE_REASON: Record<
@@ -60,6 +73,14 @@ const GATE_REASON: Record<
 
 const OPEN_TO_WORK_HINT =
   "Open-to-Work discount is applied automatically while you don't have an active subscription. Renewals at full price."
+
+type PlanMode =
+  | "buy"
+  | "current"
+  | "upgrade"
+  | "downgrade-blocked"
+  | "pending-other"
+  | "locked"
 
 function PlansPage() {
   const plansQuery = useQuery({
@@ -75,6 +96,35 @@ function PlansPage() {
   const locked = gateQuery.data?.locked === true
   const lockedReason =
     gateQuery.data?.locked === true ? GATE_REASON[gateQuery.data.code] : null
+
+  const sub = subQuery.data
+  const activePlan =
+    sub && sub.status === "ACTIVE" ? sub.plan : null
+  const pendingPlanId =
+    sub && sub.status === "PENDING" ? sub.plan.id : null
+  const hasPendingSub = pendingPlanId !== null
+
+  const upgradeablePlanIds =
+    activePlan && plansQuery.data
+      ? plansQuery.data
+          .filter((p) => p.price > activePlan.price && p.id !== activePlan.id)
+          .map((p) => p.id)
+      : []
+
+  const quoteQueries = useQueries({
+    queries: upgradeablePlanIds.map((planId) => ({
+      queryKey: ["upgrade-quote", planId],
+      queryFn: () => getUpgradeQuote(planId),
+      retry: false,
+      staleTime: 30_000,
+    })),
+  })
+  const quoteByPlanId: Record<string, UpgradeQuote | undefined> = {}
+  upgradeablePlanIds.forEach((planId, i) => {
+    quoteByPlanId[planId] = quoteQueries[i]?.data
+  })
+
+  const [confirmingPlanId, setConfirmingPlanId] = useState<string | null>(null)
 
   const checkoutMutation = useMutation({
     mutationFn: (planId: string) => checkout(planId),
@@ -105,12 +155,24 @@ function PlansPage() {
     },
   })
 
-  const sub = subQuery.data
-  const activePlanId =
-    sub && sub.status === "ACTIVE" ? sub.plan.id : null
-  const pendingPlanId =
-    sub && sub.status === "PENDING" ? sub.plan.id : null
-  const hasPendingSub = pendingPlanId !== null
+  function modeFor(plan: Plan): PlanMode {
+    if (locked) return "locked"
+    if (activePlan && plan.id === activePlan.id) return "current"
+    if (hasPendingSub && plan.id !== pendingPlanId) return "pending-other"
+    if (activePlan) {
+      if (plan.price > activePlan.price) return "upgrade"
+      if (plan.price < activePlan.price) return "downgrade-blocked"
+    }
+    return "buy"
+  }
+
+  const confirmingPlan =
+    confirmingPlanId && plansQuery.data
+      ? plansQuery.data.find((p) => p.id === confirmingPlanId) ?? null
+      : null
+  const confirmingQuote = confirmingPlanId
+    ? quoteByPlanId[confirmingPlanId]
+    : undefined
 
   return (
     <div className="space-y-6">
@@ -159,21 +221,25 @@ function PlansPage() {
       )}
       {plansQuery.data && plansQuery.data.length > 0 && (
         <div className="grid gap-4 md:grid-cols-3">
-          {plansQuery.data.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              isCurrent={plan.id === activePlanId}
-              isPending={
-                checkoutMutation.isPending &&
-                checkoutMutation.variables === plan.id
-              }
-              isPendingOther={hasPendingSub && plan.id !== pendingPlanId}
-              locked={locked}
-              lockedReason={lockedReason}
-              onSubscribe={() => checkoutMutation.mutate(plan.id)}
-            />
-          ))}
+          {plansQuery.data.map((plan) => {
+            const mode = modeFor(plan)
+            const quote = quoteByPlanId[plan.id]
+            return (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                mode={mode}
+                upgradeQuote={mode === "upgrade" ? quote : undefined}
+                isCheckoutPending={
+                  checkoutMutation.isPending &&
+                  checkoutMutation.variables === plan.id
+                }
+                lockedReason={lockedReason}
+                onSubscribe={() => checkoutMutation.mutate(plan.id)}
+                onUpgradeClick={() => setConfirmingPlanId(plan.id)}
+              />
+            )
+          })}
         </div>
       )}
       {checkoutMutation.isError && (
@@ -186,6 +252,20 @@ function PlansPage() {
       )}
 
       {checkoutMutation.isPending && <CheckoutRedirectingOverlay />}
+
+      <UpgradeConfirmDialog
+        plan={confirmingPlan}
+        quote={confirmingQuote}
+        currentPlanName={activePlan?.name ?? null}
+        open={confirmingPlanId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmingPlanId(null)
+        }}
+        onConfirm={() => {
+          if (confirmingPlanId) checkoutMutation.mutate(confirmingPlanId)
+          setConfirmingPlanId(null)
+        }}
+      />
     </div>
   )
 }
@@ -268,6 +348,7 @@ function CurrentSubscriptionBanner({
             )}
             {sub.status === "EXPIRED" && <>Subscription expired. Renew below.</>}
             {sub.status === "CANCELLED" && <>Cancelled.</>}
+            {sub.status === "REPLACED" && <>Replaced by a newer plan.</>}
           </CardDescription>
           {recheckError && (
             <p className="text-xs text-destructive">{recheckError}</p>
@@ -301,40 +382,65 @@ function CurrentSubscriptionBanner({
   )
 }
 
+function buttonLabelFor(
+  mode: PlanMode,
+  isCheckoutPending: boolean,
+  charge: number | null,
+): string {
+  if (isCheckoutPending) return "Redirecting…"
+  switch (mode) {
+    case "current":
+      return "Current plan"
+    case "pending-other":
+      return "Resume or cancel pending ↑"
+    case "locked":
+      return "Locked"
+    case "upgrade":
+      return charge != null ? `Upgrade — ${formatRupiah(charge)}` : "Upgrade"
+    case "downgrade-blocked":
+      return "Downgrade not available"
+    case "buy":
+    default:
+      return "Buy plan"
+  }
+}
+
 function PlanCard({
   plan,
-  isCurrent,
-  isPending,
-  isPendingOther,
-  locked,
+  mode,
+  upgradeQuote,
+  isCheckoutPending,
   lockedReason,
   onSubscribe,
+  onUpgradeClick,
 }: {
   plan: Plan
-  isCurrent: boolean
-  isPending: boolean
-  isPendingOther: boolean
-  locked: boolean
+  mode: PlanMode
+  upgradeQuote: UpgradeQuote | undefined
+  isCheckoutPending: boolean
   lockedReason: string | null
   onSubscribe: () => void
+  onUpgradeClick: () => void
 }) {
   const discounted = plan.effective_price < plan.price
-  const buttonLabel = isCurrent
-    ? "Current plan"
-    : isPending
-      ? "Redirecting…"
-      : isPendingOther
-        ? "Resume or cancel pending ↑"
-        : locked
-          ? "Locked"
-          : "Buy plan"
-  const buttonTitle = locked && !isCurrent && !isPending && !isPendingOther
-    ? lockedReason ?? undefined
-    : isPendingOther
-      ? "You have a pending subscription. Scroll up to resume or cancel it first."
-      : undefined
+  const showUpgradeBreakdown = mode === "upgrade" && upgradeQuote
+  const charge = showUpgradeBreakdown ? upgradeQuote.charge : null
+  const label = buttonLabelFor(mode, isCheckoutPending, charge)
+  const buttonTitle =
+    mode === "locked"
+      ? lockedReason ?? undefined
+      : mode === "pending-other"
+        ? "You have a pending subscription. Scroll up to resume or cancel it first."
+        : mode === "downgrade-blocked"
+          ? "Downgrades are not supported. Wait for the current plan to expire."
+          : undefined
+  const disabled =
+    mode === "current" ||
+    mode === "downgrade-blocked" ||
+    mode === "locked" ||
+    isCheckoutPending
   return (
-    <Card className={isCurrent ? "border-primary" : ""}>
+    <Card className={mode === "current" ? "border-primary" : ""}>
       <CardHeader>
         <CardTitle>{plan.name}</CardTitle>
         <CardDescription>
@@ -357,10 +463,32 @@ function PlanCard({
             </Badge>
           )}
         </CardDescription>
-        {discounted && (
+        {discounted && mode !== "upgrade" && (
           <p className="mt-1 text-xs text-muted-foreground">
             Open-to-Work pricing — auto-applied while you have no active subscription.
           </p>
+        )}
+        {showUpgradeBreakdown && (
+          <div className="mt-3 rounded-md border border-dashed p-3 text-xs space-y-1">
+            <div className="flex justify-between">
+              <span>List price</span>
+              <span>{formatRupiah(plan.price)}</span>
+            </div>
+            <div className="flex justify-between text-emerald-600">
+              <span>+ Bonus from current plan</span>
+              <span>
+                ~{upgradeQuote.bonus_days.toFixed(1)}d
+                {" "}
+                <span className="text-muted-foreground">
+                  ({formatRupiah(upgradeQuote.credit_value)} credit)
+                </span>
+              </span>
+            </div>
+            <div className="flex justify-between font-medium pt-1 border-t">
+              <span>Pay now</span>
+              <span>{formatRupiah(upgradeQuote.charge)}</span>
+            </div>
+          </div>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -377,25 +505,108 @@ function PlanCard({
           <li className="flex items-center gap-2">
             <Check className="size-4 text-primary" />
             30 days access
+            {showUpgradeBreakdown &&
+              ` + ~${upgradeQuote.bonus_days.toFixed(1)} bonus days`}
           </li>
         </ul>
-        {isPendingOther ? (
+        {mode === "pending-other" ? (
           <Button asChild className="w-full" variant="secondary">
             <a href="#current-sub" title={buttonTitle}>
-              {buttonLabel}
+              {label}
             </a>
           </Button>
         ) : (
           <Button
             className="w-full"
-            disabled={isCurrent || isPending || locked}
-            onClick={onSubscribe}
+            disabled={disabled}
+            onClick={mode === "upgrade" ? onUpgradeClick : onSubscribe}
             title={buttonTitle}
+            variant={mode === "downgrade-blocked" ? "outline" : "default"}
           >
-            {buttonLabel}
+            {label}
           </Button>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function UpgradeConfirmDialog({
+  plan,
+  quote,
+  currentPlanName,
+  open,
+  onOpenChange,
+  onConfirm,
+}: {
+  plan: Plan | null
+  quote: UpgradeQuote | undefined
+  currentPlanName: string | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onConfirm: () => void
+}) {
+  if (!plan) return null
+  const eta = quote
+    ? new Date(quote.new_expires_at_estimate).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Upgrade to {plan.name}</DialogTitle>
+          <DialogDescription>
+            {currentPlanName
+              ? `Your ${currentPlanName} ends now. ${plan.name} starts immediately with bonus days from unused credit.`
+              : `Confirm your upgrade to ${plan.name}.`}
+          </DialogDescription>
+        </DialogHeader>
+        {quote ? (
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>{plan.name} list price</span>
+              <span>{formatRupiah(plan.price)}</span>
+            </div>
+            <div className="flex justify-between text-emerald-600">
+              <span>
+                Credit from {currentPlanName ?? "current plan"} ({quote.days_remaining.toFixed(1)}d
+                left)
+              </span>
+              <span>{formatRupiah(quote.credit_value)}</span>
+            </div>
+            <div className="flex justify-between text-emerald-600">
+              <span>Bonus days on {plan.name}</span>
+              <span>~{quote.bonus_days.toFixed(1)}d</span>
+            </div>
+            <div className="flex justify-between border-t pt-2 font-medium">
+              <span>Pay now</span>
+              <span>{formatRupiah(quote.charge)}</span>
+            </div>
+            {eta && (
+              <p className="pt-1 text-xs text-muted-foreground">
+                {plan.name} runs until ~{eta}.
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Final bonus is calculated when payment confirms — paying later means slightly fewer bonus days.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Loading quote…</p>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} disabled={!quote}>
+            Continue to payment
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

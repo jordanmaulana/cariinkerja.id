@@ -19,6 +19,7 @@ from core.api.v1.views import (
     profile_me,
     subscription_recheck,
     subscription_stream,
+    upgrade_quote,
 )
 
 urlpatterns = [
@@ -39,6 +40,11 @@ urlpatterns = [
         "subscriptions/stream/", subscription_stream, name="api-v1-subscription-stream"
     ),
     path("subscriptions/checkout/", checkout, name="api-v1-subscription-checkout"),
+    path(
+        "subscriptions/upgrade-quote/",
+        upgrade_quote,
+        name="api-v1-subscription-upgrade-quote",
+    ),
     path(
         "subscriptions/cancel-pending/",
         cancel_pending,
