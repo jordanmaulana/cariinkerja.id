@@ -156,7 +156,7 @@ function Hero() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild size="lg">
               <Link to="/login">
-                Mulai gratis
+                Mulai sekarang
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -393,12 +393,6 @@ function PreferenceFormMock() {
           <div className="mt-1 flex gap-1.5">
             <SourcePill active>Indeed</SourcePill>
             <SourcePill>JobStreet</SourcePill>
-          </div>
-        </div>
-        <div>
-          <FieldLabel>Crawl URL</FieldLabel>
-          <div className="mt-1 truncate rounded-md border bg-muted/40 px-2.5 py-1.5 font-mono text-xs">
-            https://id.indeed.com/jobs?q=react+engineer
           </div>
         </div>
         <div className="flex items-center justify-between border-t pt-3">

@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, Check, ExternalLink, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -222,53 +222,70 @@ function AssessmentDetail({
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <SkillCard title="Hard skill match" items={assessment.hard_skill_match} />
-        <SkillCard
-          title="Hard skill gap"
-          items={assessment.hard_skill_gap}
-          tone="gap"
-        />
-        <SkillCard title="Soft skill match" items={assessment.soft_skill_match} />
-        <SkillCard
-          title="Soft skill gap"
-          items={assessment.soft_skill_gap}
-          tone="gap"
-        />
-      </div>
+      <SkillGapCard assessment={assessment} />
     </div>
   )
 }
 
-function SkillCard({
-  title,
-  items,
-  tone = "match",
-}: {
-  title: string
-  items: string[]
-  tone?: "match" | "gap"
-}) {
+function SkillGapCard({ assessment }: { assessment: Assessment }) {
+  const groups = [
+    {
+      label: "Hard skills",
+      match: assessment.hard_skill_match,
+      gap: assessment.hard_skill_gap,
+    },
+    {
+      label: "Soft skills",
+      match: assessment.soft_skill_match,
+      gap: assessment.soft_skill_gap,
+    },
+  ]
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">{title}</CardTitle>
+        <CardTitle>Skill gap</CardTitle>
+        <CardDescription>Apa yang udah & belum</CardDescription>
       </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">None.</p>
-        ) : (
-          <ul className="flex flex-wrap gap-1.5">
-            {items.map((s, i) => (
-              <li key={`${s}-${i}`}>
-                <Badge variant={tone === "gap" ? "destructive" : "secondary"}>
-                  {s}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        )}
+      <CardContent className="space-y-5">
+        {groups.map((g) => (
+          <div key={g.label}>
+            <FieldLabel>{g.label}</FieldLabel>
+            {g.match.length === 0 && g.gap.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">Belum ada.</p>
+            ) : (
+              <ul className="mt-2 space-y-1.5">
+                {g.match.map((s) => (
+                  <li key={`m-${s}`} className="flex items-center gap-2 text-sm">
+                    <span className="grid size-5 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <Check className="size-3" />
+                    </span>
+                    {s}
+                  </li>
+                ))}
+                {g.gap.map((s) => (
+                  <li
+                    key={`g-${s}`}
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                  >
+                    <span className="grid size-5 place-items-center rounded-full bg-destructive/10 text-destructive">
+                      <X className="size-3" />
+                    </span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
       </CardContent>
     </Card>
+  )
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+      {children}
+    </div>
   )
 }
