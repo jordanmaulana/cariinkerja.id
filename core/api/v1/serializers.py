@@ -88,6 +88,8 @@ class OnboardingSerializer(serializers.Serializer):
     remote_option = serializers.ChoiceField(choices=RemoteOption.choices)
 
     def save(self, **kwargs):
+        from profiles.tasks import crawl_linkedin_for_profile
+
         user = self.context["request"].user
         data = self.validated_data
         with transaction.atomic():
@@ -97,12 +99,16 @@ class OnboardingSerializer(serializers.Serializer):
             profile.linkedin_url = data.get("linkedin_url") or None
             profile.bio = data.get("bio") or None
             profile.save()
-            Preference.objects.create(
+            preference = Preference.objects.create(
                 profile=profile,
                 title=data["title"],
                 job_type=data["job_type"],
                 remote_option=data["remote_option"],
             )
+            if profile.linkedin_url:
+                transaction.on_commit(
+                    lambda: crawl_linkedin_for_profile.delay(profile.id, preference.id)
+                )
         return profile
 
 

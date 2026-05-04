@@ -1,8 +1,12 @@
+import logging
+
 from celery import shared_task
 from django.conf import settings
 from django.urls import reverse
 
 from core.notifications.discord import send_discord_message
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -29,3 +33,22 @@ def notify_preference_created(preference_id: str) -> None:
         f"Admin: {admin_url}",
     ]
     send_discord_message("\n".join(lines))
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def crawl_linkedin_for_profile(profile_id: str, preference_id: str) -> str:
+    from profiles.consts import Status
+    from profiles.methods import crawl_and_ingest_linkedin
+    from profiles.models import Preference, Profile
+
+    profile = Profile.objects.get(pk=profile_id)
+    if not profile.linkedin_url:
+        logger.info("profile %s has no linkedin_url; skipping crawl", profile_id)
+        return "skipped_no_url"
+
+    crawl_and_ingest_linkedin(profile)
+
+    updated = Preference.objects.filter(
+        pk=preference_id, status=Status.WAITING_ADMIN
+    ).update(status=Status.WAITING_PAYMENT)
+    return "flipped" if updated else "no_status_change"
