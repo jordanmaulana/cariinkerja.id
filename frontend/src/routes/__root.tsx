@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect } from "react"
+import { Suspense, lazy, useCallback, useEffect, useRef } from "react"
 import {
   Outlet,
   createRootRoute,
@@ -12,6 +12,7 @@ import { AppShell } from "@/components/app-shell"
 import { ApiError } from "@/lib/api"
 import { me } from "@/lib/auth"
 import { useUserEvents, type UserEvent } from "@/lib/realtime"
+import { toast } from "react-toastify"
 import { tokenAtom, userAtom } from "@/state/atoms"
 
 const TanStackRouterDevtools = import.meta.env.DEV
@@ -31,6 +32,31 @@ const ReactQueryDevtools = import.meta.env.DEV
 
 const PUBLIC_PATHS = new Set(["/login"])
 const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, "/onboarding"])
+
+function describeEvent(e: UserEvent): string | null {
+  switch (e.event) {
+    case "subscription.activated":
+      return "Subscription activated. Daily matching is now on."
+    case "preference.status_changed": {
+      const status = typeof e.status === "string" ? e.status : null
+      const label =
+        status === "running"
+          ? "running"
+          : status === "waiting_payment"
+            ? "approved — pick a plan"
+            : status === "waiting_admin"
+              ? "back under admin review"
+              : status === "expired"
+                ? "expired"
+                : status
+      return label ? `Finder status: ${label}.` : "Finder status updated."
+    }
+    case "assessment.status_changed":
+      return null
+    default:
+      return null
+  }
+}
 
 function useRealtimeSync() {
   const queryClient = useQueryClient()
@@ -60,6 +86,11 @@ function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: ["payment-gate"] })
           break
       }
+      const msg = describeEvent(e)
+      if (msg) {
+        if (e.event === "subscription.activated") toast.success(msg)
+        else toast.info(msg)
+      }
     },
     [queryClient],
   )
@@ -71,6 +102,8 @@ function AuthGate() {
   const [user, setUser] = useAtom(userAtom)
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const sessionExpiredFiredRef = useRef(false)
+  const onboardingNudgeFiredRef = useRef(false)
 
   useRealtimeSync()
 
@@ -84,6 +117,10 @@ function AuthGate() {
       .catch((err) => {
         if (cancelled) return
         if (err instanceof ApiError && err.status === 401) {
+          if (!sessionExpiredFiredRef.current) {
+            sessionExpiredFiredRef.current = true
+            toast.warning("Your session expired. Please sign in again.")
+          }
           setToken(null)
           setUser(null)
         }
@@ -102,6 +139,10 @@ function AuthGate() {
     }
     if (!user) return
     if (!user.onboarded && pathname !== "/onboarding") {
+      if (!onboardingNudgeFiredRef.current) {
+        onboardingNudgeFiredRef.current = true
+        toast.info("Finish your profile to access the rest of the app.")
+      }
       navigate({ to: "/onboarding" })
       return
     }

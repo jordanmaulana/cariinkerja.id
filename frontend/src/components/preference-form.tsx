@@ -18,6 +18,8 @@ export type PreferenceFormValues = {
   remote_option: string
 }
 
+const ANY_VALUE = "__any__"
+
 export function buildInitialValues(p?: Preference | null): PreferenceFormValues {
   return {
     title: p?.title ?? "",
@@ -62,14 +64,15 @@ export function PreferenceFormFields({ values, onChange, disabled }: Props) {
 
       <Field label="Job type" htmlFor="pref-job-type">
         <Select
-          value={values.job_type}
-          onValueChange={(v) => update("job_type", v)}
+          value={values.job_type || ANY_VALUE}
+          onValueChange={(v) => update("job_type", v === ANY_VALUE ? "" : v)}
           disabled={disabled}
         >
           <SelectTrigger id="pref-job-type">
             <SelectValue placeholder="Any" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={ANY_VALUE}>Any</SelectItem>
             {JOB_TYPES.map((j) => (
               <SelectItem key={j.value} value={j.value}>
                 {j.label}
@@ -81,14 +84,17 @@ export function PreferenceFormFields({ values, onChange, disabled }: Props) {
 
       <Field label="Remote" htmlFor="pref-remote">
         <Select
-          value={values.remote_option}
-          onValueChange={(v) => update("remote_option", v)}
+          value={values.remote_option || ANY_VALUE}
+          onValueChange={(v) =>
+            update("remote_option", v === ANY_VALUE ? "" : v)
+          }
           disabled={disabled}
         >
           <SelectTrigger id="pref-remote">
             <SelectValue placeholder="Any" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={ANY_VALUE}>Any</SelectItem>
             {REMOTE_OPTIONS.map((r) => (
               <SelectItem key={r.value} value={r.value}>
                 {r.label}

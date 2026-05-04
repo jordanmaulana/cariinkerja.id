@@ -13,6 +13,15 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -38,10 +47,18 @@ export const Route = createFileRoute("/assessments/")({
 
 const STATUS_LABEL: Record<AssessmentStatus, string> = {
   new: "New",
-  seen: "Seen",
-  applied: "Applied",
-  rejected: "Rejected",
-  accepted: "Accepted",
+  seen: "I've reviewed",
+  applied: "I applied",
+  rejected: "Not interested",
+  accepted: "Got an offer",
+}
+
+const STATUS_HINT: Record<AssessmentStatus, string> = {
+  new: "Hasn't been reviewed yet.",
+  seen: "You've looked at it but haven't applied.",
+  applied: "You sent in an application.",
+  rejected: "You decided not to pursue this one.",
+  accepted: "Employer extended an offer.",
 }
 
 const STATUS_VARIANT: Record<
@@ -66,24 +83,47 @@ type Action = {
   label: string
   next: AssessmentStatus
   variant?: "default" | "destructive" | "outline"
+  confirm?: { title: string; description: string; confirmLabel: string }
+}
+
+const REJECT_CONFIRM = {
+  title: "Reject this match?",
+  description:
+    "Once rejected, this job will be hidden from your queue and the action can only be reversed by support. Are you sure?",
+  confirmLabel: "Yes, reject",
 }
 
 function getActionsForStatus(status: AssessmentStatus): Action[] {
   switch (status) {
     case "new":
       return [
-        { label: "Mark seen", next: "seen", variant: "outline" },
-        { label: "Reject", next: "rejected", variant: "destructive" },
+        { label: "Mark reviewed", next: "seen", variant: "outline" },
+        {
+          label: "Reject",
+          next: "rejected",
+          variant: "destructive",
+          confirm: REJECT_CONFIRM,
+        },
       ]
     case "seen":
       return [
-        { label: "Mark applied", next: "applied", variant: "default" },
-        { label: "Reject", next: "rejected", variant: "destructive" },
+        { label: "I applied", next: "applied", variant: "default" },
+        {
+          label: "Reject",
+          next: "rejected",
+          variant: "destructive",
+          confirm: REJECT_CONFIRM,
+        },
       ]
     case "applied":
       return [
-        { label: "Mark accepted", next: "accepted", variant: "default" },
-        { label: "Reject", next: "rejected", variant: "destructive" },
+        { label: "Got an offer", next: "accepted", variant: "default" },
+        {
+          label: "Reject",
+          next: "rejected",
+          variant: "destructive",
+          confirm: REJECT_CONFIRM,
+        },
       ]
     default:
       return []
@@ -150,7 +190,8 @@ function AssessmentsPage() {
       <div className="space-y-1">
         <h2 className="text-2xl font-semibold tracking-tight">Available Jobs</h2>
         <p className="text-sm text-muted-foreground">
-          Jobs matched to your Finders. Triage the pipeline.
+          Jobs matched to your Finders. Mark each as you go so we can track your
+          progress.
         </p>
       </div>
 
@@ -170,6 +211,7 @@ function AssessmentsPage() {
                 <label
                   key={s}
                   className="flex cursor-pointer items-center gap-2 text-sm"
+                  title={STATUS_HINT[s]}
                 >
                   <Checkbox
                     checked={selectedStatuses.has(s)}
@@ -187,6 +229,7 @@ function AssessmentsPage() {
                 max={100}
                 inputMode="numeric"
                 placeholder="Min score"
+                title="LLM match score, 0–100"
                 value={minScoreInput}
                 onChange={(e) => handleMinScoreChange(e.target.value)}
                 className="h-8 w-32 pl-7 text-xs"
@@ -195,6 +238,9 @@ function AssessmentsPage() {
           </div>
         </CardHeader>
         <CardContent className="px-0">
+          <p className="px-6 pb-3 text-xs text-muted-foreground">
+            Statuses: {ASSESSMENT_STATUSES.map((s) => STATUS_LABEL[s]).join(" · ")}
+          </p>
           {query.isLoading && (
             <div className="px-6 pb-6">
               <Skeleton className="h-32 w-full" />
@@ -316,8 +362,11 @@ function AssessmentsTable({
                 {row.score}
               </TableCell>
               <TableCell>
-                <Badge variant={STATUS_VARIANT[row.status]} className="capitalize">
-                  {row.status}
+                <Badge
+                  variant={STATUS_VARIANT[row.status]}
+                  title={STATUS_HINT[row.status]}
+                >
+                  {STATUS_LABEL[row.status]}
                 </Badge>
               </TableCell>
               <TableCell className="text-xs text-muted-foreground">
@@ -328,24 +377,86 @@ function AssessmentsTable({
                 onClick={(e) => e.stopPropagation()}
               >
                 {actions.length === 0 && (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-                {actions.map((a) => (
-                  <Button
-                    key={a.next}
-                    size="xs"
-                    variant={a.variant ?? "default"}
-                    disabled={rowPending}
-                    onClick={() => onAction(row.id, a.next)}
+                  <span
+                    className="text-xs text-muted-foreground"
+                    title="Final status — no further actions."
                   >
-                    {a.label}
-                  </Button>
-                ))}
+                    —
+                  </span>
+                )}
+                {actions.map((a) =>
+                  a.confirm ? (
+                    <ConfirmActionButton
+                      key={a.next}
+                      action={a}
+                      disabled={rowPending}
+                      onConfirm={() => onAction(row.id, a.next)}
+                    />
+                  ) : (
+                    <Button
+                      key={a.next}
+                      size="xs"
+                      variant={a.variant ?? "default"}
+                      disabled={rowPending}
+                      onClick={() => onAction(row.id, a.next)}
+                    >
+                      {a.label}
+                    </Button>
+                  ),
+                )}
               </TableCell>
             </TableRow>
           )
         })}
       </TableBody>
     </Table>
+  )
+}
+
+function ConfirmActionButton({
+  action,
+  disabled,
+  onConfirm,
+}: {
+  action: Action
+  disabled: boolean
+  onConfirm: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  if (!action.confirm) return null
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button
+        size="xs"
+        variant={action.variant ?? "default"}
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+      >
+        {action.label}
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{action.confirm.title}</DialogTitle>
+          <DialogDescription>{action.confirm.description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            type="button"
+            variant={action.variant ?? "default"}
+            onClick={() => {
+              setOpen(false)
+              onConfirm()
+            }}
+          >
+            {action.confirm.confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

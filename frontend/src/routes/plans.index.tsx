@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 
 import {
   PaymentGateBanner,
@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   type Plan,
+  type PaymentGate,
   type Subscription,
   cancelPendingSubscription,
   checkout,
@@ -26,6 +27,7 @@ import {
   listPlans,
   recheckSubscription,
 } from "@/lib/plans"
+import { toast } from "react-toastify"
 
 export const Route = createFileRoute("/plans/")({
   component: PlansPage,
@@ -48,6 +50,17 @@ const STATUS_VARIANT: Record<
   CANCELLED: "destructive",
 }
 
+const GATE_REASON: Record<
+  Extract<PaymentGate, { locked: true }>["code"],
+  string
+> = {
+  waiting_admin: "LinkedIn under admin review — wait for approval before subscribing.",
+  linkedin_quality: "LinkedIn profile needs more detail before you can subscribe.",
+}
+
+const OPEN_TO_WORK_HINT =
+  "Open-to-Work discount is applied automatically while you don't have an active subscription. Renewals at full price."
+
 function PlansPage() {
   const plansQuery = useQuery({
     queryKey: ["plans"],
@@ -60,6 +73,8 @@ function PlansPage() {
   })
   const gateQuery = usePaymentGate()
   const locked = gateQuery.data?.locked === true
+  const lockedReason =
+    gateQuery.data?.locked === true ? GATE_REASON[gateQuery.data.code] : null
 
   const checkoutMutation = useMutation({
     mutationFn: (planId: string) => checkout(planId),
@@ -73,12 +88,20 @@ function PlansPage() {
     mutationFn: (subscriptionId: string) => recheckSubscription(subscriptionId),
     onSuccess: (data) => {
       queryClient.setQueryData(["subscription", "me"], data)
+      if (data.status === "PENDING") {
+        toast.warning(
+          "Still pending — we haven't received your payment yet. Try again in a moment.",
+        )
+      } else if (data.status === "ACTIVE") {
+        toast.success("Subscription activated.")
+      }
     },
   })
   const cancelMutation = useMutation({
     mutationFn: () => cancelPendingSubscription(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
+      toast.info("Pending subscription cancelled.")
     },
   })
 
@@ -147,6 +170,7 @@ function PlansPage() {
               }
               isPendingOther={hasPendingSub && plan.id !== pendingPlanId}
               locked={locked}
+              lockedReason={lockedReason}
               onSubscribe={() => checkoutMutation.mutate(plan.id)}
             />
           ))}
@@ -160,6 +184,24 @@ function PlansPage() {
             : ""}
         </p>
       )}
+
+      {checkoutMutation.isPending && <CheckoutRedirectingOverlay />}
+    </div>
+  )
+}
+
+function CheckoutRedirectingOverlay() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"
+    >
+      <Loader2 className="size-8 animate-spin text-primary" />
+      <p className="text-sm font-medium">Redirecting to payment…</p>
+      <p className="text-xs text-muted-foreground">
+        Don't close this tab. We'll send you to the secure checkout page.
+      </p>
     </div>
   )
 }
@@ -186,7 +228,7 @@ function CurrentSubscriptionBanner({
   if (loading) return <Skeleton className="h-20 w-full" />
   if (!sub) {
     return (
-      <Card>
+      <Card id="current-sub">
         <CardHeader>
           <CardTitle className="text-base">No active subscription</CardTitle>
           <CardDescription>
@@ -198,7 +240,7 @@ function CurrentSubscriptionBanner({
   }
   const expires = sub.expires_at ? new Date(sub.expires_at) : null
   return (
-    <Card>
+    <Card id="current-sub">
       <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <CardTitle className="text-base">
@@ -265,6 +307,7 @@ function PlanCard({
   isPending,
   isPendingOther,
   locked,
+  lockedReason,
   onSubscribe,
 }: {
   plan: Plan
@@ -272,9 +315,24 @@ function PlanCard({
   isPending: boolean
   isPendingOther: boolean
   locked: boolean
+  lockedReason: string | null
   onSubscribe: () => void
 }) {
   const discounted = plan.effective_price < plan.price
+  const buttonLabel = isCurrent
+    ? "Current plan"
+    : isPending
+      ? "Redirecting…"
+      : isPendingOther
+        ? "Resume or cancel pending ↑"
+        : locked
+          ? "Locked"
+          : "Buy plan"
+  const buttonTitle = locked && !isCurrent && !isPending && !isPendingOther
+    ? lockedReason ?? undefined
+    : isPendingOther
+      ? "You have a pending subscription. Scroll up to resume or cancel it first."
+      : undefined
   return (
     <Card className={isCurrent ? "border-primary" : ""}>
       <CardHeader>
@@ -290,11 +348,20 @@ function PlanCard({
           )}
           <span className="ml-1 text-sm text-muted-foreground">/ month</span>
           {discounted && (
-            <Badge variant="secondary" className="ml-2">
+            <Badge
+              variant="secondary"
+              className="ml-2 cursor-help"
+              title={OPEN_TO_WORK_HINT}
+            >
               Open to Work
             </Badge>
           )}
         </CardDescription>
+        {discounted && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Open-to-Work pricing — auto-applied while you have no active subscription.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <ul className="space-y-2 text-sm">
@@ -312,21 +379,22 @@ function PlanCard({
             30 days access
           </li>
         </ul>
-        <Button
-          className="w-full"
-          disabled={isCurrent || isPending || isPendingOther || locked}
-          onClick={onSubscribe}
-        >
-          {isCurrent
-            ? "Current plan"
-            : isPending
-              ? "Redirecting…"
-              : isPendingOther
-                ? "Resume or cancel pending"
-                : locked
-                  ? "Locked"
-                  : "Subscribe"}
-        </Button>
+        {isPendingOther ? (
+          <Button asChild className="w-full" variant="secondary">
+            <a href="#current-sub" title={buttonTitle}>
+              {buttonLabel}
+            </a>
+          </Button>
+        ) : (
+          <Button
+            className="w-full"
+            disabled={isCurrent || isPending || locked}
+            onClick={onSubscribe}
+            title={buttonTitle}
+          >
+            {buttonLabel}
+          </Button>
+        )}
       </CardContent>
     </Card>
   )

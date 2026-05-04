@@ -46,6 +46,7 @@ import {
   type Preference,
   type PreferenceStatus,
 } from "@/lib/preferences"
+import { toast } from "react-toastify"
 
 export const Route = createFileRoute("/preferences/")({
   component: PreferencesPage,
@@ -203,6 +204,9 @@ function NewPreferenceDialog() {
       queryClient.invalidateQueries({ queryKey: ["preferences"] })
       setOpen(false)
       setValues(buildInitialValues())
+      toast.success(
+        `Finder “${created.title || "Untitled"}” created. Admin will review next.`,
+      )
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Failed to create Finder.")

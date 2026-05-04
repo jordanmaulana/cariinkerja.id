@@ -2,13 +2,28 @@ import { useQuery } from "@tanstack/react-query"
 import { AlertTriangle, Clock } from "lucide-react"
 
 import { getPaymentGate, type PaymentGate } from "@/lib/plans"
+import { cn } from "@/lib/utils"
 
-const TITLE: Record<
-  Extract<PaymentGate, { locked: true }>["code"],
-  string
-> = {
+type GateCode = Extract<PaymentGate, { locked: true }>["code"]
+
+const TITLE: Record<GateCode, string> = {
   waiting_admin: "LinkedIn under admin review",
   linkedin_quality: "LinkedIn profile needs more detail",
+}
+
+const VARIANT_CLS: Record<GateCode, { wrap: string; title: string; icon: string; body: string }> = {
+  waiting_admin: {
+    wrap: "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950",
+    title: "text-amber-900 dark:text-amber-100",
+    icon: "text-amber-600 dark:text-amber-300",
+    body: "text-amber-900/80 dark:text-amber-100/80",
+  },
+  linkedin_quality: {
+    wrap: "border-destructive/40 bg-destructive/5",
+    title: "text-destructive",
+    icon: "text-destructive",
+    body: "text-muted-foreground",
+  },
 }
 
 export function usePaymentGate() {
@@ -23,15 +38,19 @@ export function PaymentGateBanner() {
   const { data } = usePaymentGate()
   if (!data || !data.locked) return null
   const Icon = data.code === "waiting_admin" ? Clock : AlertTriangle
+  const cls = VARIANT_CLS[data.code]
   return (
     <div
       role="alert"
-      className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive-foreground"
+      className={cn(
+        "flex items-start gap-3 rounded-lg border p-4 text-sm",
+        cls.wrap,
+      )}
     >
-      <Icon className="mt-0.5 size-5 shrink-0 text-destructive" />
+      <Icon className={cn("mt-0.5 size-5 shrink-0", cls.icon)} />
       <div className="space-y-1">
-        <p className="font-semibold text-destructive">{TITLE[data.code]}</p>
-        <p className="text-muted-foreground">
+        <p className={cn("font-semibold", cls.title)}>{TITLE[data.code]}</p>
+        <p className={cls.body}>
           {data.detail}
           {data.code === "waiting_admin" &&
             " You can pick a plan once your LinkedIn is approved."}
@@ -41,4 +60,9 @@ export function PaymentGateBanner() {
       </div>
     </div>
   )
+}
+
+export function paymentGateMessage(data: PaymentGate | undefined): string | null {
+  if (!data || !data.locked) return null
+  return TITLE[data.code]
 }

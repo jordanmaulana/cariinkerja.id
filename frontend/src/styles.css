@@ -128,3 +128,80 @@
     @apply font-sans;
     }
 }
+
+/* react-toastify — bind to shadcn theme tokens */
+:root {
+    --toastify-color-light: var(--card);
+    --toastify-color-dark: var(--card);
+    --toastify-text-color-light: var(--foreground);
+    --toastify-text-color-dark: var(--foreground);
+    --toastify-color-info: oklch(0.6 0.15 240);
+    --toastify-color-success: oklch(0.65 0.17 150);
+    --toastify-color-warning: oklch(0.75 0.17 75);
+    --toastify-color-error: var(--destructive);
+    --toastify-icon-color-info: var(--toastify-color-info);
+    --toastify-icon-color-success: var(--toastify-color-success);
+    --toastify-icon-color-warning: var(--toastify-color-warning);
+    --toastify-icon-color-error: var(--toastify-color-error);
+    --toastify-color-progress-info: var(--toastify-color-info);
+    --toastify-color-progress-success: var(--toastify-color-success);
+    --toastify-color-progress-warning: var(--toastify-color-warning);
+    --toastify-color-progress-error: var(--toastify-color-error);
+    --toastify-toast-bd-radius: var(--radius);
+    --toastify-toast-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+        0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --toastify-toast-min-height: 0;
+    --toastify-font-family: inherit;
+}
+
+.Toastify__toast {
+    border: 1px solid var(--border);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--foreground);
+}
+
+.Toastify__toast-body {
+    padding: 0;
+    margin: 0;
+    align-items: flex-start;
+}
+
+.Toastify__toast-icon {
+    margin-inline-end: 0.625rem;
+    margin-top: 0.125rem;
+    width: 1rem;
+    height: 1rem;
+}
+
+.Toastify__close-button {
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    align-self: flex-start;
+}
+
+.Toastify__close-button:hover {
+    opacity: 1;
+}
+
+.Toastify__progress-bar {
+    height: 2px;
+    opacity: 0.6;
+}
+
+.Toastify__toast--success {
+    border-left: 3px solid var(--toastify-color-success);
+}
+
+.Toastify__toast--info {
+    border-left: 3px solid var(--toastify-color-info);
+}
+
+.Toastify__toast--warning {
+    border-left: 3px solid var(--toastify-color-warning);
+}
+
+.Toastify__toast--error {
+    border-left: 3px solid var(--toastify-color-error);
+}

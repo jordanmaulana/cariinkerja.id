@@ -38,6 +38,7 @@ import {
   getPreference,
   updatePreference,
 } from "@/lib/preferences"
+import { toast } from "react-toastify"
 
 export const Route = createFileRoute("/preferences/$id")({
   component: PreferenceDetailPage,
@@ -147,9 +148,17 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
     mutationFn: (v: PreferenceFormValues) =>
       updatePreference(preference.id, valuesToPayload(v)),
     onSuccess: (updated) => {
+      const wasRunning = isRunning
       queryClient.setQueryData(["preference", preference.id], updated)
       queryClient.invalidateQueries({ queryKey: ["preferences"] })
       setValues(buildInitialValues(updated))
+      if (wasRunning) {
+        toast.warning(
+          "Saved. Crawl paused — sent back to admin for review before it resumes.",
+        )
+      } else {
+        toast.success("Finder updated.")
+      }
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Failed to save Finder.")
@@ -161,6 +170,7 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["preferences"] })
       queryClient.removeQueries({ queryKey: ["preference", preference.id] })
+      toast.info("Finder deleted.")
       navigate({ to: "/preferences" })
     },
   })
@@ -171,8 +181,35 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
     updateMutation.mutate(values)
   }
 
+  const initialValues = buildInitialValues(preference)
+  const isDirty =
+    values.title !== initialValues.title ||
+    values.job_type !== initialValues.job_type ||
+    values.remote_option !== initialValues.remote_option
+
+  function handleDiscard() {
+    if (isDirty) {
+      const ok = window.confirm("Discard your unsaved edits?")
+      if (!ok) return
+    }
+    setValues(initialValues)
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
+      {isRunning && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+        >
+          <span className="font-semibold">Heads up —</span>
+          <span>
+            This Finder is currently running. Saving will pause the crawl and
+            send it back to admin for review before it resumes.
+          </span>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Edit Finder</CardTitle>
@@ -186,12 +223,6 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isRunning && (
-            <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
-              This Finder is currently running. Saving will pause the crawl and
-              send it back to admin for review before it resumes.
-            </div>
-          )}
           <PreferenceFormFields
             values={values}
             onChange={setValues}
@@ -215,10 +246,10 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
           <Button
             type="button"
             variant="outline"
-            disabled={updateMutation.isPending}
-            onClick={() => setValues(buildInitialValues(preference))}
+            disabled={updateMutation.isPending || !isDirty}
+            onClick={handleDiscard}
           >
-            Reset
+            Discard edits
           </Button>
           <Button type="submit" disabled={updateMutation.isPending}>
             {updateMutation.isPending

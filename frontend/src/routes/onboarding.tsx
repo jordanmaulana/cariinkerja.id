@@ -78,8 +78,9 @@ function OnboardingPage() {
       <div>
         <h1 className="text-2xl font-bold">Tell us about you</h1>
         <p className="text-sm text-muted-foreground">
-          Fill your profile and your first Finder to get started. Phone number
-          is required so we can process your payment.
+          Fill your profile and your first Finder to get started. Phone is
+          required so we can process your future subscription payment — you
+          will not be charged here.
         </p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
@@ -112,7 +113,7 @@ function OnboardingPage() {
               className="w-full rounded border px-3 py-2"
             />
             <p className="text-xs text-muted-foreground">
-              Required for payment processing.
+              Used later when you subscribe. We will not charge you now.
             </p>
           </div>
           <div className="space-y-1">
@@ -127,6 +128,10 @@ function OnboardingPage() {
               onChange={(e) => setLinkedinUrl(e.target.value)}
               className="w-full rounded border px-3 py-2"
             />
+            <p className="text-xs text-muted-foreground">
+              We pull your LinkedIn to verify your profile and tailor matches.
+              Without it, payment is delayed pending admin review.
+            </p>
           </div>
           <div className="space-y-1">
             <label htmlFor="bio" className="text-sm font-medium">
