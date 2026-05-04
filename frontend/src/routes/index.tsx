@@ -75,7 +75,7 @@ const FEATURES: Feature[] = [
     icon: Search,
     eyebrow: "Preferensi",
     title: "Atur preferensimu sekali, kerjain pencariannya buat kamu.",
-    body: "Set role, full-time atau freelance, remote atau on-site, terus tempel URL listing favoritmu. Crawler tiap hari ngambilin loker baru sesuai filtermu.",
+    body: "Set role, full-time atau freelance, remote atau on-site. Crawler tiap hari ngambilin loker baru sesuai filtermu.",
     mock: () => <PreferenceFormMock />,
   },
   {
@@ -388,13 +388,7 @@ function PreferenceFormMock() {
           <Field label="Job type" value="Full-time" />
           <Field label="Remote" value="Remote" />
         </div>
-        <div>
-          <FieldLabel>Source</FieldLabel>
-          <div className="mt-1 flex gap-1.5">
-            <SourcePill active>Indeed</SourcePill>
-            <SourcePill>JobStreet</SourcePill>
-          </div>
-        </div>
+
         <div className="flex items-center justify-between border-t pt-3">
           <span className="text-xs text-muted-foreground">Status</span>
           <Badge>
@@ -556,26 +550,6 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SourcePill({
-  children,
-  active,
-}: {
-  children: React.ReactNode;
-  active?: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs",
-        active
-          ? "border-primary/40 bg-primary/10 text-foreground"
-          : "border-border bg-card text-muted-foreground",
-      )}
-    >
-      {children}
-    </span>
-  );
-}
 
 function BottomCta() {
   return (
