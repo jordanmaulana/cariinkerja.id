@@ -14,8 +14,12 @@
         <dd class="font-mono text-xs break-all">{{ subscription.id }}</dd>
 
         <dt class="text-slate-500">Profile</dt>
-        <dd>{{ subscription.profile.full_name|default:"(no name)" }}
-          <span class="text-xs text-slate-400">{{ subscription.profile.user.email }}</span></dd>
+        <dd>
+          <a href="{% url 'profile_detail' subscription.profile.id %}" class="text-blue-600 hover:underline">
+            {{ subscription.profile.full_name|default:"(no name)" }}
+          </a>
+          <span class="text-xs text-slate-400">{{ subscription.profile.user.email }}</span>
+        </dd>
 
         <dt class="text-slate-500">Plan</dt>
         <dd>{{ subscription.plan.name }} (Rp {{ subscription.plan.price|intdot }} / {{ subscription.plan.preference_limit }} pref)</dd>
