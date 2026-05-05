@@ -52,7 +52,7 @@ function OnboardingPage() {
       await submitOnboarding({
         full_name: fullName,
         phone,
-        linkedin_url: linkedinUrl || undefined,
+        linkedin_url: linkedinUrl,
         bio: bio || undefined,
         title,
         job_type: jobType,
@@ -123,6 +123,7 @@ function OnboardingPage() {
             <input
               id="linkedin_url"
               type="url"
+              required
               placeholder="https://linkedin.com/in/..."
               value={linkedinUrl}
               onChange={(e) => setLinkedinUrl(e.target.value)}
@@ -130,8 +131,7 @@ function OnboardingPage() {
             />
             <p className="text-xs text-muted-foreground">
               Kami ambil LinkedIn-mu buat verifikasi profil dan menyesuaikan
-              kecocokan loker. Tanpa LinkedIn, pembayaran ditunda sampai admin
-              meninjau.
+              kecocokan loker.
             </p>
           </div>
           <div className="space-y-1">

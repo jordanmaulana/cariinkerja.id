@@ -88,7 +88,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 class OnboardingSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
     phone = serializers.CharField(max_length=32)
-    linkedin_url = serializers.URLField(required=False, allow_blank=True)
+    linkedin_url = serializers.URLField(required=True, allow_blank=False)
     bio = serializers.CharField(required=False, allow_blank=True)
     title = serializers.CharField(max_length=255)
     job_type = serializers.ChoiceField(choices=JobType.choices)
@@ -103,7 +103,7 @@ class OnboardingSerializer(serializers.Serializer):
             profile = user.profile
             profile.full_name = data["full_name"]
             profile.phone = data["phone"]
-            profile.linkedin_url = data.get("linkedin_url") or None
+            profile.linkedin_url = data["linkedin_url"]
             profile.bio = data.get("bio") or None
             profile.save()
             preference = Preference.objects.create(
@@ -112,10 +112,9 @@ class OnboardingSerializer(serializers.Serializer):
                 job_type=data["job_type"],
                 remote_option=data["remote_option"],
             )
-            if profile.linkedin_url:
-                transaction.on_commit(
-                    lambda: crawl_linkedin_for_profile.delay(profile.id, preference.id)
-                )
+            transaction.on_commit(
+                lambda: crawl_linkedin_for_profile.delay(profile.id, preference.id)
+            )
         return profile
 
 
