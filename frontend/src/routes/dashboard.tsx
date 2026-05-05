@@ -217,10 +217,12 @@ function TrendChart({ data }: { data: DashboardStats["trend_30d"] }) {
             axisLine={false}
             tickMargin={8}
             interval={Math.max(0, Math.floor(data.length / 6) - 1)}
-            tickFormatter={(d: string) => {
-              const date = new Date(d)
-              return `${date.getMonth() + 1}/${date.getDate()}`
-            }}
+            tickFormatter={(d: string) =>
+              new Date(d).toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "short",
+              })
+            }
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
           />
           <Tooltip
@@ -234,9 +236,9 @@ function TrendChart({ data }: { data: DashboardStats["trend_30d"] }) {
             }}
             labelFormatter={(d) =>
               typeof d === "string"
-                ? new Date(d).toLocaleDateString(undefined, {
+                ? new Date(d).toLocaleDateString("id-ID", {
+                    day: "2-digit",
                     month: "short",
-                    day: "numeric",
                   })
                 : ""
             }

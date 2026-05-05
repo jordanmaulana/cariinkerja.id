@@ -160,7 +160,10 @@ function PreferencesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(p.created_on).toLocaleDateString()}
+                      {new Date(p.created_on).toLocaleDateString("id-ID", {
+                        day: "2-digit",
+                        month: "short",
+                      })}
                     </TableCell>
                     <TableCell className="text-right">
                       {p.status === "waiting_payment" && (

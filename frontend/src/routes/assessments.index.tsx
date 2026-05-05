@@ -136,7 +136,7 @@ function AssessmentsPage() {
   const [selectedStatuses, setSelectedStatuses] = useState<
     Set<AssessmentStatus>
   >(() => new Set(["new"]))
-  const [minScoreInput, setMinScoreInput] = useState("80")
+  const [minScoreInput, setMinScoreInput] = useState("")
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -318,7 +318,7 @@ function AssessmentsTable({
           <TableHead>Remote</TableHead>
           <TableHead className="text-right">Skor</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Dinilai</TableHead>
+          <TableHead>Tanggal</TableHead>
           <TableHead className="text-right">Aksi</TableHead>
         </TableRow>
       </TableHeader>
@@ -326,7 +326,10 @@ function AssessmentsTable({
         {rows.map((row) => {
           const actions = getActionsForStatus(row.status)
           const rowPending = isPending && pendingId === row.id
-          const created = new Date(row.created_on).toLocaleDateString()
+          const created = new Date(row.created_on).toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "short",
+          })
           return (
             <TableRow
               key={row.id}

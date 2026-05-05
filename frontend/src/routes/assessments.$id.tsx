@@ -142,10 +142,9 @@ function AssessmentDetail({
 }) {
   const { job, preference, status, score, verdict, created_on } = assessment
   const actions = getActionsForStatus(status)
-  const created = new Date(created_on).toLocaleDateString(undefined, {
-    year: "numeric",
+  const created = new Date(created_on).toLocaleDateString("id-ID", {
+    day: "2-digit",
     month: "short",
-    day: "numeric",
   })
 
   return (
@@ -254,7 +253,7 @@ function SkillGapCard({ assessment }: { assessment: Assessment }) {
         <CardTitle>Skill gap</CardTitle>
         <CardDescription>Apa yang udah & belum</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="grid gap-6 sm:grid-cols-2">
         {groups.map((g) => (
           <div key={g.label}>
             <FieldLabel>{g.label}</FieldLabel>
