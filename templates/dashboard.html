@@ -1,6 +1,10 @@
 {% extends "dashboard_base.html" %}
+{% load static %}
 {% load format_number %}
 {% block title %}Dashboard — cariinkerja.id Admin{% endblock %}
+{% block head %}
+  <script defer src="{% static 'vendor/chart.umd.min.js' %}"></script>
+{% endblock %}
 {% block content %}
   <main class="space-y-8 max-w-7xl mx-auto">
     <!-- Top counters -->
@@ -165,6 +169,7 @@
     const jobTypeLabels = {{ jobs_by_type_labels_json|safe }};
     const jobTypeCounts = {{ jobs_by_type_counts_json|safe }};
 
+    document.addEventListener('DOMContentLoaded', () => {
     new Chart(document.getElementById('assessmentsChart').getContext('2d'), {
       type: 'bar',
       data: {
@@ -215,6 +220,7 @@
         scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
         plugins: { legend: { display: false } },
       },
+    });
     });
   </script>
 {% endblock content %}
