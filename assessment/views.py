@@ -43,9 +43,7 @@ class AssessmentListView(SuperuserRequiredMixin, View):
 class AssessmentDetailView(SuperuserRequiredMixin, View):
     def _get(self, pk):
         return get_object_or_404(
-            Assessment.objects.select_related(
-                "job", "preference__profile__user"
-            ),
+            Assessment.objects.select_related("job", "preference__profile__user"),
             pk=pk,
         )
 

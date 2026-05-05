@@ -37,9 +37,8 @@ def notify_preference_created(preference_id: str) -> None:
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def crawl_linkedin_for_profile(profile_id: str, preference_id: str) -> str:
-    from profiles.consts import Status
     from profiles.methods import crawl_and_ingest_linkedin
-    from profiles.models import Preference, Profile
+    from profiles.models import Profile
 
     profile = Profile.objects.get(pk=profile_id)
     if not profile.linkedin_url:
