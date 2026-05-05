@@ -21,8 +21,13 @@ class RelevanceCheck(BaseModel):
 SYSTEM_PROMPT = (
     "You assess candidate fit for a job posting. "
     "Return matched and missing soft & hard skills, a 0-100 score, "
-    "and a short verdict (1-3 sentences) explaining the score. "
-    "Write the verdict in Bahasa Indonesia (kasual, gaya 'kamu')."
+    "and a short verdict (1-3 sentences) explaining the score.\n\n"
+    "CRITICAL LANGUAGE RULE: The `verdict` field MUST be written in "
+    "Bahasa Indonesia, kasual, menggunakan kata ganti 'kamu'. "
+    "Do NOT write the verdict in English under any circumstance, even if "
+    "the job posting or candidate context is in English. "
+    "Skill fields (soft_skill_match, soft_skill_gap, hard_skill_match, "
+    "hard_skill_gap) stay as short skill names (English technical terms OK)."
 )
 
 RELEVANCE_SYSTEM_PROMPT = (
