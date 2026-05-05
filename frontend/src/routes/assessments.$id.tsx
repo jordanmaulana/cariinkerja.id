@@ -2,6 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft, Check, ExternalLink, X } from "lucide-react"
 
+import { ScoreGauge } from "@/components/score-gauge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -151,67 +152,57 @@ function AssessmentDetail({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="space-y-2">
-            <CardTitle className="text-xl">{job.title}</CardTitle>
-            <CardDescription>
-              <span className="font-medium text-foreground">
-                {job.company ?? "—"}
-              </span>
-              {" · "}
-              {job.location ?? "—"}
-              {" · "}
-              {job.job_type ? JOB_TYPE_LABEL[job.job_type] : "—"}
-              {" · "}
-              {job.remote_option ? REMOTE_LABEL[job.remote_option] : "—"}
-            </CardDescription>
-            <div className="text-xs text-muted-foreground">
-              Dicocokkan dengan{" "}
-              <span className="font-medium text-foreground">
-                {preference.title ?? "—"}
-              </span>
-              {" · Dinilai "}
-              {created}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-2">
+              <CardTitle className="text-xl">{job.title}</CardTitle>
+              <CardDescription>
+                <span className="font-medium text-foreground">
+                  {job.company ?? "—"}
+                </span>
+                {" · "}
+                {job.location ?? "—"}
+                {" · "}
+                {job.job_type ? JOB_TYPE_LABEL[job.job_type] : "—"}
+                {" · "}
+                {job.remote_option ? REMOTE_LABEL[job.remote_option] : "—"}
+              </CardDescription>
+              <div className="text-xs text-muted-foreground">
+                Dicocokkan dengan{" "}
+                <span className="font-medium text-foreground">
+                  {preference.title ?? "—"}
+                </span>
+                {" · Dinilai "}
+                {created}
+              </div>
             </div>
+            <ScoreGauge value={score} />
           </div>
         </CardHeader>
         <CardContent className="border-t pt-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Skor kecocokan
-              </div>
-              <div className="mt-0.5 flex items-baseline gap-1">
-                <span className="text-3xl font-semibold tabular-nums">
-                  {score}
-                </span>
-                <span className="text-sm text-muted-foreground">/100</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="outline" size="sm">
-                <a href={job.url} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-3.5" />
-                  Lihat loker asli
-                </a>
-              </Button>
-              {actions.length === 0 ? (
-                <span className="text-xs text-muted-foreground">
-                  Status final — tidak ada aksi lebih lanjut.
-                </span>
-              ) : (
-                actions.map((a) => (
-                  <Button
-                    key={a.next}
-                    size="sm"
-                    variant={a.variant ?? "default"}
-                    disabled={isPending}
-                    onClick={() => onAction(a.next)}
-                  >
-                    {a.label}
-                  </Button>
-                ))
-              )}
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <a href={job.url} target="_blank" rel="noreferrer">
+                <ExternalLink className="size-3.5" />
+                Lihat loker asli
+              </a>
+            </Button>
+            {actions.length === 0 ? (
+              <span className="text-xs text-muted-foreground">
+                Status final — tidak ada aksi lebih lanjut.
+              </span>
+            ) : (
+              actions.map((a) => (
+                <Button
+                  key={a.next}
+                  size="sm"
+                  variant={a.variant ?? "default"}
+                  disabled={isPending}
+                  onClick={() => onAction(a.next)}
+                >
+                  {a.label}
+                </Button>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
