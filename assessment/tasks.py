@@ -4,9 +4,11 @@ import logging
 
 from celery import shared_task
 from django.db import transaction
+from django.utils import timezone
 
 from assessment.models import Assessment
 from assessment.services import assess, check_relevance
+from billing.models import SubscriptionStatus
 from jobs.models import Job
 from jobs.scrapers import indeed, jobstreet
 from profiles.consts import Source, Status
@@ -22,19 +24,35 @@ SCRAPERS = {
 
 @shared_task
 def crawl_running_preferences():
+    now = timezone.now()
     qs = (
-        Preference.objects.filter(status=Status.RUNNING)
+        Preference.objects.filter(
+            status=Status.RUNNING,
+            profile__subscriptions__status=SubscriptionStatus.ACTIVE,
+            profile__subscriptions__expires_at__gt=now,
+        )
         .exclude(crawl_url__isnull=True)
         .exclude(crawl_url="")
         .exclude(crawl_source__isnull=True)
         .exclude(crawl_source="")
         .values_list("id", flat=True)
+        .distinct()
     )
     ids = list(qs)
     logger.info("crawl_running_preferences: %d preference(s) queued", len(ids))
     for pid in ids:
         crawl_and_assess_preference.delay(pid)
     return len(ids)
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def run_free_crawl(preference_id: str):
+    """One-shot free crawl + assess. Flips status to WAITING_PAYMENT after."""
+    crawl_and_assess_preference(preference_id)
+    Preference.objects.filter(id=preference_id).update(
+        status=Status.WAITING_PAYMENT, updated_on=timezone.now()
+    )
+    logger.info("run_free_crawl: preference=%s flipped to WAITING_PAYMENT", preference_id)
 
 
 @shared_task

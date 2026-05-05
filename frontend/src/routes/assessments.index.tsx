@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 
+import { usePaymentGate } from "@/components/payment-gate-banner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { listPreferences } from "@/lib/preferences"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -185,6 +187,15 @@ function AssessmentsPage() {
     },
   })
 
+  const gate = usePaymentGate()
+  const prefs = useQuery({
+    queryKey: ["preferences"],
+    queryFn: listPreferences,
+  })
+  const hasWaitingPayment =
+    !gate.data?.locked &&
+    !!prefs.data?.some((p) => p.status === "waiting_payment")
+
   return (
     <div className="space-y-6">
       <div className="space-y-1">
@@ -194,6 +205,24 @@ function AssessmentsPage() {
           progresmu kelacak.
         </p>
       </div>
+
+      {hasWaitingPayment && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <div className="space-y-1">
+              <CardTitle className="text-base">
+                Crawl gratis selesai
+              </CardTitle>
+              <CardDescription>
+                Pilih paket untuk lanjut crawl loker selama 30 hari.
+              </CardDescription>
+            </div>
+            <Button asChild size="sm">
+              <Link to="/plans">Pilih paket</Link>
+            </Button>
+          </CardHeader>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
