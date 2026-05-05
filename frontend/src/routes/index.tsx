@@ -40,12 +40,12 @@ const ASSESSMENT_MOCK = {
 
 const SKILL_GROUPS = [
   {
-    label: "Hard skills",
+    label: "Hard skill",
     match: ["React", "TypeScript", "Tailwind"],
     gap: ["GraphQL", "Kubernetes"],
   },
   {
-    label: "Soft skills",
+    label: "Soft skill",
     match: ["Komunikasi", "Ownership"],
     gap: ["Public speaking"],
   },
@@ -143,7 +143,7 @@ function Hero() {
         <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-700">
           <Badge variant="outline" className="mb-5">
             <Sparkles className="size-3" />
-            AI-powered job matcher
+            Pencocokan loker bertenaga AI
           </Badge>
           <h1 className="font-heading text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
             Cariin kamu loker yang cocok,
@@ -202,7 +202,7 @@ function HeroAssessmentCard() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Assessment
+              Penilaian
             </div>
             <div className="mt-1 truncate text-lg font-semibold leading-tight">
               {ASSESSMENT_MOCK.job}
@@ -218,7 +218,7 @@ function HeroAssessmentCard() {
         <p className="text-sm text-muted-foreground">{ASSESSMENT_MOCK.verdict}</p>
         <div className="space-y-2">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            Hard skills
+            Hard skill
           </div>
           <div className="flex flex-wrap gap-1.5">
             {HERO_HARD_MATCH.map((s, i) => (
@@ -379,13 +379,13 @@ function PreferenceFormMock() {
     <Card className="shadow-lg">
       <CardHeader>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          Preference
+          Preferensi
         </div>
         <div className="mt-1 text-base font-semibold">Senior React Engineer</div>
       </CardHeader>
       <CardContent className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Job type" value="Full-time" />
+          <Field label="Tipe pekerjaan" value="Penuh waktu" />
           <Field label="Remote" value="Remote" />
         </div>
 
@@ -396,7 +396,7 @@ function PreferenceFormMock() {
               <span className="absolute inset-0 animate-ping rounded-full bg-primary-foreground/60" />
               <span className="relative size-1.5 rounded-full bg-primary-foreground" />
             </span>
-            Running
+            Berjalan
           </Badge>
         </div>
       </CardContent>
@@ -411,7 +411,7 @@ function AssessmentCardMock() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Assessment
+              Penilaian
             </div>
             <div className="mt-1 truncate text-base font-semibold leading-tight">
               {ASSESSMENT_MOCK.job}
@@ -426,7 +426,7 @@ function AssessmentCardMock() {
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{ASSESSMENT_MOCK.verdict}</p>
         <div>
-          <FieldLabel>Hard skills</FieldLabel>
+          <FieldLabel>Hard skill</FieldLabel>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {ASSESSMENT_MOCK.hardMatch.map((s) => (
               <Badge key={s} variant="secondary">

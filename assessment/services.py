@@ -21,7 +21,8 @@ class RelevanceCheck(BaseModel):
 SYSTEM_PROMPT = (
     "You assess candidate fit for a job posting. "
     "Return matched and missing soft & hard skills, a 0-100 score, "
-    "and a short verdict (1-3 sentences) explaining the score."
+    "and a short verdict (1-3 sentences) explaining the score. "
+    "Write the verdict in Bahasa Indonesia (kasual, gaya 'kamu')."
 )
 
 RELEVANCE_SYSTEM_PROMPT = (

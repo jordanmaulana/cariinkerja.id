@@ -22,10 +22,10 @@ export type Preference = {
 }
 
 export const PREFERENCE_STATUSES: { value: PreferenceStatus; label: string }[] = [
-  { value: "waiting_payment", label: "Waiting payment" },
-  { value: "waiting_admin", label: "Waiting admin" },
-  { value: "running", label: "Running" },
-  { value: "expired", label: "Expired" },
+  { value: "waiting_payment", label: "Menunggu pembayaran" },
+  { value: "waiting_admin", label: "Menunggu admin" },
+  { value: "running", label: "Berjalan" },
+  { value: "expired", label: "Kedaluwarsa" },
 ]
 
 export type PreferencePayload = {

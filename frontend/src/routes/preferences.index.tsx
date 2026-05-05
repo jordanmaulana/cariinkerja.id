@@ -83,9 +83,10 @@ function PreferencesPage() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Finders</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Pencarian</h2>
           <p className="text-sm text-muted-foreground">
-            Define what you want. Each Finder becomes a crawl + match feed.
+            Tentukan apa yang kamu mau. Tiap Pencarian jadi feed crawl +
+            kecocokan.
           </p>
         </div>
         <NewPreferenceDialog />
@@ -95,7 +96,7 @@ function PreferencesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Your Finders</CardTitle>
+          <CardTitle>Pencarianmu</CardTitle>
           <CardDescription>
             {query.data?.length ?? 0} total
           </CardDescription>
@@ -108,24 +109,24 @@ function PreferencesPage() {
           )}
           {query.isError && (
             <div className="px-6 pb-6 text-sm text-destructive">
-              Failed to load Finders.
+              Gagal memuat Pencarian.
             </div>
           )}
           {query.data && query.data.length === 0 && (
             <div className="px-6 pb-6 text-sm text-muted-foreground">
-              No Finders yet. Add one to start crawling.
+              Belum ada Pencarian. Tambah satu untuk mulai crawling.
             </div>
           )}
           {query.data && query.data.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Judul</TableHead>
+                  <TableHead>Tipe</TableHead>
                   <TableHead>Remote</TableHead>
-                  <TableHead>Source</TableHead>
+                  <TableHead>Sumber</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead>Dibuat</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -169,7 +170,7 @@ function PreferencesPage() {
                           variant="outline"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Link to="/plans">Pick a plan</Link>
+                          <Link to="/plans">Pilih paket</Link>
                         </Button>
                       )}
                     </TableCell>
@@ -205,11 +206,11 @@ function NewPreferenceDialog() {
       setOpen(false)
       setValues(buildInitialValues())
       toast.success(
-        `Finder “${created.title || "Untitled"}” created. Admin will review next.`,
+        `Pencarian “${created.title || "Tanpa judul"}” dibuat. Admin akan meninjau berikutnya.`,
       )
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Failed to create Finder.")
+      setError(err instanceof Error ? err.message : "Gagal membuat Pencarian.")
     },
   })
 
@@ -217,7 +218,7 @@ function NewPreferenceDialog() {
     e.preventDefault()
     setError(null)
     if (!values.title.trim()) {
-      setError("Title is required.")
+      setError("Judul wajib diisi.")
       return
     }
     mutation.mutate(values)
@@ -237,15 +238,15 @@ function NewPreferenceDialog() {
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="size-4" />
-          New Finder
+          Pencarian Baru
         </Button>
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={onSubmit} className="space-y-5">
           <DialogHeader>
-            <DialogTitle>New Finder</DialogTitle>
+            <DialogTitle>Pencarian Baru</DialogTitle>
             <DialogDescription>
-              Set what you want. Crawl details can be added later.
+              Tentukan apa yang kamu mau. Detail crawl bisa ditambah nanti.
             </DialogDescription>
           </DialogHeader>
           <PreferenceFormFields
@@ -259,11 +260,11 @@ function NewPreferenceDialog() {
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" disabled={mutation.isPending}>
-                Cancel
+                Batal
               </Button>
             </DialogClose>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Creating…" : "Create"}
+              {mutation.isPending ? "Membuat…" : "Buat"}
             </Button>
           </DialogFooter>
         </form>

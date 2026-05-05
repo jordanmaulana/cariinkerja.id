@@ -52,27 +52,27 @@ export function PreferenceFormFields({ values, onChange, disabled }: Props) {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field className="sm:col-span-2" label="Title" htmlFor="pref-title">
+      <Field className="sm:col-span-2" label="Judul" htmlFor="pref-title">
         <Input
           id="pref-title"
           value={values.title}
           disabled={disabled}
           onChange={(e) => update("title", e.target.value)}
-          placeholder="e.g. Senior Backend Engineer"
+          placeholder="cth. Senior Backend Engineer"
         />
       </Field>
 
-      <Field label="Job type" htmlFor="pref-job-type">
+      <Field label="Tipe pekerjaan" htmlFor="pref-job-type">
         <Select
           value={values.job_type || ANY_VALUE}
           onValueChange={(v) => update("job_type", v === ANY_VALUE ? "" : v)}
           disabled={disabled}
         >
           <SelectTrigger id="pref-job-type">
-            <SelectValue placeholder="Any" />
+            <SelectValue placeholder="Semua" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY_VALUE}>Any</SelectItem>
+            <SelectItem value={ANY_VALUE}>Semua</SelectItem>
             {JOB_TYPES.map((j) => (
               <SelectItem key={j.value} value={j.value}>
                 {j.label}
@@ -91,10 +91,10 @@ export function PreferenceFormFields({ values, onChange, disabled }: Props) {
           disabled={disabled}
         >
           <SelectTrigger id="pref-remote">
-            <SelectValue placeholder="Any" />
+            <SelectValue placeholder="Semua" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY_VALUE}>Any</SelectItem>
+            <SelectItem value={ANY_VALUE}>Semua</SelectItem>
             {REMOTE_OPTIONS.map((r) => (
               <SelectItem key={r.value} value={r.value}>
                 {r.label}

@@ -84,7 +84,7 @@ function LoginPage() {
             const msg =
               err instanceof ApiError
                 ? err.message
-                : "Sign-in gagal. Coba lagi.";
+                : "Sign in gagal. Coba lagi.";
             setError(msg);
           }
         },

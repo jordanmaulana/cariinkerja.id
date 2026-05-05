@@ -36,20 +36,20 @@ const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, "/onboarding"])
 function describeEvent(e: UserEvent): string | null {
   switch (e.event) {
     case "subscription.activated":
-      return "Subscription activated. Daily matching is now on."
+      return "Langganan aktif. Pencocokan harian sudah jalan."
     case "preference.status_changed": {
       const status = typeof e.status === "string" ? e.status : null
       const label =
         status === "running"
-          ? "running"
+          ? "berjalan"
           : status === "waiting_payment"
-            ? "approved — pick a plan"
+            ? "disetujui — pilih paket"
             : status === "waiting_admin"
-              ? "back under admin review"
+              ? "kembali ditinjau admin"
               : status === "expired"
-                ? "expired"
+                ? "kedaluwarsa"
                 : status
-      return label ? `Finder status: ${label}.` : "Finder status updated."
+      return label ? `Status Pencarian: ${label}.` : "Status Pencarian diperbarui."
     }
     case "assessment.status_changed":
       return null
@@ -119,7 +119,7 @@ function AuthGate() {
         if (err instanceof ApiError && err.status === 401) {
           if (!sessionExpiredFiredRef.current) {
             sessionExpiredFiredRef.current = true
-            toast.warning("Your session expired. Please sign in again.")
+            toast.warning("Sesi kamu sudah berakhir. Silakan masuk lagi.")
           }
           setToken(null)
           setUser(null)
@@ -141,7 +141,7 @@ function AuthGate() {
     if (!user.onboarded && pathname !== "/onboarding") {
       if (!onboardingNudgeFiredRef.current) {
         onboardingNudgeFiredRef.current = true
-        toast.info("Finish your profile to access the rest of the app.")
+        toast.info("Lengkapi profilmu dulu sebelum lanjut.")
       }
       navigate({ to: "/onboarding" })
       return

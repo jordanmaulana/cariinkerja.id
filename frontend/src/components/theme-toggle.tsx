@@ -28,7 +28,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon-sm"
-      aria-label="Toggle theme"
+      aria-label="Ganti tema"
       onClick={toggle}
     >
       {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}

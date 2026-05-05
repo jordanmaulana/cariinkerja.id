@@ -24,6 +24,14 @@ export const Route = createFileRoute("/assessments/$id")({
   component: AssessmentDetailPage,
 })
 
+const STATUS_LABEL: Record<AssessmentStatus, string> = {
+  new: "Baru",
+  seen: "Sudah dilihat",
+  applied: "Sudah dilamar",
+  rejected: "Ditolak",
+  accepted: "Dapat tawaran",
+}
+
 const STATUS_VARIANT: Record<
   AssessmentStatus,
   "default" | "secondary" | "destructive" | "outline"
@@ -52,18 +60,18 @@ function getActionsForStatus(status: AssessmentStatus): Action[] {
   switch (status) {
     case "new":
       return [
-        { label: "Mark reviewed", next: "seen", variant: "outline" },
-        { label: "Reject", next: "rejected", variant: "destructive" },
+        { label: "Tandai sudah dilihat", next: "seen", variant: "outline" },
+        { label: "Tolak", next: "rejected", variant: "destructive" },
       ]
     case "seen":
       return [
-        { label: "I applied", next: "applied", variant: "default" },
-        { label: "Reject", next: "rejected", variant: "destructive" },
+        { label: "Sudah dilamar", next: "applied", variant: "default" },
+        { label: "Tolak", next: "rejected", variant: "destructive" },
       ]
     case "applied":
       return [
-        { label: "Got an offer", next: "accepted", variant: "default" },
-        { label: "Reject", next: "rejected", variant: "destructive" },
+        { label: "Dapat tawaran", next: "accepted", variant: "default" },
+        { label: "Tolak", next: "rejected", variant: "destructive" },
       ]
     default:
       return []
@@ -93,12 +101,12 @@ function AssessmentDetailPage() {
         <Button asChild variant="ghost" size="sm">
           <Link to="/assessments">
             <ArrowLeft className="size-4" />
-            Back to available jobs
+            Kembali ke loker tersedia
           </Link>
         </Button>
         {query.data && (
-          <Badge variant={STATUS_VARIANT[query.data.status]} className="capitalize">
-            {query.data.status}
+          <Badge variant={STATUS_VARIANT[query.data.status]}>
+            {STATUS_LABEL[query.data.status]}
           </Badge>
         )}
       </div>
@@ -107,7 +115,7 @@ function AssessmentDetailPage() {
       {query.isError && (
         <Card>
           <CardContent className="py-6 text-sm text-destructive">
-            Failed to load available job. It may not exist or you may not have access.
+            Gagal memuat loker. Mungkin lokernya tidak ada atau kamu tidak punya akses.
           </CardContent>
         </Card>
       )}
@@ -158,11 +166,11 @@ function AssessmentDetail({
               {job.remote_option ? REMOTE_LABEL[job.remote_option] : "—"}
             </CardDescription>
             <div className="text-xs text-muted-foreground">
-              Matched against{" "}
+              Dicocokkan dengan{" "}
               <span className="font-medium text-foreground">
                 {preference.title ?? "—"}
               </span>
-              {" · Assessed "}
+              {" · Dinilai "}
               {created}
             </div>
           </div>
@@ -171,7 +179,7 @@ function AssessmentDetail({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Match score
+                Skor kecocokan
               </div>
               <div className="mt-0.5 flex items-baseline gap-1">
                 <span className="text-3xl font-semibold tabular-nums">
@@ -184,12 +192,12 @@ function AssessmentDetail({
               <Button asChild variant="outline" size="sm">
                 <a href={job.url} target="_blank" rel="noreferrer">
                   <ExternalLink className="size-3.5" />
-                  Original posting
+                  Lihat loker asli
                 </a>
               </Button>
               {actions.length === 0 ? (
                 <span className="text-xs text-muted-foreground">
-                  Terminal status — no further actions.
+                  Status final — tidak ada aksi lebih lanjut.
                 </span>
               ) : (
                 actions.map((a) => (
@@ -212,7 +220,7 @@ function AssessmentDetail({
       {verdict && (
         <Card>
           <CardHeader>
-            <CardTitle>Verdict</CardTitle>
+            <CardTitle>Penilaian</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-line text-sm leading-relaxed">
@@ -230,12 +238,12 @@ function AssessmentDetail({
 function SkillGapCard({ assessment }: { assessment: Assessment }) {
   const groups = [
     {
-      label: "Hard skills",
+      label: "Hard skill",
       match: assessment.hard_skill_match,
       gap: assessment.hard_skill_gap,
     },
     {
-      label: "Soft skills",
+      label: "Soft skill",
       match: assessment.soft_skill_match,
       gap: assessment.soft_skill_gap,
     },

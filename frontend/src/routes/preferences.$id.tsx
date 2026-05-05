@@ -72,7 +72,7 @@ function PreferenceDetailPage() {
         <Button asChild variant="ghost" size="sm">
           <Link to="/preferences">
             <ArrowLeft className="size-4" />
-            Back to Finders
+            Kembali ke Pencarian
           </Link>
         </Button>
         {query.data && (
@@ -86,7 +86,7 @@ function PreferenceDetailPage() {
       {query.isError && (
         <Card>
           <CardContent className="py-6 text-sm text-destructive">
-            Failed to load Finder. It may not exist.
+            Gagal memuat Pencarian. Mungkin tidak ada.
           </CardContent>
         </Card>
       )}
@@ -105,10 +105,10 @@ function StateNotice({ preference }: { preference: Preference }) {
       <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950">
         <CardHeader>
           <CardTitle className="text-base text-amber-900 dark:text-amber-100">
-            Admin is reviewing your LinkedIn
+            Admin sedang meninjau LinkedIn-mu
           </CardTitle>
           <CardDescription className="text-amber-900/80 dark:text-amber-100/80">
-            You will be able to pick a plan once your profile is approved.
+            Kamu bisa pilih paket setelah profilmu disetujui.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -119,13 +119,13 @@ function StateNotice({ preference }: { preference: Preference }) {
       <Card className="border-primary/40 bg-primary/5">
         <CardHeader className="flex-row items-center justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="text-base">Finder approved</CardTitle>
+            <CardTitle className="text-base">Pencarian disetujui</CardTitle>
             <CardDescription>
-              Pick a plan to start matching jobs.
+              Pilih paket untuk mulai mencocokkan loker.
             </CardDescription>
           </div>
           <Button asChild size="sm">
-            <Link to="/plans">Pick a plan</Link>
+            <Link to="/plans">Pilih paket</Link>
           </Button>
         </CardHeader>
       </Card>
@@ -154,14 +154,14 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
       setValues(buildInitialValues(updated))
       if (wasRunning) {
         toast.warning(
-          "Saved. Crawl paused — sent back to admin for review before it resumes.",
+          "Tersimpan. Crawl dijeda — dikirim ulang ke admin untuk ditinjau sebelum berjalan lagi.",
         )
       } else {
-        toast.success("Finder updated.")
+        toast.success("Pencarian diperbarui.")
       }
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Failed to save Finder.")
+      setError(err instanceof Error ? err.message : "Gagal menyimpan Pencarian.")
     },
   })
 
@@ -170,7 +170,7 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["preferences"] })
       queryClient.removeQueries({ queryKey: ["preference", preference.id] })
-      toast.info("Finder deleted.")
+      toast.info("Pencarian dihapus.")
       navigate({ to: "/preferences" })
     },
   })
@@ -189,7 +189,7 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
 
   function handleDiscard() {
     if (isDirty) {
-      const ok = window.confirm("Discard your unsaved edits?")
+      const ok = window.confirm("Buang perubahan yang belum disimpan?")
       if (!ok) return
     }
     setValues(initialValues)
@@ -202,20 +202,20 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
           role="alert"
           className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
         >
-          <span className="font-semibold">Heads up —</span>
+          <span className="font-semibold">Perhatian —</span>
           <span>
-            This Finder is currently running. Saving will pause the crawl and
-            send it back to admin for review before it resumes.
+            Pencarian ini lagi berjalan. Menyimpan akan menjeda crawl dan
+            dikirim ulang ke admin untuk ditinjau sebelum berjalan lagi.
           </span>
         </div>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Edit Finder</CardTitle>
+          <CardTitle>Ubah Pencarian</CardTitle>
           <CardDescription>
-            Created{" "}
-            {new Date(preference.created_on).toLocaleDateString(undefined, {
+            Dibuat{" "}
+            {new Date(preference.created_on).toLocaleDateString("id-ID", {
               year: "numeric",
               month: "short",
               day: "numeric",
@@ -249,14 +249,14 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
             disabled={updateMutation.isPending || !isDirty}
             onClick={handleDiscard}
           >
-            Discard edits
+            Buang perubahan
           </Button>
           <Button type="submit" disabled={updateMutation.isPending}>
             {updateMutation.isPending
-              ? "Saving…"
+              ? "Menyimpan…"
               : isRunning
-                ? "Submit changes for review"
-                : "Save changes"}
+                ? "Kirim perubahan untuk ditinjau"
+                : "Simpan perubahan"}
           </Button>
         </div>
       </div>
@@ -278,21 +278,21 @@ function DeleteDialog({
       <DialogTrigger asChild>
         <Button type="button" variant="destructive">
           <Trash2 className="size-4" />
-          Delete
+          Hapus
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Finder?</DialogTitle>
+          <DialogTitle>Hapus Pencarian?</DialogTitle>
           <DialogDescription>
-            This removes “{preference.title || "Untitled"}” and any available
-            jobs tied to it. Cannot be undone.
+            Ini akan menghapus “{preference.title || "Tanpa judul"}” dan semua
+            loker tersedia yang terkait. Tidak bisa dibatalkan.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="outline" disabled={isDeleting}>
-              Cancel
+              Batal
             </Button>
           </DialogClose>
           <Button
@@ -301,7 +301,7 @@ function DeleteDialog({
             disabled={isDeleting}
             onClick={onConfirm}
           >
-            {isDeleting ? "Deleting…" : "Delete"}
+            {isDeleting ? "Menghapus…" : "Hapus"}
           </Button>
         </DialogFooter>
       </DialogContent>

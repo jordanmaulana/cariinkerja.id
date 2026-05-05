@@ -1,8 +1,8 @@
 export const JOB_TYPES = [
-  { value: "full-time", label: "Full-time" },
-  { value: "part-time", label: "Part-time" },
-  { value: "contract", label: "Contract" },
-  { value: "internship", label: "Internship" },
+  { value: "full-time", label: "Penuh waktu" },
+  { value: "part-time", label: "Paruh waktu" },
+  { value: "contract", label: "Kontrak" },
+  { value: "internship", label: "Magang" },
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number]["value"];

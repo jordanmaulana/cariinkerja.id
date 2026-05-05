@@ -44,7 +44,7 @@ function DialogContent({
         {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
           <X className="size-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">Tutup</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPortal>

@@ -25,16 +25,16 @@ import { tokenAtom, userAtom } from "@/state/atoms"
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/assessments", label: "Available Jobs", icon: ClipboardCheck },
-  { to: "/preferences", label: "Finder", icon: SlidersHorizontal },
-  { to: "/plans", label: "Plans", icon: CreditCard },
+  { to: "/assessments", label: "Loker Tersedia", icon: ClipboardCheck },
+  { to: "/preferences", label: "Pencarian", icon: SlidersHorizontal },
+  { to: "/plans", label: "Paket", icon: CreditCard },
 ] as const
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
-  "/assessments": "Available Jobs",
-  "/preferences": "Finder",
-  "/plans": "Plans",
+  "/assessments": "Loker Tersedia",
+  "/preferences": "Pencarian",
+  "/plans": "Paket",
 }
 
 function pageTitle(pathname: string) {
@@ -109,13 +109,13 @@ export function AppShell() {
                 <button
                   type="button"
                   className="flex h-8 items-center gap-2 rounded-full border bg-background pl-1 pr-3 text-xs font-medium transition-colors hover:bg-muted"
-                  aria-label="User menu"
+                  aria-label="Menu pengguna"
                 >
                   <span className="grid size-6 place-items-center rounded-full bg-muted text-[10px] font-semibold uppercase text-foreground">
                     {user ? initialsOf(user) : "?"}
                   </span>
                   <span className="hidden max-w-[14ch] truncate sm:block">
-                    {user?.full_name || user?.email || "Account"}
+                    {user?.full_name || user?.email || "Akun"}
                   </span>
                 </button>
               </DropdownMenuTrigger>
@@ -125,7 +125,7 @@ export function AppShell() {
                     <DropdownMenuLabel>
                       <div className="space-y-0.5">
                         <div className="text-sm font-medium text-foreground">
-                          {user.full_name || "Account"}
+                          {user.full_name || "Akun"}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">
                           {user.email}
@@ -137,7 +137,7 @@ export function AppShell() {
                 )}
                 <DropdownMenuItem onSelect={onLogout}>
                   <LogOut className="size-4" />
-                  Log out
+                  Keluar
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -45,11 +45,11 @@ export const Route = createFileRoute("/plans/")({
 })
 
 const STATUS_LABEL: Record<Subscription["status"], string> = {
-  PENDING: "Pending payment",
-  ACTIVE: "Active",
-  EXPIRED: "Expired",
-  CANCELLED: "Cancelled",
-  REPLACED: "Replaced",
+  PENDING: "Menunggu pembayaran",
+  ACTIVE: "Aktif",
+  EXPIRED: "Kedaluwarsa",
+  CANCELLED: "Dibatalkan",
+  REPLACED: "Diganti",
 }
 
 const STATUS_VARIANT: Record<
@@ -67,12 +67,12 @@ const GATE_REASON: Record<
   Extract<PaymentGate, { locked: true }>["code"],
   string
 > = {
-  waiting_admin: "LinkedIn under admin review — wait for approval before subscribing.",
-  linkedin_quality: "LinkedIn profile needs more detail before you can subscribe.",
+  waiting_admin: "LinkedIn sedang ditinjau admin — tunggu persetujuan sebelum berlangganan.",
+  linkedin_quality: "Profil LinkedIn perlu lebih lengkap sebelum kamu bisa berlangganan.",
 }
 
 const OPEN_TO_WORK_HINT =
-  "Open-to-Work discount is applied automatically while you don't have an active subscription. Renewals at full price."
+  "Diskon Open-to-Work otomatis berlaku selama kamu belum punya langganan aktif. Perpanjangan tetap harga normal."
 
 type PlanMode =
   | "buy"
@@ -140,10 +140,10 @@ function PlansPage() {
       queryClient.setQueryData(["subscription", "me"], data)
       if (data.status === "PENDING") {
         toast.warning(
-          "Still pending — we haven't received your payment yet. Try again in a moment.",
+          "Masih pending — pembayaranmu belum kami terima. Coba lagi sebentar.",
         )
       } else if (data.status === "ACTIVE") {
-        toast.success("Subscription activated.")
+        toast.success("Langganan aktif.")
       }
     },
   })
@@ -151,7 +151,7 @@ function PlansPage() {
     mutationFn: () => cancelPendingSubscription(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subscription", "me"] })
-      toast.info("Pending subscription cancelled.")
+      toast.info("Langganan pending dibatalkan.")
     },
   })
 
@@ -177,9 +177,9 @@ function PlansPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Plans</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Paket</h2>
         <p className="text-sm text-muted-foreground">
-          Pick a plan to start matching jobs to your profile.
+          Pilih paket untuk mulai mencocokkan loker dengan profilmu.
         </p>
       </div>
 
@@ -212,11 +212,11 @@ function PlansPage() {
         </div>
       )}
       {plansQuery.isError && (
-        <p className="text-sm text-destructive">Failed to load plans.</p>
+        <p className="text-sm text-destructive">Gagal memuat paket.</p>
       )}
       {plansQuery.data && plansQuery.data.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No plans available right now.
+          Belum ada paket tersedia saat ini.
         </p>
       )}
       {plansQuery.data && plansQuery.data.length > 0 && (
@@ -244,7 +244,7 @@ function PlansPage() {
       )}
       {checkoutMutation.isError && (
         <p className="text-sm text-destructive">
-          Could not start checkout.{" "}
+          Gagal memulai checkout.{" "}
           {checkoutMutation.error instanceof Error
             ? checkoutMutation.error.message
             : ""}
@@ -278,9 +278,9 @@ function CheckoutRedirectingOverlay() {
       className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm"
     >
       <Loader2 className="size-8 animate-spin text-primary" />
-      <p className="text-sm font-medium">Redirecting to payment…</p>
+      <p className="text-sm font-medium">Mengarahkan ke pembayaran…</p>
       <p className="text-xs text-muted-foreground">
-        Don't close this tab. We'll send you to the secure checkout page.
+        Jangan tutup tab ini. Kami akan mengarahkanmu ke halaman checkout aman.
       </p>
     </div>
   )
@@ -310,9 +310,9 @@ function CurrentSubscriptionBanner({
     return (
       <Card id="current-sub">
         <CardHeader>
-          <CardTitle className="text-base">No active subscription</CardTitle>
+          <CardTitle className="text-base">Belum ada langganan aktif</CardTitle>
           <CardDescription>
-            Subscribe below to unlock the daily job matcher.
+            Berlangganan di bawah untuk membuka pencocokan loker harian.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -331,24 +331,24 @@ function CurrentSubscriptionBanner({
           </CardTitle>
           <CardDescription>
             {sub.status === "ACTIVE" && expires && (
-              <>Active until {expires.toLocaleDateString("id-ID")}</>
+              <>Aktif sampai {expires.toLocaleDateString("id-ID")}</>
             )}
             {sub.status === "PENDING" && sub.payment_link && (
               <>
-                Awaiting payment.{" "}
+                Menunggu pembayaran.{" "}
                 <a
                   href={sub.payment_link}
                   className="text-primary underline"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Resume checkout
+                  Lanjutkan checkout
                 </a>
               </>
             )}
-            {sub.status === "EXPIRED" && <>Subscription expired. Renew below.</>}
-            {sub.status === "CANCELLED" && <>Cancelled.</>}
-            {sub.status === "REPLACED" && <>Replaced by a newer plan.</>}
+            {sub.status === "EXPIRED" && <>Langganan kedaluwarsa. Perpanjang di bawah.</>}
+            {sub.status === "CANCELLED" && <>Dibatalkan.</>}
+            {sub.status === "REPLACED" && <>Diganti dengan paket lebih baru.</>}
           </CardDescription>
           {recheckError && (
             <p className="text-xs text-destructive">{recheckError}</p>
@@ -365,7 +365,7 @@ function CurrentSubscriptionBanner({
               onClick={onRecheck}
               disabled={rechecking || cancelling}
             >
-              {rechecking ? "Checking…" : "I paid, refresh"}
+              {rechecking ? "Memeriksa…" : "Saya sudah bayar, refresh"}
             </Button>
             <Button
               variant="ghost"
@@ -373,7 +373,7 @@ function CurrentSubscriptionBanner({
               onClick={onCancel}
               disabled={rechecking || cancelling}
             >
-              {cancelling ? "Cancelling…" : "Cancel"}
+              {cancelling ? "Membatalkan…" : "Batal"}
             </Button>
           </div>
         )}
@@ -387,21 +387,21 @@ function buttonLabelFor(
   isCheckoutPending: boolean,
   charge: number | null,
 ): string {
-  if (isCheckoutPending) return "Redirecting…"
+  if (isCheckoutPending) return "Mengarahkan…"
   switch (mode) {
     case "current":
-      return "Current plan"
+      return "Paket saat ini"
     case "pending-other":
-      return "Resume or cancel pending ↑"
+      return "Lanjutkan atau batalkan pending ↑"
     case "locked":
-      return "Locked"
+      return "Terkunci"
     case "upgrade":
       return charge != null ? `Upgrade — ${formatRupiah(charge)}` : "Upgrade"
     case "downgrade-blocked":
-      return "Downgrade not available"
+      return "Downgrade tidak tersedia"
     case "buy":
     default:
-      return "Buy plan"
+      return "Beli paket"
   }
 }
 
@@ -430,9 +430,9 @@ function PlanCard({
     mode === "locked"
       ? lockedReason ?? undefined
       : mode === "pending-other"
-        ? "You have a pending subscription. Scroll up to resume or cancel it first."
+        ? "Kamu punya langganan pending. Scroll ke atas untuk melanjutkan atau membatalkannya dulu."
         : mode === "downgrade-blocked"
-          ? "Downgrades are not supported. Wait for the current plan to expire."
+          ? "Downgrade tidak didukung. Tunggu paket saat ini kedaluwarsa."
           : undefined
   const disabled =
     mode === "current" ||
@@ -452,7 +452,7 @@ function PlanCard({
               {formatRupiah(plan.price)}
             </span>
           )}
-          <span className="ml-1 text-sm text-muted-foreground">/ month</span>
+          <span className="ml-1 text-sm text-muted-foreground">/ bulan</span>
           {discounted && (
             <Badge
               variant="secondary"
@@ -465,27 +465,27 @@ function PlanCard({
         </CardDescription>
         {discounted && mode !== "upgrade" && (
           <p className="mt-1 text-xs text-muted-foreground">
-            Open-to-Work pricing — auto-applied while you have no active subscription.
+            Harga Open-to-Work — otomatis berlaku selama belum ada langganan aktif.
           </p>
         )}
         {showUpgradeBreakdown && (
           <div className="mt-3 rounded-md border border-dashed p-3 text-xs space-y-1">
             <div className="flex justify-between">
-              <span>List price</span>
+              <span>Harga normal</span>
               <span>{formatRupiah(plan.price)}</span>
             </div>
             <div className="flex justify-between text-emerald-600">
-              <span>+ Bonus from current plan</span>
+              <span>+ Bonus dari paket saat ini</span>
               <span>
-                ~{upgradeQuote.bonus_days.toFixed(1)}d
+                ~{upgradeQuote.bonus_days.toFixed(1)} hari
                 {" "}
                 <span className="text-muted-foreground">
-                  ({formatRupiah(upgradeQuote.credit_value)} credit)
+                  ({formatRupiah(upgradeQuote.credit_value)} kredit)
                 </span>
               </span>
             </div>
             <div className="flex justify-between font-medium pt-1 border-t">
-              <span>Pay now</span>
+              <span>Bayar sekarang</span>
               <span>{formatRupiah(upgradeQuote.charge)}</span>
             </div>
           </div>
@@ -495,18 +495,17 @@ function PlanCard({
         <ul className="space-y-2 text-sm">
           <li className="flex items-center gap-2">
             <Check className="size-4 text-primary" />
-            {plan.preference_limit}{" "}
-            {plan.preference_limit === 1 ? "Finder" : "Finders"}
+            {plan.preference_limit} Pencarian
           </li>
           <li className="flex items-center gap-2">
             <Check className="size-4 text-primary" />
-            Daily job matching + AI scoring
+            Pencocokan loker harian + skor AI
           </li>
           <li className="flex items-center gap-2">
             <Check className="size-4 text-primary" />
-            30 days access
+            Akses 30 hari
             {showUpgradeBreakdown &&
-              ` + ~${upgradeQuote.bonus_days.toFixed(1)} bonus days`}
+              ` + ~${upgradeQuote.bonus_days.toFixed(1)} hari bonus`}
           </li>
         </ul>
         {mode === "pending-other" ? (
@@ -558,52 +557,52 @@ function UpgradeConfirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Upgrade to {plan.name}</DialogTitle>
+          <DialogTitle>Upgrade ke {plan.name}</DialogTitle>
           <DialogDescription>
             {currentPlanName
-              ? `Your ${currentPlanName} ends now. ${plan.name} starts immediately with bonus days from unused credit.`
-              : `Confirm your upgrade to ${plan.name}.`}
+              ? `${currentPlanName} milikmu berakhir sekarang. ${plan.name} langsung jalan dengan hari bonus dari kredit yang belum terpakai.`
+              : `Konfirmasi upgrade ke ${plan.name}.`}
           </DialogDescription>
         </DialogHeader>
         {quote ? (
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span>{plan.name} list price</span>
+              <span>Harga normal {plan.name}</span>
               <span>{formatRupiah(plan.price)}</span>
             </div>
             <div className="flex justify-between text-emerald-600">
               <span>
-                Credit from {currentPlanName ?? "current plan"} ({quote.days_remaining.toFixed(1)}d
-                left)
+                Kredit dari {currentPlanName ?? "paket saat ini"} ({quote.days_remaining.toFixed(1)} hari
+                tersisa)
               </span>
               <span>{formatRupiah(quote.credit_value)}</span>
             </div>
             <div className="flex justify-between text-emerald-600">
-              <span>Bonus days on {plan.name}</span>
-              <span>~{quote.bonus_days.toFixed(1)}d</span>
+              <span>Hari bonus di {plan.name}</span>
+              <span>~{quote.bonus_days.toFixed(1)} hari</span>
             </div>
             <div className="flex justify-between border-t pt-2 font-medium">
-              <span>Pay now</span>
+              <span>Bayar sekarang</span>
               <span>{formatRupiah(quote.charge)}</span>
             </div>
             {eta && (
               <p className="pt-1 text-xs text-muted-foreground">
-                {plan.name} runs until ~{eta}.
+                {plan.name} berjalan sampai ~{eta}.
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              Final bonus is calculated when payment confirms — paying later means slightly fewer bonus days.
+              Bonus final dihitung saat pembayaran terkonfirmasi — semakin lama bayar, hari bonusnya sedikit lebih sedikit.
             </p>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Loading quote…</p>
+          <p className="text-sm text-muted-foreground">Memuat penawaran…</p>
         )}
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            Batal
           </Button>
           <Button onClick={onConfirm} disabled={!quote}>
-            Continue to payment
+            Lanjut ke pembayaran
           </Button>
         </DialogFooter>
       </DialogContent>

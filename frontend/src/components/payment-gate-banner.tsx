@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils"
 type GateCode = Extract<PaymentGate, { locked: true }>["code"]
 
 const TITLE: Record<GateCode, string> = {
-  waiting_admin: "LinkedIn under admin review",
-  linkedin_quality: "LinkedIn profile needs more detail",
+  waiting_admin: "LinkedIn sedang ditinjau admin",
+  linkedin_quality: "Profil LinkedIn perlu lebih lengkap",
 }
 
 const VARIANT_CLS: Record<GateCode, { wrap: string; title: string; icon: string; body: string }> = {
@@ -53,9 +53,9 @@ export function PaymentGateBanner() {
         <p className={cls.body}>
           {data.detail}
           {data.code === "waiting_admin" &&
-            " You can pick a plan once your LinkedIn is approved."}
+            " Kamu bisa pilih paket setelah LinkedIn-mu disetujui."}
           {data.code === "linkedin_quality" &&
-            " Update your LinkedIn profile and re-submit before paying."}
+            " Lengkapi profil LinkedIn-mu dan kirim ulang sebelum bayar."}
         </p>
       </div>
     </div>

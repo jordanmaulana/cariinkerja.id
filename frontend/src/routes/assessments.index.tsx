@@ -46,19 +46,19 @@ export const Route = createFileRoute("/assessments/")({
 })
 
 const STATUS_LABEL: Record<AssessmentStatus, string> = {
-  new: "New",
-  seen: "I've reviewed",
-  applied: "I applied",
-  rejected: "Not interested",
-  accepted: "Got an offer",
+  new: "Baru",
+  seen: "Sudah dilihat",
+  applied: "Sudah dilamar",
+  rejected: "Tidak tertarik",
+  accepted: "Dapat tawaran",
 }
 
 const STATUS_HINT: Record<AssessmentStatus, string> = {
-  new: "Hasn't been reviewed yet.",
-  seen: "You've looked at it but haven't applied.",
-  applied: "You sent in an application.",
-  rejected: "You decided not to pursue this one.",
-  accepted: "Employer extended an offer.",
+  new: "Belum dilihat.",
+  seen: "Sudah kamu lihat tapi belum dilamar.",
+  applied: "Kamu sudah kirim lamaran.",
+  rejected: "Kamu memutuskan untuk tidak ngelanjutin loker ini.",
+  accepted: "Perusahaan ngasih tawaran.",
 }
 
 const STATUS_VARIANT: Record<
@@ -87,19 +87,19 @@ type Action = {
 }
 
 const REJECT_CONFIRM = {
-  title: "Reject this match?",
+  title: "Tolak kecocokan ini?",
   description:
-    "Once rejected, this job will be hidden from your queue and the action can only be reversed by support. Are you sure?",
-  confirmLabel: "Yes, reject",
+    "Setelah ditolak, loker ini disembunyiin dari antreanmu dan cuma bisa dikembalikan oleh support. Yakin?",
+  confirmLabel: "Ya, tolak",
 }
 
 function getActionsForStatus(status: AssessmentStatus): Action[] {
   switch (status) {
     case "new":
       return [
-        { label: "Mark reviewed", next: "seen", variant: "outline" },
+        { label: "Tandai sudah dilihat", next: "seen", variant: "outline" },
         {
-          label: "Reject",
+          label: "Tolak",
           next: "rejected",
           variant: "destructive",
           confirm: REJECT_CONFIRM,
@@ -107,9 +107,9 @@ function getActionsForStatus(status: AssessmentStatus): Action[] {
       ]
     case "seen":
       return [
-        { label: "I applied", next: "applied", variant: "default" },
+        { label: "Sudah dilamar", next: "applied", variant: "default" },
         {
-          label: "Reject",
+          label: "Tolak",
           next: "rejected",
           variant: "destructive",
           confirm: REJECT_CONFIRM,
@@ -117,9 +117,9 @@ function getActionsForStatus(status: AssessmentStatus): Action[] {
       ]
     case "applied":
       return [
-        { label: "Got an offer", next: "accepted", variant: "default" },
+        { label: "Dapat tawaran", next: "accepted", variant: "default" },
         {
-          label: "Reject",
+          label: "Tolak",
           next: "rejected",
           variant: "destructive",
           confirm: REJECT_CONFIRM,
@@ -188,10 +188,10 @@ function AssessmentsPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Available Jobs</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Loker Tersedia</h2>
         <p className="text-sm text-muted-foreground">
-          Jobs matched to your Finders. Mark each as you go so we can track your
-          progress.
+          Loker yang cocok dengan Pencarianmu. Tandai satu per satu biar
+          progresmu kelacak.
         </p>
       </div>
 
@@ -200,9 +200,8 @@ function AssessmentsPage() {
           <div className="space-y-1">
             <CardTitle>Pipeline</CardTitle>
             <CardDescription>
-              {count} matching{" "}
-              {count === 1 ? "available job" : "available jobs"}
-              {numPages > 1 && ` · Page ${page} of ${numPages}`}
+              {count} loker tersedia yang cocok
+              {numPages > 1 && ` · Halaman ${page} dari ${numPages}`}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -228,8 +227,8 @@ function AssessmentsPage() {
                 min={0}
                 max={100}
                 inputMode="numeric"
-                placeholder="Min score"
-                title="LLM match score, 0–100"
+                placeholder="Skor min"
+                title="Skor kecocokan dari LLM, 0–100"
                 value={minScoreInput}
                 onChange={(e) => handleMinScoreChange(e.target.value)}
                 className="h-8 w-32 pl-7 text-xs"
@@ -239,7 +238,7 @@ function AssessmentsPage() {
         </CardHeader>
         <CardContent className="px-0">
           <p className="px-6 pb-3 text-xs text-muted-foreground">
-            Statuses: {ASSESSMENT_STATUSES.map((s) => STATUS_LABEL[s]).join(" · ")}
+            Status: {ASSESSMENT_STATUSES.map((s) => STATUS_LABEL[s]).join(" · ")}
           </p>
           {query.isLoading && (
             <div className="px-6 pb-6">
@@ -248,12 +247,12 @@ function AssessmentsPage() {
           )}
           {query.isError && (
             <p className="px-6 pb-6 text-sm text-destructive">
-              Failed to load available jobs.
+              Gagal memuat loker tersedia.
             </p>
           )}
           {rows && rows.length === 0 && !query.isLoading && (
             <p className="px-6 pb-6 text-sm text-muted-foreground">
-              No available jobs match these filters.
+              Tidak ada loker yang cocok dengan filter ini.
             </p>
           )}
           {rows && rows.length > 0 && (
@@ -268,7 +267,7 @@ function AssessmentsPage() {
           {count > 0 && (
             <div className="flex items-center justify-between gap-3 px-6 pb-6 pt-4">
               <span className="text-xs text-muted-foreground">
-                Page {page} of {numPages}
+                Halaman {page} dari {numPages}
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -277,7 +276,7 @@ function AssessmentsPage() {
                   disabled={page <= 1 || query.isFetching}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Prev
+                  Sebelumnya
                 </Button>
                 <Button
                   variant="outline"
@@ -285,7 +284,7 @@ function AssessmentsPage() {
                   disabled={page >= numPages || query.isFetching}
                   onClick={() => setPage((p) => p + 1)}
                 >
-                  Next
+                  Berikutnya
                 </Button>
               </div>
             </div>
@@ -313,14 +312,14 @@ function AssessmentsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Job</TableHead>
-          <TableHead>Company</TableHead>
-          <TableHead>Type</TableHead>
+          <TableHead>Loker</TableHead>
+          <TableHead>Perusahaan</TableHead>
+          <TableHead>Tipe</TableHead>
           <TableHead>Remote</TableHead>
-          <TableHead className="text-right">Score</TableHead>
+          <TableHead className="text-right">Skor</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Assessed</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          <TableHead>Dinilai</TableHead>
+          <TableHead className="text-right">Aksi</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -382,7 +381,7 @@ function AssessmentsTable({
                 {actions.length === 0 && (
                   <span
                     className="text-xs text-muted-foreground"
-                    title="Final status — no further actions."
+                    title="Status final — tidak ada aksi lebih lanjut."
                   >
                     —
                   </span>
@@ -445,7 +444,7 @@ function ConfirmActionButton({
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="outline">
-              Cancel
+              Batal
             </Button>
           </DialogClose>
           <Button

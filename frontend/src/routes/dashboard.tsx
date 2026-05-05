@@ -34,11 +34,11 @@ const STATUS_ORDER: AssessmentStatus[] = [
 ]
 
 const STATUS_LABEL: Record<AssessmentStatus, string> = {
-  new: "New",
-  seen: "Seen",
-  applied: "Applied",
-  rejected: "Rejected",
-  accepted: "Accepted",
+  new: "Baru",
+  seen: "Sudah dilihat",
+  applied: "Sudah dilamar",
+  rejected: "Ditolak",
+  accepted: "Dapat tawaran",
 }
 
 const BUCKET_LABELS = ["0–25", "26–50", "51–75", "76–100"] as const
@@ -70,7 +70,7 @@ function DashboardPage() {
   if (stats.isError || !stats.data) {
     return (
       <div className="rounded-lg border bg-card p-6 text-sm text-destructive">
-        Failed to load dashboard. Refresh to try again.
+        Gagal memuat dashboard. Muat ulang untuk mencoba lagi.
       </div>
     )
   }
@@ -81,9 +81,9 @@ function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">Overview</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">Ringkasan</h2>
         <p className="text-sm text-muted-foreground">
-          Snapshot of your job-match activity. Updated on each visit.
+          Cuplikan aktivitas pencocokan lokermu. Diperbarui tiap kunjungan.
         </p>
       </div>
 
@@ -92,25 +92,25 @@ function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="Available Jobs"
+          label="Loker Tersedia"
           value={data.assessments.total}
           hint={
             data.assessments.today > 0
-              ? `+${data.assessments.today} today`
-              : "No new today"
+              ? `+${data.assessments.today} hari ini`
+              : "Belum ada baru hari ini"
           }
         />
         <StatCard
-          label="Average score"
+          label="Skor rata-rata"
           value={data.assessments.avg_score || 0}
           suffix={data.assessments.total > 0 ? "/100" : ""}
         />
         <StatCard
-          label="Active Finders"
+          label="Pencarian Aktif"
           value={data.preferences.active_crawls}
           hint={`${data.preferences.total} total`}
         />
-        <StatCard label="Jobs assessed" value={data.jobs_assessed} />
+        <StatCard label="Loker dinilai" value={data.jobs_assessed} />
       </div>
 
       {isEmpty ? (
@@ -120,8 +120,8 @@ function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Activity</CardTitle>
-                <CardDescription>Last 30 days</CardDescription>
+                <CardTitle>Aktivitas</CardTitle>
+                <CardDescription>30 hari terakhir</CardDescription>
               </CardHeader>
               <CardContent>
                 <TrendChart data={data.trend_30d} />
@@ -129,9 +129,9 @@ function DashboardPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>By status</CardTitle>
+                <CardTitle>Per status</CardTitle>
                 <CardDescription>
-                  Distribution across your pipeline
+                  Distribusi di seluruh pipeline-mu
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -145,9 +145,9 @@ function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Score distribution</CardTitle>
+              <CardTitle>Distribusi skor</CardTitle>
               <CardDescription>
-                How your matches score against requirements
+                Sebaran skor kecocokan kamu terhadap kebutuhan loker
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -158,11 +158,11 @@ function DashboardPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <div className="space-y-1">
-                <CardTitle>Recent available jobs</CardTitle>
-                <CardDescription>Latest 5</CardDescription>
+                <CardTitle>Loker tersedia terbaru</CardTitle>
+                <CardDescription>5 terakhir</CardDescription>
               </div>
               <Button asChild size="sm" variant="outline">
-                <Link to="/assessments">View all</Link>
+                <Link to="/assessments">Lihat semua</Link>
               </Button>
             </CardHeader>
             <CardContent className="px-0">
@@ -337,7 +337,7 @@ function RecentList({
   if (rows.length === 0) {
     return (
       <div className="px-6 py-4 text-sm text-muted-foreground">
-        No assessments yet.
+        Belum ada penilaian.
       </div>
     )
   }
@@ -377,13 +377,13 @@ function WaitingPaymentBanner() {
     <Card className="border-primary/40 bg-primary/5">
       <CardHeader className="flex-row items-center justify-between gap-3">
         <div className="space-y-1">
-          <CardTitle className="text-base">Finder approved</CardTitle>
+          <CardTitle className="text-base">Pencarian disetujui</CardTitle>
           <CardDescription>
-            Pick a plan to start matching jobs to your profile.
+            Pilih paket untuk mulai mencocokkan loker dengan profilmu.
           </CardDescription>
         </div>
         <Button asChild size="sm">
-          <Link to="/plans">Pick a plan</Link>
+          <Link to="/plans">Pilih paket</Link>
         </Button>
       </CardHeader>
     </Card>
@@ -395,13 +395,14 @@ function EmptyState() {
     <Card>
       <CardContent className="flex flex-col items-start gap-3 py-10">
         <div>
-          <h3 className="text-base font-semibold">No assessments yet</h3>
+          <h3 className="text-base font-semibold">Belum ada penilaian</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Add a Finder to start crawling jobs and generating matches.
+            Tambah Pencarian untuk mulai mengambil loker dan menghasilkan
+            kecocokan.
           </p>
         </div>
         <Button asChild size="sm">
-          <Link to="/preferences">Manage Finders</Link>
+          <Link to="/preferences">Kelola Pencarian</Link>
         </Button>
       </CardContent>
     </Card>

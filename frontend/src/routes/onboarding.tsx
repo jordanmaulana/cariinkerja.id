@@ -66,7 +66,7 @@ function OnboardingPage() {
       const msg =
         err instanceof ApiError
           ? err.message
-          : "Could not save. Please try again.";
+          : "Gagal menyimpan. Coba lagi.";
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -76,19 +76,19 @@ function OnboardingPage() {
   return (
     <main className="mx-auto max-w-lg p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Tell us about you</h1>
+        <h1 className="text-2xl font-bold">Ceritain dikit tentang kamu</h1>
         <p className="text-sm text-muted-foreground">
-          Fill your profile and your first Finder to get started. Phone is
-          required so we can process your future subscription payment — you
-          will not be charged here.
+          Isi profil dan Pencarian pertamamu buat mulai. Nomor HP wajib biar
+          nanti kita bisa proses pembayaran langgananmu — di sini kamu belum
+          ditagih apa-apa.
         </p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
         <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold">Profile</legend>
+          <legend className="text-sm font-semibold">Profil</legend>
           <div className="space-y-1">
             <label htmlFor="full_name" className="text-sm font-medium">
-              Full name
+              Nama lengkap
             </label>
             <input
               id="full_name"
@@ -101,7 +101,7 @@ function OnboardingPage() {
           </div>
           <div className="space-y-1">
             <label htmlFor="phone" className="text-sm font-medium">
-              Phone number
+              Nomor HP
             </label>
             <input
               id="phone"
@@ -113,12 +113,12 @@ function OnboardingPage() {
               className="w-full rounded border px-3 py-2"
             />
             <p className="text-xs text-muted-foreground">
-              Used later when you subscribe. We will not charge you now.
+              Dipakai pas kamu langganan nanti. Sekarang kamu belum ditagih.
             </p>
           </div>
           <div className="space-y-1">
             <label htmlFor="linkedin_url" className="text-sm font-medium">
-              LinkedIn URL
+              URL LinkedIn
             </label>
             <input
               id="linkedin_url"
@@ -129,8 +129,9 @@ function OnboardingPage() {
               className="w-full rounded border px-3 py-2"
             />
             <p className="text-xs text-muted-foreground">
-              We pull your LinkedIn to verify your profile and tailor matches.
-              Without it, payment is delayed pending admin review.
+              Kami ambil LinkedIn-mu buat verifikasi profil dan menyesuaikan
+              kecocokan loker. Tanpa LinkedIn, pembayaran ditunda sampai admin
+              meninjau.
             </p>
           </div>
           <div className="space-y-1">
@@ -148,10 +149,10 @@ function OnboardingPage() {
         </fieldset>
 
         <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold">First Finder</legend>
+          <legend className="text-sm font-semibold">Pencarian pertama</legend>
           <div className="space-y-1">
             <label htmlFor="title" className="text-sm font-medium">
-              Job title
+              Judul pekerjaan
             </label>
             <input
               id="title"
@@ -163,7 +164,7 @@ function OnboardingPage() {
           </div>
           <div className="space-y-1">
             <label htmlFor="job_type" className="text-sm font-medium">
-              Job type
+              Tipe pekerjaan
             </label>
             <select
               id="job_type"
@@ -180,7 +181,7 @@ function OnboardingPage() {
           </div>
           <div className="space-y-1">
             <label htmlFor="remote_option" className="text-sm font-medium">
-              Remote option
+              Opsi remote
             </label>
             <select
               id="remote_option"
@@ -199,7 +200,7 @@ function OnboardingPage() {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? "Saving…" : "Finish onboarding"}
+          {submitting ? "Menyimpan…" : "Selesaikan onboarding"}
         </Button>
       </form>
     </main>
