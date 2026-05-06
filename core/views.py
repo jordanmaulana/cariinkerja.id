@@ -156,7 +156,9 @@ class PreferenceListView(SuperuserRequiredMixin, View):
 
 class PreferenceDetailView(SuperuserRequiredMixin, View):
     def _get(self, pk):
-        return get_object_or_404(Preference.objects.select_related("profile"), pk=pk)
+        return get_object_or_404(
+            Preference.objects.select_related("profile__user"), pk=pk
+        )
 
     def _render(self, request, pref):
         return render(

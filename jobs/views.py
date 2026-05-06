@@ -39,11 +39,11 @@ class JobListView(SuperuserRequiredMixin, View):
 
 class JobDetailView(SuperuserRequiredMixin, View):
     def get(self, request, pk):
-        job = get_object_or_404(
-            Job.objects.prefetch_related("assessments__preference__profile"),
-            pk=pk,
+        job = get_object_or_404(Job, pk=pk)
+        assessments = list(
+            job.assessments.select_related("preference__profile")
+            .order_by("-created_on")[:50]
         )
-        assessments = list(job.assessments.all().order_by("-created_on")[:50])
         return render(
             request,
             "jobs/detail.html",

@@ -36,7 +36,7 @@ class ProfileListView(SuperuserRequiredMixin, View):
 
 class ProfileDetailView(SuperuserRequiredMixin, View):
     def _get(self, pk):
-        return get_object_or_404(Profile.objects.prefetch_related("preferences"), pk=pk)
+        return get_object_or_404(Profile, pk=pk)
 
     def _render(self, request, profile):
         return render(
@@ -44,7 +44,7 @@ class ProfileDetailView(SuperuserRequiredMixin, View):
             "profiles/detail.html",
             {
                 "profile": profile,
-                "preferences": profile.preferences.all().order_by("-created_on"),
+                "preferences": profile.preferences.order_by("-created_on"),
             },
         )
 
