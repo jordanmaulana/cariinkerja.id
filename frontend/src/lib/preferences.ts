@@ -23,7 +23,7 @@ export type Preference = {
 
 export const PREFERENCE_STATUSES: { value: PreferenceStatus; label: string }[] = [
   { value: "waiting_payment", label: "Menunggu pembayaran" },
-  { value: "waiting_admin", label: "Menunggu admin" },
+  { value: "waiting_admin", label: "Lagi ngumpulin loker yang kamu cari" },
   { value: "running", label: "Berjalan" },
   { value: "expired", label: "Kedaluwarsa" },
 ]

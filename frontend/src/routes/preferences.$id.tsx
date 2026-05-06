@@ -105,10 +105,10 @@ function StateNotice({ preference }: { preference: Preference }) {
       <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950">
         <CardHeader>
           <CardTitle className="text-base text-amber-900 dark:text-amber-100">
-            Admin sedang meninjau LinkedIn-mu
+            Lagi ngumpulin loker yang kamu cari
           </CardTitle>
           <CardDescription className="text-amber-900/80 dark:text-amber-100/80">
-            Kamu bisa pilih paket setelah profilmu disetujui.
+            Coba liat paketnya dulu biar nanti ga kaget lihat harga wkwkwk.
           </CardDescription>
         </CardHeader>
       </Card>

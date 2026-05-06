@@ -272,7 +272,7 @@ def _payment_gate(profile):
     if waiting_admin:
         return {
             "code": "waiting_admin",
-            "detail": "Your LinkedIn is still being reviewed by admin.",
+            "detail": "Sabar bentar ya.. Kami lagi ngumpulin loker di posisi yang kamu pilih.",
         }
     return None
 
