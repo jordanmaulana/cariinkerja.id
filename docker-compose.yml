@@ -50,7 +50,11 @@ services:
       POSTGRES_HOST: postgres
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-    command: ["uv", "run", "celery", "-A", "core", "worker", "-l", "info"]
+    command: ["uv", "run", "celery", "-A", "core", "worker",
+              "-l", "info",
+              "--concurrency=2",
+              "--prefetch-multiplier=1",
+              "--max-tasks-per-child=50"]
     depends_on:
       postgres:
         condition: service_healthy
