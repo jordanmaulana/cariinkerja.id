@@ -12,8 +12,8 @@ export type PreferenceSource = "jobstreet" | "indeed"
 export type Preference = {
   id: string
   title: string | null
-  job_type: JobType | null
-  remote_option: RemoteOption | null
+  job_type: JobType[]
+  remote_option: RemoteOption[]
   crawl_url: string | null
   crawl_source: PreferenceSource | null
   status: PreferenceStatus
@@ -30,8 +30,8 @@ export const PREFERENCE_STATUSES: { value: PreferenceStatus; label: string }[] =
 
 export type PreferencePayload = {
   title?: string | null
-  job_type?: JobType | null
-  remote_option?: RemoteOption | null
+  job_type?: JobType[]
+  remote_option?: RemoteOption[]
 }
 
 export async function listPreferences(): Promise<Preference[]> {

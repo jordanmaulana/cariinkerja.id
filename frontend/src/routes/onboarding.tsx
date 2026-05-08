@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSetAtom } from "jotai";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api";
 import { getProfile, submitOnboarding } from "@/lib/auth";
 import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts";
@@ -35,10 +36,32 @@ function OnboardingPage() {
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [bio, setBio] = useState("");
   const [title, setTitle] = useState("");
-  const [jobType, setJobType] = useState<JobType>(JOB_TYPES[0].value);
-  const [remoteOption, setRemoteOption] = useState<RemoteOption>(
-    REMOTE_OPTIONS[0].value,
-  );
+  const [jobType, setJobType] = useState<JobType[]>([]);
+  const [remoteOption, setRemoteOption] = useState<RemoteOption[]>([]);
+
+  function toggleJobType(value: JobType, checked: boolean) {
+    setJobType((prev) => {
+      if (checked) {
+        if (prev.includes(value)) return prev;
+        return JOB_TYPES.map((o) => o.value).filter(
+          (v) => prev.includes(v) || v === value,
+        );
+      }
+      return prev.filter((v) => v !== value);
+    });
+  }
+
+  function toggleRemoteOption(value: RemoteOption, checked: boolean) {
+    setRemoteOption((prev) => {
+      if (checked) {
+        if (prev.includes(value)) return prev;
+        return REMOTE_OPTIONS.map((o) => o.value).filter(
+          (v) => prev.includes(v) || v === value,
+        );
+      }
+      return prev.filter((v) => v !== value);
+    });
+  }
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const setUser = useSetAtom(userAtom);
@@ -162,39 +185,61 @@ function OnboardingPage() {
               className="w-full rounded border px-3 py-2"
             />
           </div>
-          <div className="space-y-1">
-            <label htmlFor="job_type" className="text-sm font-medium">
-              Tipe pekerjaan
-            </label>
-            <select
-              id="job_type"
-              value={jobType}
-              onChange={(e) => setJobType(e.target.value as JobType)}
-              className="w-full rounded border px-3 py-2"
-            >
-              {JOB_TYPES.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-2">
+            <span className="text-sm font-medium">Tipe pekerjaan</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {JOB_TYPES.map((o) => {
+                const id = `onboarding-job-type-${o.value}`;
+                const checked = jobType.includes(o.value);
+                return (
+                  <label
+                    key={o.value}
+                    htmlFor={id}
+                    className="inline-flex items-center gap-2 text-sm cursor-pointer select-none"
+                  >
+                    <Checkbox
+                      id={id}
+                      checked={checked}
+                      onCheckedChange={(state) =>
+                        toggleJobType(o.value, state === true)
+                      }
+                    />
+                    {o.label}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Centang yang kamu cari. Kosongin = semua tipe.
+            </p>
           </div>
-          <div className="space-y-1">
-            <label htmlFor="remote_option" className="text-sm font-medium">
-              Opsi remote
-            </label>
-            <select
-              id="remote_option"
-              value={remoteOption}
-              onChange={(e) => setRemoteOption(e.target.value as RemoteOption)}
-              className="w-full rounded border px-3 py-2"
-            >
-              {REMOTE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-2">
+            <span className="text-sm font-medium">Opsi remote</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {REMOTE_OPTIONS.map((o) => {
+                const id = `onboarding-remote-${o.value}`;
+                const checked = remoteOption.includes(o.value);
+                return (
+                  <label
+                    key={o.value}
+                    htmlFor={id}
+                    className="inline-flex items-center gap-2 text-sm cursor-pointer select-none"
+                  >
+                    <Checkbox
+                      id={id}
+                      checked={checked}
+                      onCheckedChange={(state) =>
+                        toggleRemoteOption(o.value, state === true)
+                      }
+                    />
+                    {o.label}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Centang yang kamu cari. Kosongin = semua opsi.
+            </p>
           </div>
         </fieldset>
 

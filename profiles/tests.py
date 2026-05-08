@@ -307,8 +307,8 @@ class OnboardingAPITests(TestCase):
             "full_name": "Jane Doe",
             "phone": "08123456789",
             "title": "Backend Engineer",
-            "job_type": JobType.FULL_TIME,
-            "remote_option": RemoteOption.REMOTE,
+            "job_type": [JobType.FULL_TIME],
+            "remote_option": [RemoteOption.REMOTE],
         }
 
     def test_onboarding_persists_phone_and_creates_preference(self):

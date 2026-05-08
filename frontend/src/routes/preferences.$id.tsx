@@ -58,6 +58,13 @@ const STATUS_VARIANT: Record<
   expired: "destructive",
 }
 
+function arraysEqual<T>(a: T[], b: T[]): boolean {
+  if (a.length !== b.length) return false
+  const sortedA = [...a].sort()
+  const sortedB = [...b].sort()
+  return sortedA.every((v, i) => v === sortedB[i])
+}
+
 function PreferenceDetailPage() {
   const { id } = Route.useParams()
 
@@ -184,8 +191,8 @@ function PreferenceEditor({ preference }: { preference: Preference }) {
   const initialValues = buildInitialValues(preference)
   const isDirty =
     values.title !== initialValues.title ||
-    values.job_type !== initialValues.job_type ||
-    values.remote_option !== initialValues.remote_option
+    !arraysEqual(values.job_type, initialValues.job_type) ||
+    !arraysEqual(values.remote_option, initialValues.remote_option)
 
   function handleDiscard() {
     if (isDirty) {

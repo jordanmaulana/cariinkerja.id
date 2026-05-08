@@ -91,8 +91,18 @@ class OnboardingSerializer(serializers.Serializer):
     linkedin_url = serializers.URLField(required=True, allow_blank=False)
     bio = serializers.CharField(required=False, allow_blank=True)
     title = serializers.CharField(max_length=255)
-    job_type = serializers.ChoiceField(choices=JobType.choices)
-    remote_option = serializers.ChoiceField(choices=RemoteOption.choices)
+    job_type = serializers.ListField(
+        child=serializers.ChoiceField(choices=JobType.choices),
+        allow_empty=True,
+        required=False,
+        default=list,
+    )
+    remote_option = serializers.ListField(
+        child=serializers.ChoiceField(choices=RemoteOption.choices),
+        allow_empty=True,
+        required=False,
+        default=list,
+    )
 
     def save(self, **kwargs):
         from profiles.tasks import crawl_linkedin_for_profile
@@ -139,6 +149,19 @@ class PreferenceBriefSerializer(serializers.ModelSerializer):
 
 
 class PreferenceSerializer(serializers.ModelSerializer):
+    job_type = serializers.ListField(
+        child=serializers.ChoiceField(choices=JobType.choices),
+        allow_empty=True,
+        required=False,
+        default=list,
+    )
+    remote_option = serializers.ListField(
+        child=serializers.ChoiceField(choices=RemoteOption.choices),
+        allow_empty=True,
+        required=False,
+        default=list,
+    )
+
     class Meta:
         model = Preference
         fields = [

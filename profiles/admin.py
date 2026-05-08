@@ -38,7 +38,7 @@ class PreferenceAdmin(admin.ModelAdmin):
         "status",
         "created_on",
     )
-    list_filter = ("job_type", "remote_option", "status", "crawl_source")
+    list_filter = ("status", "crawl_source")
     search_fields = ("title", "profile__full_name")
     autocomplete_fields = ("profile",)
     readonly_fields = ("id", "created_on", "updated_on")

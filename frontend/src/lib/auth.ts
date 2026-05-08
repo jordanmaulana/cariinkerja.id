@@ -67,8 +67,8 @@ export async function submitOnboarding(payload: {
   linkedin_url?: string;
   bio?: string;
   title: string;
-  job_type: JobType;
-  remote_option: RemoteOption;
+  job_type: JobType[];
+  remote_option: RemoteOption[];
 }): Promise<ProfileMe> {
   return api<ProfileMe>("/onboarding/", {
     method: "POST",

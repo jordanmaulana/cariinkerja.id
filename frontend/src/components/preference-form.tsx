@@ -1,38 +1,30 @@
 import * as React from "react"
 
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts"
+import { JOB_TYPES, REMOTE_OPTIONS, type JobType, type RemoteOption } from "@/lib/consts"
 import { type Preference, type PreferencePayload } from "@/lib/preferences"
 
 export type PreferenceFormValues = {
   title: string
-  job_type: string
-  remote_option: string
+  job_type: JobType[]
+  remote_option: RemoteOption[]
 }
-
-const ANY_VALUE = "__any__"
 
 export function buildInitialValues(p?: Preference | null): PreferenceFormValues {
   return {
     title: p?.title ?? "",
-    job_type: p?.job_type ?? "",
-    remote_option: p?.remote_option ?? "",
+    job_type: p?.job_type ?? [],
+    remote_option: p?.remote_option ?? [],
   }
 }
 
 export function valuesToPayload(v: PreferenceFormValues): PreferencePayload {
   return {
     title: v.title.trim() || null,
-    job_type: (v.job_type || null) as PreferencePayload["job_type"],
-    remote_option: (v.remote_option || null) as PreferencePayload["remote_option"],
+    job_type: v.job_type,
+    remote_option: v.remote_option,
   }
 }
 
@@ -63,46 +55,76 @@ export function PreferenceFormFields({ values, onChange, disabled }: Props) {
       </Field>
 
       <Field label="Tipe pekerjaan" htmlFor="pref-job-type">
-        <Select
-          value={values.job_type || ANY_VALUE}
-          onValueChange={(v) => update("job_type", v === ANY_VALUE ? "" : v)}
+        <CheckboxGroup<JobType>
+          name="pref-job-type"
+          options={JOB_TYPES}
+          values={values.job_type}
           disabled={disabled}
-        >
-          <SelectTrigger id="pref-job-type">
-            <SelectValue placeholder="Semua" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ANY_VALUE}>Semua</SelectItem>
-            {JOB_TYPES.map((j) => (
-              <SelectItem key={j.value} value={j.value}>
-                {j.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={(next) => update("job_type", next)}
+        />
+        <p className="text-xs text-muted-foreground">Kosongin = semua tipe</p>
       </Field>
 
       <Field label="Remote" htmlFor="pref-remote">
-        <Select
-          value={values.remote_option || ANY_VALUE}
-          onValueChange={(v) =>
-            update("remote_option", v === ANY_VALUE ? "" : v)
-          }
+        <CheckboxGroup<RemoteOption>
+          name="pref-remote"
+          options={REMOTE_OPTIONS}
+          values={values.remote_option}
           disabled={disabled}
-        >
-          <SelectTrigger id="pref-remote">
-            <SelectValue placeholder="Semua" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ANY_VALUE}>Semua</SelectItem>
-            {REMOTE_OPTIONS.map((r) => (
-              <SelectItem key={r.value} value={r.value}>
-                {r.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={(next) => update("remote_option", next)}
+        />
+        <p className="text-xs text-muted-foreground">Kosongin = semua opsi</p>
       </Field>
+    </div>
+  )
+}
+
+type CheckboxGroupProps<T extends string> = {
+  name: string
+  options: ReadonlyArray<{ value: T; label: string }>
+  values: T[]
+  disabled?: boolean
+  onChange: (next: T[]) => void
+}
+
+function CheckboxGroup<T extends string>({
+  name,
+  options,
+  values,
+  disabled,
+  onChange,
+}: CheckboxGroupProps<T>) {
+  function toggle(value: T, checked: boolean) {
+    if (checked) {
+      if (values.includes(value)) return
+      const ordered = options.map((o) => o.value).filter((v) => values.includes(v) || v === value)
+      onChange(ordered)
+    } else {
+      onChange(values.filter((v) => v !== value))
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-2">
+      {options.map((opt) => {
+        const id = `${name}-${opt.value}`
+        const checked = values.includes(opt.value)
+        return (
+          <label
+            key={opt.value}
+            htmlFor={id}
+            className="inline-flex items-center gap-2 text-sm cursor-pointer select-none"
+          >
+            <Checkbox
+              id={id}
+              checked={checked}
+              disabled={disabled}
+              onCheckedChange={(state) => toggle(opt.value, state === true)}
+            />
+            {opt.label}
+          </label>
+        )
+      })}
     </div>
   )
 }

@@ -146,10 +146,14 @@ function PreferencesPage() {
                       <span className="font-medium">{p.title || "—"}</span>
                     </TableCell>
                     <TableCell>
-                      {p.job_type ? JOB_TYPE_LABEL[p.job_type] : "—"}
+                      {p.job_type.length
+                        ? p.job_type.map((v) => JOB_TYPE_LABEL[v]).join(", ")
+                        : "Semua"}
                     </TableCell>
                     <TableCell>
-                      {p.remote_option ? REMOTE_LABEL[p.remote_option] : "—"}
+                      {p.remote_option.length
+                        ? p.remote_option.map((v) => REMOTE_LABEL[v]).join(", ")
+                        : "Semua"}
                     </TableCell>
                     <TableCell className="capitalize">
                       {p.crawl_source ?? "—"}

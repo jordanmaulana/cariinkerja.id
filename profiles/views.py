@@ -11,6 +11,7 @@ from django.views import View
 from core.views import SuperuserRequiredMixin
 from profiles.models import Profile
 from profiles.services import ingest_linkedin
+from profiles.tasks import crawl_linkedin_for_profile
 
 
 class ProfileListView(SuperuserRequiredMixin, View):
@@ -119,4 +120,15 @@ class ProfileDetailView(SuperuserRequiredMixin, View):
             profile.save(update_fields=update_fields)
 
         messages.success(request, "Profile updated.")
+        return redirect("profile_detail", pk=profile.pk)
+
+
+class ProfileReingestLinkedinView(SuperuserRequiredMixin, View):
+    def post(self, request, pk):
+        profile = get_object_or_404(Profile, pk=pk)
+        if not profile.linkedin_url:
+            messages.error(request, "Profile has no LinkedIn URL.")
+        else:
+            crawl_linkedin_for_profile.delay(profile.id)
+            messages.success(request, "LinkedIn re-ingest queued.")
         return redirect("profile_detail", pk=profile.pk)
