@@ -502,8 +502,7 @@ class ActivateUpgradeTests(TestCase):
             profile=self.profile,
             title="x",
             status=PreferenceStatus.WAITING_PAYMENT,
-            crawl_url="https://example.com",
-            crawl_source="INDEED",
+            crawl_urls=["https://id.indeed.com/jobs?q=x"],
         )
         sub = Subscription.objects.create(
             profile=self.profile,

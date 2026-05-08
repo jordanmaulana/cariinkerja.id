@@ -10,16 +10,11 @@ from assessment.models import Assessment
 from assessment.services import assess, check_relevance
 from billing.models import SubscriptionStatus
 from jobs.models import Job
-from jobs.scrapers import indeed, jobstreet
-from profiles.consts import Source, Status
+from jobs.scrapers import scraper_for_url
+from profiles.consts import Status
 from profiles.models import Preference
 
 logger = logging.getLogger(__name__)
-
-SCRAPERS = {
-    Source.INDEED: indeed,
-    Source.JOBSTREET: jobstreet,
-}
 
 
 @shared_task
@@ -31,10 +26,7 @@ def crawl_running_preferences():
             profile__subscriptions__status=SubscriptionStatus.ACTIVE,
             profile__subscriptions__expires_at__gt=now,
         )
-        .exclude(crawl_url__isnull=True)
-        .exclude(crawl_url="")
-        .exclude(crawl_source__isnull=True)
-        .exclude(crawl_source="")
+        .exclude(crawl_urls=[])
         .values_list("id", flat=True)
         .distinct()
     )
@@ -60,34 +52,32 @@ def run_free_crawl(preference_id: str):
 @shared_task
 def crawl_and_assess_preference(preference_id: str):
     pref = Preference.objects.select_related("profile").get(id=preference_id)
-    scraper = SCRAPERS.get(pref.crawl_source)
-    if scraper is None:
-        logger.warning(
-            "preference %s has unknown crawl_source %r", pref.id, pref.crawl_source
-        )
-        return 0
-
     count = 0
-    for posting in scraper.crawl(pref.crawl_url):
-        try:
-            with transaction.atomic():
-                job, _ = Job.objects.update_or_create(
-                    url=posting["url"],
-                    defaults={
-                        "title": posting["title"],
-                        "company": posting.get("company"),
-                        "description": posting["description"],
-                        "location": posting["location"],
-                        "job_type": posting["job_type"],
-                        "remote_option": posting["remote_option"],
-                        "source": pref.crawl_source,
-                    },
-                )
-        except Exception:
-            logger.exception("persist failed for %s", posting.get("url"))
+    for url in pref.crawl_urls or []:
+        scraper, source = scraper_for_url(url)
+        if scraper is None:
+            logger.warning("preference %s has unknown crawl_url %r", pref.id, url)
             continue
-        assess_job.delay(job.id, pref.id)
-        count += 1
+        for posting in scraper.crawl(url):
+            try:
+                with transaction.atomic():
+                    job, _ = Job.objects.update_or_create(
+                        url=posting["url"],
+                        defaults={
+                            "title": posting["title"],
+                            "company": posting.get("company"),
+                            "description": posting["description"],
+                            "location": posting["location"],
+                            "job_type": posting["job_type"],
+                            "remote_option": posting["remote_option"],
+                            "source": source,
+                        },
+                    )
+            except Exception:
+                logger.exception("persist failed for %s", posting.get("url"))
+                continue
+            assess_job.delay(job.id, pref.id)
+            count += 1
     return count
 
 

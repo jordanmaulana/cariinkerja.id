@@ -169,16 +169,14 @@ class PreferenceSerializer(serializers.ModelSerializer):
             "title",
             "job_type",
             "remote_option",
-            "crawl_url",
-            "crawl_source",
+            "crawl_urls",
             "status",
             "created_on",
             "updated_on",
         ]
         read_only_fields = [
             "id",
-            "crawl_url",
-            "crawl_source",
+            "crawl_urls",
             "status",
             "created_on",
             "updated_on",

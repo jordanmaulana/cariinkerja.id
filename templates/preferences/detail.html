@@ -16,7 +16,7 @@
         {% csrf_token %}
         <button type="submit"
                 class="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
-                {% if not preference.crawl_url or not preference.crawl_source %}disabled title="Set crawl_url and crawl_source first"{% endif %}>
+                {% if not preference.crawl_urls %}disabled title="Set crawl_urls first"{% endif %}>
           Crawl &amp; Assess Now
         </button>
       </form>
@@ -95,20 +95,11 @@
       <form method="post" class="space-y-4">
         {% csrf_token %}
         <div>
-          <label for="crawl_url" class="block text-sm font-medium text-slate-700">Crawl URL (Preference.crawl_url)</label>
-          <input id="crawl_url" name="crawl_url" type="url"
-                 value="{{ preference.crawl_url|default_if_none:"" }}"
-                 class="mt-1 w-full rounded border-slate-300 border p-2 text-sm" />
-        </div>
-        <div>
-          <label for="crawl_source" class="block text-sm font-medium text-slate-700">Crawl source (Preference.crawl_source)</label>
-          <select id="crawl_source" name="crawl_source"
-                  class="mt-1 w-full rounded border-slate-300 border p-2 text-sm bg-white">
-            <option value="" {% if not preference.crawl_source %}selected{% endif %}>—</option>
-            {% for value, label in source_choices %}
-              <option value="{{ value }}" {% if preference.crawl_source == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
+          <label for="crawl_urls" class="block text-sm font-medium text-slate-700">Crawl URLs (Preference.crawl_urls, one per line)</label>
+          <textarea id="crawl_urls" name="crawl_urls" rows="4"
+                    class="mt-1 w-full rounded border-slate-300 border p-2 text-sm font-mono">{{ preference.crawl_urls|join:"
+" }}</textarea>
+          <p class="mt-1 text-xs text-slate-500">Source is inferred from each URL's hostname (indeed.com or jobstreet.com).</p>
         </div>
         <div>
           <label for="status" class="block text-sm font-medium text-slate-700">Status (Preference.status)</label>

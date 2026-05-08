@@ -21,7 +21,8 @@ from billing.forms import PlanForm
 from billing.models import Plan, Subscription, SubscriptionStatus
 from core.realtime import publish, user_channel
 from jobs.models import Job
-from profiles.consts import Source, Status
+from jobs.scrapers import scraper_for_url
+from profiles.consts import Status
 from profiles.models import Preference, Profile
 
 
@@ -168,7 +169,6 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
                 "preference": pref,
                 "profile": pref.profile,
                 "status_choices": Status.choices,
-                "source_choices": Source.choices,
             },
         )
 
@@ -178,24 +178,27 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         pref = self._get(pk)
-        crawl_url = request.POST.get("crawl_url", "").strip()
-        crawl_source = request.POST.get("crawl_source", "").strip()
+        raw_urls = request.POST.get("crawl_urls", "")
+        urls = [line.strip() for line in raw_urls.splitlines() if line.strip()]
         status = request.POST.get("status", "").strip()
         override_quality = request.POST.get("override_quality_gate") == "1"
 
-        if crawl_url:
+        validator = URLValidator()
+        for url in urls:
             try:
-                URLValidator()(crawl_url)
+                validator(url)
             except ValidationError:
-                messages.error(request, "Invalid URL for crawl_url.")
+                messages.error(request, f"Invalid URL: {url}")
+                return self._render(request, pref)
+            if scraper_for_url(url)[0] is None:
+                messages.error(
+                    request,
+                    f"No scraper available for URL: {url}",
+                )
                 return self._render(request, pref)
 
         if status not in Status.values:
             messages.error(request, "Invalid status.")
-            return self._render(request, pref)
-
-        if crawl_source and crawl_source not in Source.values:
-            messages.error(request, "Invalid crawl_source.")
             return self._render(request, pref)
 
         moving_to_running = pref.status != Status.RUNNING and status == Status.RUNNING
@@ -213,13 +216,11 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
             return self._render(request, pref)
 
         with transaction.atomic():
-            pref.crawl_url = crawl_url or None
-            pref.crawl_source = crawl_source or None
+            pref.crawl_urls = urls
             pref.status = status
             pref.save(
                 update_fields=[
-                    "crawl_url",
-                    "crawl_source",
+                    "crawl_urls",
                     "status",
                     "updated_on",
                 ]
@@ -243,10 +244,10 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
 class PreferenceCrawlNowView(SuperuserRequiredMixin, View):
     def post(self, request, pk):
         pref = get_object_or_404(Preference, pk=pk)
-        if not pref.crawl_url or not pref.crawl_source:
+        if not pref.crawl_urls:
             messages.error(
                 request,
-                "Preference is missing crawl_url or crawl_source — fill them first.",
+                "Preference has no crawl_urls — fill them first.",
             )
         else:
             crawl_and_assess_preference.delay(pref.id)

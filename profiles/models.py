@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from profiles.consts import Source, Status
+from profiles.consts import Status
 from core.models import BaseModel
 
 
@@ -55,14 +55,7 @@ class Preference(BaseModel):
     title = models.CharField(max_length=255, null=True, blank=True)
     job_type = models.JSONField(default=list, blank=True)
     remote_option = models.JSONField(default=list, blank=True)
-    crawl_url = models.URLField(null=True, blank=True, help_text="Filled by Admin")
-    crawl_source = models.CharField(
-        max_length=20,
-        choices=Source.choices,
-        null=True,
-        blank=True,
-        help_text="Filled by Admin",
-    )
+    crawl_urls = models.JSONField(default=list, blank=True, help_text="Filled by Admin")
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.WAITING_ADMIN
     )

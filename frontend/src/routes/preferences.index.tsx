@@ -124,7 +124,6 @@ function PreferencesPage() {
                   <TableHead>Judul</TableHead>
                   <TableHead>Tipe</TableHead>
                   <TableHead>Remote</TableHead>
-                  <TableHead>Sumber</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Dibuat</TableHead>
                   <TableHead></TableHead>
@@ -154,9 +153,6 @@ function PreferencesPage() {
                       {p.remote_option.length
                         ? p.remote_option.map((v) => REMOTE_LABEL[v]).join(", ")
                         : "Semua"}
-                    </TableCell>
-                    <TableCell className="capitalize">
-                      {p.crawl_source ?? "—"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[p.status]}>

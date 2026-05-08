@@ -9,7 +9,7 @@ from django.test import TestCase
 
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
-from jobs.scrapers import jobstreet
+from jobs.scrapers import indeed, jobstreet, scraper_for_url
 
 FIXTURES = Path(__file__).parent / "fixtures_html"
 LISTING_HTML = (FIXTURES / "listing.html").read_text()
@@ -143,3 +143,22 @@ class CommandTests(TestCase):
 
         call_command("crawl_jobstreet", self.URL, "--max-pages", "1", "--limit", "2")
         self.assertEqual(Job.objects.count(), first_count)
+
+
+class ScraperForUrlTests(TestCase):
+    def test_indeed_host(self):
+        scraper, source = scraper_for_url("https://id.indeed.com/jobs?q=python")
+        self.assertIs(scraper, indeed)
+        self.assertEqual(source, "indeed")
+
+    def test_jobstreet_host(self):
+        scraper, source = scraper_for_url("https://id.jobstreet.com/jobs/foo")
+        self.assertIs(scraper, jobstreet)
+        self.assertEqual(source, "jobstreet")
+
+    def test_unknown_host(self):
+        self.assertEqual(scraper_for_url("https://example.com/jobs"), (None, None))
+
+    def test_malformed_url(self):
+        self.assertEqual(scraper_for_url(""), (None, None))
+        self.assertEqual(scraper_for_url("not a url"), (None, None))

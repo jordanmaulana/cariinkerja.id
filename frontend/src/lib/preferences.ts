@@ -7,15 +7,12 @@ export type PreferenceStatus =
   | "running"
   | "expired"
 
-export type PreferenceSource = "jobstreet" | "indeed"
-
 export type Preference = {
   id: string
   title: string | null
   job_type: JobType[]
   remote_option: RemoteOption[]
-  crawl_url: string | null
-  crawl_source: PreferenceSource | null
+  crawl_urls: string[]
   status: PreferenceStatus
   created_on: string
   updated_on: string

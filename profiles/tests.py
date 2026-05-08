@@ -7,7 +7,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from jobs.consts import JobType, RemoteOption
-from profiles.consts import Source, Status
+from profiles.consts import Status
 from profiles.models import Preference, Profile
 from profiles.services import LinkedInIngest, ingest_linkedin
 
@@ -179,8 +179,7 @@ class PreferenceQualityGateTests(TestCase):
         resp = self.client.post(
             url,
             {
-                "crawl_url": "",
-                "crawl_source": "",
+                "crawl_urls": "",
                 "status": Status.RUNNING,
             },
         )
@@ -194,8 +193,7 @@ class PreferenceQualityGateTests(TestCase):
         resp = self.client.post(
             url,
             {
-                "crawl_url": "",
-                "crawl_source": "",
+                "crawl_urls": "",
                 "status": Status.RUNNING,
                 "override_quality_gate": "1",
             },
@@ -285,14 +283,16 @@ class PreferenceDetailAPITests(TestCase):
         pref.refresh_from_db()
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
-    def test_user_cannot_set_crawl_source(self):
-        pref = self._pref(status=Status.WAITING_PAYMENT, crawl_source="")
+    def test_user_cannot_set_crawl_urls(self):
+        pref = self._pref(status=Status.WAITING_PAYMENT, crawl_urls=[])
         resp = self.api.patch(
-            self.url(pref.id), {"crawl_source": Source.INDEED}, format="json"
+            self.url(pref.id),
+            {"crawl_urls": ["https://id.indeed.com/jobs?q=x"]},
+            format="json",
         )
         self.assertEqual(resp.status_code, 200)
         pref.refresh_from_db()
-        self.assertEqual(pref.crawl_source, "")
+        self.assertEqual(pref.crawl_urls, [])
 
 
 class OnboardingAPITests(TestCase):

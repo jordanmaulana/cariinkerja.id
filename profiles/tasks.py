@@ -28,7 +28,7 @@ def notify_preference_created(preference_id: str) -> None:
         "**New Preference created**",
         f"Profile: {name}",
         f"Title: {pref.title or '-'}",
-        f"Source: {pref.crawl_source or '-'}",
+        f"URLs: {len(pref.crawl_urls)}",
         f"Status: {pref.status}",
         f"Admin: {admin_url}",
     ]
@@ -36,7 +36,9 @@ def notify_preference_created(preference_id: str) -> None:
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
-def crawl_linkedin_for_profile(profile_id: str, preference_id: str | None = None) -> str:
+def crawl_linkedin_for_profile(
+    profile_id: str, preference_id: str | None = None
+) -> str:
     from profiles.consts import Status
     from profiles.methods import crawl_and_ingest_linkedin
     from profiles.models import Profile
@@ -49,9 +51,7 @@ def crawl_linkedin_for_profile(profile_id: str, preference_id: str | None = None
 
     crawl_and_ingest_linkedin(profile)
     if profile.full_profile:
-        pending = profile.preferences.filter(
-            status=Status.WAITING_ADMIN, crawl_url__isnull=True
-        )
+        pending = profile.preferences.filter(status=Status.WAITING_ADMIN, crawl_urls=[])
         for pref in pending:
             maybe_start_free_crawl(pref)
     return "no_status_change"

@@ -6,7 +6,7 @@ from django.db import transaction
 from openai import OpenAI
 from pydantic import BaseModel
 
-from profiles.consts import Source, Status
+from profiles.consts import Status
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +64,13 @@ def maybe_start_free_crawl(preference) -> bool:
 
     Idempotent. Returns True if crawl was queued.
     Conditions: status=WAITING_ADMIN, profile.full_profile present, no
-    existing crawl_url, has title.
+    existing crawl_urls, has title.
     """
     from assessment.tasks import run_free_crawl
 
     if preference.status != Status.WAITING_ADMIN:
         return False
-    if preference.crawl_url:
+    if preference.crawl_urls:
         return False
     if not preference.title:
         return False
@@ -78,11 +78,10 @@ def maybe_start_free_crawl(preference) -> bool:
     if not profile.full_profile:
         return False
 
-    preference.crawl_url = (
+    preference.crawl_urls = [
         f"https://id.indeed.com/jobs?q={quote_plus(preference.title)}"
-    )
-    preference.crawl_source = Source.INDEED
-    preference.save(update_fields=["crawl_url", "crawl_source", "updated_on"])
+    ]
+    preference.save(update_fields=["crawl_urls", "updated_on"])
     transaction.on_commit(lambda: run_free_crawl.delay(preference.id))
     logger.info(
         "free crawl queued for preference=%s profile=%s",
