@@ -43,7 +43,34 @@ import {
 } from "@/lib/assessments"
 import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts"
 
+type AssessmentsSearch = {
+  status?: AssessmentStatus[]
+  min_score?: number
+}
+
+const ASSESSMENT_STATUS_SET = new Set<AssessmentStatus>(ASSESSMENT_STATUSES)
+
+function isAssessmentStatus(v: unknown): v is AssessmentStatus {
+  return (
+    typeof v === "string" && ASSESSMENT_STATUS_SET.has(v as AssessmentStatus)
+  )
+}
+
 export const Route = createFileRoute("/assessments/")({
+  validateSearch: (search: Record<string, unknown>): AssessmentsSearch => {
+    const raw = search.status
+    const arr = Array.isArray(raw) ? raw : raw == null ? [] : [raw]
+    const status = arr.filter(isAssessmentStatus)
+
+    const ms = Number(search.min_score)
+    const min_score =
+      Number.isFinite(ms) && ms >= 0 && ms <= 100 ? Math.floor(ms) : undefined
+
+    return {
+      status: status.length ? status : undefined,
+      min_score,
+    }
+  },
   component: AssessmentsPage,
 })
 
@@ -135,10 +162,13 @@ function getActionsForStatus(status: AssessmentStatus): Action[] {
 const PAGE_SIZE = 10
 
 function AssessmentsPage() {
+  const search = Route.useSearch()
   const [selectedStatuses, setSelectedStatuses] = useState<
     Set<AssessmentStatus>
-  >(() => new Set(["new"]))
-  const [minScoreInput, setMinScoreInput] = useState("")
+  >(() => new Set(search.status ?? ["new"]))
+  const [minScoreInput, setMinScoreInput] = useState(() =>
+    search.min_score != null ? String(search.min_score) : "",
+  )
   const [page, setPage] = useState(1)
   const queryClient = useQueryClient()
   const navigate = useNavigate()

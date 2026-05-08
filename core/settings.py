@@ -209,6 +209,7 @@ GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 # --- Email (SMTP) ---
 # cariinkerja.id mailbox is hosted on mailspace.id. The TLS cert at
