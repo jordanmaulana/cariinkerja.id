@@ -1,29 +1,26 @@
 {% extends "dashboard_base.html" %}
 {% block title %}SMTP Test — cariinkerja.id Admin{% endblock %}
 {% block content %}
-  <main class="space-y-6 max-w-2xl mx-auto">
-    <header>
-      <h2 class="text-2xl font-bold">SMTP Test</h2>
-      <p class="text-sm text-slate-600 mt-1">Send a test email using the configured SMTP server.</p>
-    </header>
+  <div class="space-y-6 max-w-2xl">
+    {% include "_partials/page_header.html" with eyebrow="System" title="SMTP Test" subtitle="Send a test email using the configured SMTP server." %}
 
-    <section class="p-4 rounded-lg border shadow-sm space-y-1 text-sm">
-      <h3 class="font-semibold mb-2">Current configuration</h3>
+    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-1 text-sm">
+      <h3 class="text-sm font-semibold text-slate-700 mb-2">Current configuration</h3>
       <div><span class="text-slate-500">Host:</span> {{ config.host }}:{{ config.port }}</div>
       <div><span class="text-slate-500">User:</span> {{ config.user }}</div>
       <div><span class="text-slate-500">From:</span> {{ config.from }}</div>
       <div><span class="text-slate-500">SSL:</span> {{ config.use_ssl }} · <span class="text-slate-500">TLS:</span> {{ config.use_tls }}</div>
       {% if not config.configured %}
-        <div class="mt-2 p-2 rounded bg-yellow-50 text-yellow-800 text-xs">
+        <div class="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           EMAIL_HOST / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD are not all set — set them in <code>.env</code> and restart.
         </div>
       {% endif %}
     </section>
 
-    <form method="post" class="space-y-4 p-4 rounded-lg border shadow-sm">
+    <form method="post" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       {% csrf_token %}
       {% if form.non_field_errors %}
-        <div class="p-3 rounded bg-red-50 text-red-800 text-sm">{{ form.non_field_errors }}</div>
+        <div class="rounded-md bg-rose-50 p-3 text-sm text-rose-800 border border-rose-200">{{ form.non_field_errors }}</div>
       {% endif %}
 
       <div class="space-y-1">
@@ -45,10 +42,10 @@
       </div>
 
       <div class="flex justify-end pt-2">
-        <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
           Send test email
         </button>
       </div>
     </form>
-  </main>
+  </div>
 {% endblock %}

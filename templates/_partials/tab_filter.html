@@ -1,0 +1,24 @@
+{% comment %}
+  Tab-style filter row. Args:
+    base_url      — URL to "All" tab (no querystring)
+    selected      — currently selected value
+    total_count   — count for "All"
+    tabs          — list of dicts: { value, label, count }
+    param         — querystring param name (e.g., "status", "job_type")
+{% endcomment %}
+<nav class="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1">
+  <a href="{{ base_url }}"
+     class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition
+       {% if not selected %}bg-white text-slate-900 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+    All
+    <span class="text-xs tabular-nums {% if not selected %}text-slate-500{% else %}text-slate-400{% endif %}">{{ total_count }}</span>
+  </a>
+  {% for tab in tabs %}
+    <a href="?{{ param }}={{ tab.value }}"
+       class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition
+         {% if selected == tab.value %}bg-white text-slate-900 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+      {{ tab.label }}
+      <span class="text-xs tabular-nums {% if selected == tab.value %}text-slate-500{% else %}text-slate-400{% endif %}">{{ tab.count }}</span>
+    </a>
+  {% endfor %}
+</nav>

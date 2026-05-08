@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import URLValidator
 from django.db import transaction
-from django.db.models import Avg, Count, Max, Q
+from django.db.models import Avg, Count, Max, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -49,7 +49,8 @@ class AdminLoginView(LoginView):
 class DashboardView(SuperuserRequiredMixin, View):
     def get(self, request):
         today = timezone.localdate()
-        cache_key = f"dashboard_stats_{today}_{request.GET.get('page', 1)}"
+        now = timezone.now()
+        cache_key = f"dashboard_stats_v2_{today}_{request.GET.get('page', 1)}"
         cached = cache.get(cache_key)
         if cached:
             return render(request, "dashboard.html", cached)
@@ -63,16 +64,6 @@ class DashboardView(SuperuserRequiredMixin, View):
         job_stats = Job.objects.aggregate(
             job_count=Count("id"),
             jobs_today=Count("id", filter=Q(created_on__date=today)),
-        )
-        jobs_by_type = list(
-            Job.objects.values("job_type")
-            .annotate(count=Count("id"))
-            .order_by("-count")
-        )
-        jobs_by_remote = list(
-            Job.objects.values("remote_option")
-            .annotate(count=Count("id"))
-            .order_by("-count")
         )
         assessment_stats = Assessment.objects.aggregate(
             assessment_count=Count("id"),
@@ -115,21 +106,105 @@ class DashboardView(SuperuserRequiredMixin, View):
         avg_score = assessment_stats["avg_score"]
         avg_score_display = round(avg_score, 1) if avg_score is not None else 0
 
+        # Operator attention — what needs my action right now?
+        pref_pipeline_rows = Preference.objects.values("status").annotate(c=Count("id"))
+        preference_pipeline = {row["status"]: row["c"] for row in pref_pipeline_rows}
+        waiting_admin = preference_pipeline.get(Status.WAITING_ADMIN, 0)
+        waiting_payment = preference_pipeline.get(Status.WAITING_PAYMENT, 0)
+        running_prefs = preference_pipeline.get(Status.RUNNING, 0)
+        expired_prefs = preference_pipeline.get(Status.EXPIRED, 0)
+        pref_pipeline_total = (
+            waiting_payment + waiting_admin + running_prefs + expired_prefs
+        )
+
+        pending_payments = Subscription.objects.filter(
+            status=SubscriptionStatus.PENDING
+        ).count()
+        expiring_soon = Subscription.objects.filter(
+            status=SubscriptionStatus.ACTIVE,
+            expires_at__lte=now + timedelta(days=7),
+            expires_at__gt=now,
+        ).count()
+        linkedin_gate_failed = (
+            Profile.objects.filter(linkedin_quality_ok=False)
+            .exclude(linkedin_raw="")
+            .count()
+        )
+
+        # Billing pulse — is the business healthy?
+        active_subs_qs = Subscription.objects.filter(
+            status=SubscriptionStatus.ACTIVE,
+            expires_at__gt=now,
+        )
+        billing = active_subs_qs.aggregate(
+            active_subs=Count("id"),
+            mrr=Sum("amount_paid"),
+        )
+        active_subs = billing["active_subs"] or 0
+        mrr = billing["mrr"] or 0
+
+        month_start = today.replace(day=1)
+        paid_this_month = (
+            Subscription.objects.filter(
+                started_at__date__gte=month_start,
+                status__in=[
+                    SubscriptionStatus.ACTIVE,
+                    SubscriptionStatus.EXPIRED,
+                    SubscriptionStatus.REPLACED,
+                ],
+            ).aggregate(total=Sum("amount_paid"))["total"]
+            or 0
+        )
+
+        sub_per_day_rows = (
+            Subscription.objects.filter(
+                started_at__date__range=[thirty_days_ago, today],
+                status__in=[
+                    SubscriptionStatus.ACTIVE,
+                    SubscriptionStatus.EXPIRED,
+                    SubscriptionStatus.REPLACED,
+                ],
+            )
+            .extra({"date": "date(started_at)"})
+            .values("date")
+            .annotate(count=Count("id"))
+        )
+        sub_counts = {row["date"]: row["count"] for row in sub_per_day_rows}
+        daily_subs = [
+            sub_counts.get(str(d), sub_counts.get(d, 0)) for d in date_range
+        ]
+
+        latest_subs = list(
+            Subscription.objects.select_related("profile", "plan").order_by(
+                "-created_on"
+            )[:5]
+        )
+
         context = {
             **profile_stats,
             **job_stats,
             **assessment_stats,
             "avg_score_display": avg_score_display,
-            "jobs_by_type": jobs_by_type,
-            "jobs_by_remote": jobs_by_remote,
             "recent_assessments": recent_assessments,
             "top_profiles": top_profiles,
             "daily_assessments_json": json.dumps(daily_assessments),
             "date_labels_json": json.dumps(date_labels),
-            "jobs_by_type_labels_json": json.dumps(
-                [(j["job_type"] or "unspecified") for j in jobs_by_type]
-            ),
-            "jobs_by_type_counts_json": json.dumps([j["count"] for j in jobs_by_type]),
+            "daily_subs_json": json.dumps(daily_subs),
+            # Operator attention
+            "waiting_admin": waiting_admin,
+            "waiting_payment_count": waiting_payment,
+            "running_prefs": running_prefs,
+            "expired_prefs": expired_prefs,
+            "pref_pipeline_total": pref_pipeline_total,
+            "pending_payments": pending_payments,
+            "expiring_soon": expiring_soon,
+            "linkedin_gate_failed": linkedin_gate_failed,
+            # Billing
+            "active_subs": active_subs,
+            "mrr": mrr,
+            "paid_this_month": paid_this_month,
+            "latest_subs": latest_subs,
+            "now": now,
         }
         cache.set(cache_key, context, 300)
         return render(request, "dashboard.html", context)

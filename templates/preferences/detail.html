@@ -2,28 +2,29 @@
 {% load format_number %}
 {% block title %}Preference detail — cariinkerja.id Admin{% endblock %}
 {% block content %}
-  <main class="space-y-6 max-w-4xl mx-auto">
+  <div class="space-y-6 max-w-4xl">
     <div>
-      <a href="{% url 'preference_list' %}" class="text-sm text-blue-600 hover:underline">← Back to preferences</a>
+      <a href="{% url 'preference_list' %}" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">← Back to preferences</a>
     </div>
 
-    <header class="flex items-start justify-between gap-4">
+    <header class="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-4">
       <div>
-        <h2 class="text-2xl font-bold">{{ preference.title|default:"(untitled preference)" }}</h2>
-        <p class="text-slate-500 text-sm">Preference ID: {{ preference.id }}</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Operations / Preference</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ preference.title|default:"(untitled preference)" }}</h1>
+        <p class="mt-1 text-sm text-slate-500">Preference ID: {{ preference.id }}</p>
       </div>
       <form method="post" action="{% url 'preference_crawl_now' pk=preference.pk %}">
         {% csrf_token %}
         <button type="submit"
-                class="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
                 {% if not preference.crawl_urls %}disabled title="Set crawl_urls first"{% endif %}>
           Crawl &amp; Assess Now
         </button>
       </form>
     </header>
 
-    <section class="p-4 rounded-lg border shadow-sm space-y-2">
-      <h3 class="text-lg font-semibold">Profile</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
+      <h3 class="text-sm font-semibold text-slate-700">Profile</h3>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <dt class="text-slate-500">Full name</dt>
         <dd>
@@ -42,8 +43,8 @@
       </dl>
     </section>
 
-    <section class="p-4 rounded-lg border shadow-sm space-y-2">
-      <h3 class="text-lg font-semibold">Preference</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
+      <h3 class="text-sm font-semibold text-slate-700">Preference</h3>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <dt class="text-slate-500">Title</dt>
         <dd>{{ preference.title|default:"—" }}</dd>
@@ -53,45 +54,38 @@
         <dd>{{ preference.remote_option|display_choices:"remote_option" }}</dd>
         <dt class="text-slate-500">Status</dt>
         <dd>
-          <span class="px-2 py-0.5 rounded text-xs
-            {% if preference.status == 'waiting_payment' %}bg-yellow-100 text-yellow-800
-            {% elif preference.status == 'waiting_admin' %}bg-orange-100 text-orange-800
-            {% elif preference.status == 'running' %}bg-green-100 text-green-800
-            {% elif preference.status == 'expired' %}bg-slate-200 text-slate-700
-            {% else %}bg-slate-100 text-slate-700{% endif %}">
-            {{ preference.get_status_display }}
-          </span>
+          {% include "_partials/status_pill.html" with value=preference.status label=preference.get_status_display %}
         </dd>
         <dt class="text-slate-500">Created</dt>
         <dd>{{ preference.created_on|date:"Y-m-d H:i" }}</dd>
       </dl>
     </section>
 
-    <section class="p-4 rounded-lg border shadow-sm space-y-2">
-      <h3 class="text-lg font-semibold">Full profile (read-only)</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
+      <h3 class="text-sm font-semibold text-slate-700">Full profile (read-only)</h3>
       <p class="text-xs text-slate-500">
         Edit on the
         <a href="{% url 'profile_detail' profile.id %}" class="text-blue-600 hover:underline">profile page</a>
         — paste LinkedIn there to refresh.
       </p>
-      <pre class="bg-slate-50 p-3 rounded text-xs whitespace-pre-wrap max-h-64 overflow-auto">{{ profile.full_profile|default:"(empty)" }}</pre>
-      <div class="flex flex-wrap gap-2 text-xs">
+      <pre class="bg-slate-50 p-3 rounded-md text-xs whitespace-pre-wrap max-h-64 overflow-auto border border-slate-100">{{ profile.full_profile|default:"(empty)" }}</pre>
+      <div class="flex flex-wrap items-center gap-2">
         {% if profile.linkedin_quality_ok %}
-          <span class="px-2 py-0.5 rounded bg-green-100 text-green-800">Quality OK</span>
+          {% include "_partials/status_pill.html" with value="ACTIVE" label="Quality OK" %}
         {% else %}
-          <span class="px-2 py-0.5 rounded bg-red-100 text-red-800">Sparse</span>
+          {% include "_partials/status_pill.html" with value="rejected" label="Sparse" %}
         {% endif %}
         {% if profile.open_to_work %}
-          <span class="px-2 py-0.5 rounded bg-green-100 text-green-800">Open to Work</span>
+          {% include "_partials/status_pill.html" with value="ACTIVE" label="Open to Work" %}
         {% endif %}
         {% if profile.linkedin_quality_reason %}
-          <span class="text-slate-500 italic">{{ profile.linkedin_quality_reason }}</span>
+          <span class="text-xs text-slate-500 italic">{{ profile.linkedin_quality_reason }}</span>
         {% endif %}
       </div>
     </section>
 
-    <section class="p-4 rounded-lg border shadow-sm">
-      <h3 class="text-lg font-semibold mb-3">Admin fields</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+      <h3 class="text-sm font-semibold text-slate-700 mb-4">Admin fields</h3>
       <form method="post" class="space-y-4">
         {% csrf_token %}
         <div>
@@ -116,9 +110,9 @@
           {% endif %}
         </div>
         <div>
-          <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+          <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">Save</button>
         </div>
       </form>
     </section>
-  </main>
+  </div>
 {% endblock %}

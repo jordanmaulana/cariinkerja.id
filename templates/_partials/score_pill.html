@@ -1,0 +1,11 @@
+{% comment %}
+  Score pill (0-100). Args:
+    score — int
+{% endcomment %}
+<span class="inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums
+  {% if score >= 75 %}bg-emerald-50 text-emerald-700
+  {% elif score >= 50 %}bg-amber-50 text-amber-700
+  {% elif score >= 25 %}bg-orange-50 text-orange-700
+  {% else %}bg-rose-50 text-rose-700{% endif %}">
+  {{ score }}
+</span>

@@ -2,86 +2,52 @@
 {% load format_number %}
 {% block title %}Preferences — cariinkerja.id Admin{% endblock %}
 {% block content %}
-  <main class="space-y-6 max-w-7xl mx-auto">
-    <header class="flex items-center justify-between">
-      <h2 class="text-2xl font-bold">Preferences</h2>
-    </header>
+  <div class="space-y-6">
+    {% include "_partials/page_header.html" with eyebrow="Operations" title="Preferences" count=total_count %}
 
-    <nav class="flex flex-wrap gap-2">
-      <a href="{% url 'preference_list' %}"
-         class="px-3 py-1 rounded border text-sm {% if not selected_status %}bg-blue-600 text-white border-blue-600{% else %}hover:bg-slate-100{% endif %}">
-        All
-        <span class="ml-1 text-xs opacity-80">({{ total_count }})</span>
-      </a>
-      {% for tab in status_tabs %}
-        <a href="?status={{ tab.value }}"
-           class="px-3 py-1 rounded border text-sm {% if selected_status == tab.value %}bg-blue-600 text-white border-blue-600{% else %}hover:bg-slate-100{% endif %}">
-          {{ tab.label }}
-          <span class="ml-1 text-xs opacity-80">({{ tab.count }})</span>
-        </a>
-      {% endfor %}
-    </nav>
+    {% include "_partials/tab_filter.html" with base_url=request.path selected=selected_status total_count=total_count tabs=status_tabs param="status" %}
 
-    <section class="p-4 rounded-lg border shadow-sm">
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="text-left text-slate-500">
-            <tr class="border-b">
-              <th class="py-2">Profile</th>
-              <th class="py-2">Title</th>
-              <th class="py-2">Job type</th>
-              <th class="py-2">Remote</th>
-              <th class="py-2">Status</th>
-              <th class="py-2">Created</th>
+          <thead>
+            <tr class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-6 py-3 text-left font-medium">Profile</th>
+              <th class="px-6 py-3 text-left font-medium">Title</th>
+              <th class="px-6 py-3 text-left font-medium">Job type</th>
+              <th class="px-6 py-3 text-left font-medium">Remote</th>
+              <th class="px-6 py-3 text-left font-medium">Status</th>
+              <th class="px-6 py-3 text-left font-medium">Created</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-slate-100">
             {% for p in preferences %}
-              <tr class="border-b last:border-0 hover:bg-slate-50">
-                <td class="py-2">
-                  <a href="{% url 'preference_detail' p.id %}" class="text-blue-600 hover:underline">
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-3">
+                  <a href="{% url 'preference_detail' p.id %}" class="font-medium text-blue-600 hover:underline">
                     {{ p.profile.full_name|default:"(no name)" }}
                   </a>
                 </td>
-                <td class="py-2">{{ p.title|default:"—" }}</td>
-                <td class="py-2">{{ p.job_type|display_choices:"job_type" }}</td>
-                <td class="py-2">{{ p.remote_option|display_choices:"remote_option" }}</td>
-                <td class="py-2">
-                  <span class="px-2 py-0.5 rounded text-xs
-                    {% if p.status == 'waiting_payment' %}bg-yellow-100 text-yellow-800
-                    {% elif p.status == 'waiting_admin' %}bg-orange-100 text-orange-800
-                    {% elif p.status == 'running' %}bg-green-100 text-green-800
-                    {% elif p.status == 'expired' %}bg-slate-200 text-slate-700
-                    {% else %}bg-slate-100 text-slate-700{% endif %}">
-                    {{ p.get_status_display }}
-                  </span>
+                <td class="px-6 py-3 text-slate-700">{{ p.title|default:"—" }}</td>
+                <td class="px-6 py-3 text-slate-700">{{ p.job_type|display_choices:"job_type" }}</td>
+                <td class="px-6 py-3 text-slate-700">{{ p.remote_option|display_choices:"remote_option" }}</td>
+                <td class="px-6 py-3">
+                  {% include "_partials/status_pill.html" with value=p.status label=p.get_status_display %}
                 </td>
-                <td class="py-2 text-slate-500">{{ p.created_on|date:"Y-m-d H:i" }}</td>
+                <td class="px-6 py-3 text-slate-500 whitespace-nowrap">{{ p.created_on|date:"Y-m-d H:i" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="py-4 text-slate-400 text-center">No preferences match this filter.</td></tr>
+              <tr><td colspan="6" class="py-8 text-slate-400 text-center">No preferences match this filter.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
       {% if preferences.has_other_pages %}
-        <div class="mt-4 flex items-center justify-between text-sm">
-          <span class="text-slate-500">
-            Page {{ preferences.number }} of {{ preferences.paginator.num_pages }}
-          </span>
-          <div class="space-x-2">
-            {% if preferences.has_previous %}
-              <a href="?page={{ preferences.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}"
-                 class="px-3 py-1 rounded border hover:bg-slate-100">Previous</a>
-            {% endif %}
-            {% if preferences.has_next %}
-              <a href="?page={{ preferences.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}"
-                 class="px-3 py-1 rounded border hover:bg-slate-100">Next</a>
-            {% endif %}
-          </div>
+        <div class="border-t border-slate-100 px-6 py-3">
+          {% include "_partials/pagination.html" with page_obj=preferences extra_query="status="|add:selected_status %}
         </div>
       {% endif %}
     </section>
-  </main>
+  </div>
 {% endblock %}

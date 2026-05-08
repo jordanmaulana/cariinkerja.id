@@ -2,18 +2,15 @@
 {% load format_number %}
 {% block title %}Profile detail — cariinkerja.id Admin{% endblock %}
 {% block content %}
-  <main class="space-y-6 max-w-4xl mx-auto">
+  <div class="space-y-6 max-w-4xl">
     <div>
-      <a href="{% url 'profile_list' %}" class="text-sm text-blue-600 hover:underline">← Back to profiles</a>
+      <a href="{% url 'profile_list' %}" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">← Back to profiles</a>
     </div>
 
-    <header>
-      <h2 class="text-2xl font-bold">{{ profile.full_name|default:"(no name)" }}</h2>
-      <p class="text-slate-500 text-sm">Profile ID: {{ profile.id }}</p>
-    </header>
+    {% include "_partials/page_header.html" with eyebrow="Operations / Profile" title=profile.full_name|default:"(no name)" subtitle="Profile ID: "|add:profile.id %}
 
-    <section class="p-4 rounded-lg border shadow-sm space-y-2">
-      <h3 class="text-lg font-semibold">Meta</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
+      <h3 class="text-sm font-semibold text-slate-700">Meta</h3>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <dt class="text-slate-500">User</dt>
         <dd>{{ profile.user|default:"—" }}</dd>
@@ -24,16 +21,16 @@
       </dl>
     </section>
 
-    <section class="p-4 rounded-lg border shadow-sm space-y-2">
-      <h3 class="text-lg font-semibold">LinkedIn ingest status</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
+      <h3 class="text-sm font-semibold text-slate-700">LinkedIn ingest status</h3>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
         <dt class="text-slate-500">Quality</dt>
         <dd>
           {% if profile.linkedin_ingested_at %}
             {% if profile.linkedin_quality_ok %}
-              <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">OK</span>
+              {% include "_partials/status_pill.html" with value="ACTIVE" label="OK" %}
             {% else %}
-              <span class="px-2 py-0.5 rounded text-xs bg-red-100 text-red-800">Sparse</span>
+              {% include "_partials/status_pill.html" with value="rejected" label="Sparse" %}
             {% endif %}
           {% else %}
             <span class="text-slate-400">not ingested</span>
@@ -42,9 +39,9 @@
         <dt class="text-slate-500">Open to Work</dt>
         <dd>
           {% if profile.open_to_work %}
-            <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">Yes — discount eligible</span>
+            {% include "_partials/status_pill.html" with value="ACTIVE" label="Yes — discount eligible" %}
           {% else %}
-            <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">No</span>
+            {% include "_partials/status_pill.html" with value="EXPIRED" label="No" %}
           {% endif %}
         </dd>
         <dt class="text-slate-500">Reason / notes</dt>
@@ -65,8 +62,8 @@
       </form>
     </section>
 
-    <section class="p-4 rounded-lg border shadow-sm">
-      <h3 class="text-lg font-semibold mb-3">Edit fields</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+      <h3 class="text-sm font-semibold text-slate-700 mb-4">Edit fields</h3>
       <form method="post" class="space-y-4">
         {% csrf_token %}
         <div>
@@ -120,8 +117,8 @@
       </form>
     </section>
 
-    <section class="p-4 rounded-lg border shadow-sm">
-      <h3 class="text-lg font-semibold mb-3">Preferences ({{ preferences|length }})</h3>
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+      <h3 class="text-sm font-semibold text-slate-700 mb-4">Preferences ({{ preferences|length }})</h3>
       {% if preferences %}
         <table class="w-full text-sm">
           <thead class="text-left text-slate-500">
@@ -144,14 +141,7 @@
                 <td class="py-2">{{ pref.job_type|display_choices:"job_type" }}</td>
                 <td class="py-2">{{ pref.remote_option|display_choices:"remote_option" }}</td>
                 <td class="py-2">
-                  <span class="px-2 py-0.5 rounded text-xs
-                    {% if pref.status == 'waiting_payment' %}bg-yellow-100 text-yellow-800
-                    {% elif pref.status == 'waiting_admin' %}bg-orange-100 text-orange-800
-                    {% elif pref.status == 'running' %}bg-green-100 text-green-800
-                    {% elif pref.status == 'expired' %}bg-slate-200 text-slate-700
-                    {% else %}bg-slate-100 text-slate-700{% endif %}">
-                    {{ pref.get_status_display }}
-                  </span>
+                  {% include "_partials/status_pill.html" with value=pref.status label=pref.get_status_display %}
                 </td>
                 <td class="py-2 text-slate-500">{{ pref.created_on|date:"Y-m-d H:i" }}</td>
               </tr>
@@ -162,5 +152,5 @@
         <p class="text-slate-400 text-sm">No preferences yet.</p>
       {% endif %}
     </section>
-  </main>
+  </div>
 {% endblock %}

@@ -2,69 +2,66 @@
 {% load format_number %}
 {% block title %}Plans — cariinkerja.id Admin{% endblock %}
 {% block content %}
-  <main class="space-y-6 max-w-7xl mx-auto">
-    <header class="flex items-center justify-between">
-      <h2 class="text-2xl font-bold">Plans</h2>
+  <div class="space-y-6">
+    <header class="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Billing</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Plans</h1>
+      </div>
       <a href="{% url 'plan_create' %}"
-         class="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">+ New plan</a>
+         class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition">
+        + New plan
+      </a>
     </header>
 
-    <section class="p-4 rounded-lg border shadow-sm">
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="text-left text-slate-500">
-            <tr class="border-b">
-              <th class="py-2">Name</th>
-              <th class="py-2 text-right">Price (Rp)</th>
-              <th class="py-2 text-right">Preference limit</th>
-              <th class="py-2">Active</th>
-              <th class="py-2">Created</th>
-              <th class="py-2 text-right">Actions</th>
+          <thead>
+            <tr class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-6 py-3 text-left font-medium">Name</th>
+              <th class="px-6 py-3 text-right font-medium">Price (Rp)</th>
+              <th class="px-6 py-3 text-right font-medium">Preference limit</th>
+              <th class="px-6 py-3 text-left font-medium">Active</th>
+              <th class="px-6 py-3 text-left font-medium">Created</th>
+              <th class="px-6 py-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-slate-100">
             {% for p in plans %}
-              <tr class="border-b last:border-0 hover:bg-slate-50">
-                <td class="py-2 font-medium">{{ p.name }}</td>
-                <td class="py-2 text-right tabular-nums">{{ p.price|intdot }}</td>
-                <td class="py-2 text-right tabular-nums">{{ p.preference_limit }}</td>
-                <td class="py-2">
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-3 font-medium text-slate-900">{{ p.name }}</td>
+                <td class="px-6 py-3 text-right tabular-nums">{{ p.price|intdot }}</td>
+                <td class="px-6 py-3 text-right tabular-nums">{{ p.preference_limit }}</td>
+                <td class="px-6 py-3">
                   {% if p.is_active %}
-                    <span class="px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">Active</span>
+                    {% include "_partials/status_pill.html" with value="ACTIVE" label="Active" %}
                   {% else %}
-                    <span class="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">Inactive</span>
+                    {% include "_partials/status_pill.html" with value="EXPIRED" label="Inactive" %}
                   {% endif %}
                 </td>
-                <td class="py-2 text-slate-500">{{ p.created_on|date:"Y-m-d" }}</td>
-                <td class="py-2 text-right space-x-2">
-                  <a href="{% url 'plan_update' p.id %}" class="text-blue-600 hover:underline text-sm">Edit</a>
+                <td class="px-6 py-3 text-slate-500 whitespace-nowrap">{{ p.created_on|date:"Y-m-d" }}</td>
+                <td class="px-6 py-3 text-right space-x-3">
+                  <a href="{% url 'plan_update' p.id %}" class="text-sm font-medium text-blue-600 hover:underline">Edit</a>
                   <form method="post" action="{% url 'plan_delete' p.id %}" class="inline"
                         onsubmit="return confirm('Delete plan {{ p.name|escapejs }}?');">
                     {% csrf_token %}
-                    <button type="submit" class="text-red-600 hover:underline text-sm">Delete</button>
+                    <button type="submit" class="text-sm font-medium text-rose-600 hover:underline">Delete</button>
                   </form>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="py-4 text-slate-400 text-center">No plans yet. Create one.</td></tr>
+              <tr><td colspan="6" class="py-8 text-slate-400 text-center">No plans yet. Create one.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
       {% if plans.has_other_pages %}
-        <div class="mt-4 flex items-center justify-between text-sm">
-          <span class="text-slate-500">Page {{ plans.number }} of {{ plans.paginator.num_pages }}</span>
-          <div class="space-x-2">
-            {% if plans.has_previous %}
-              <a href="?page={{ plans.previous_page_number }}" class="px-3 py-1 rounded border hover:bg-slate-100">Previous</a>
-            {% endif %}
-            {% if plans.has_next %}
-              <a href="?page={{ plans.next_page_number }}" class="px-3 py-1 rounded border hover:bg-slate-100">Next</a>
-            {% endif %}
-          </div>
+        <div class="border-t border-slate-100 px-6 py-3">
+          {% include "_partials/pagination.html" with page_obj=plans %}
         </div>
       {% endif %}
     </section>
-  </main>
+  </div>
 {% endblock %}

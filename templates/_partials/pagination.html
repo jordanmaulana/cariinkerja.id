@@ -1,0 +1,29 @@
+{% comment %}
+  Pagination strip. Args:
+    page_obj    — Django Page instance
+    extra_query — extra querystring fragment WITHOUT leading '&' (e.g., "status=running&q=foo")
+{% endcomment %}
+{% if page_obj.has_other_pages %}
+  <div class="mt-4 flex items-center justify-between text-sm">
+    <span class="text-slate-500">
+      Page <span class="font-medium text-slate-700">{{ page_obj.number }}</span>
+      of {{ page_obj.paginator.num_pages }}
+      <span class="ml-2 text-slate-400">·</span>
+      <span class="ml-2 text-slate-400">{{ page_obj.paginator.count }} total</span>
+    </span>
+    <div class="space-x-2">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if extra_query %}&{{ extra_query }}{% endif %}"
+           class="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm hover:bg-slate-50">
+          ← Previous
+        </a>
+      {% endif %}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if extra_query %}&{{ extra_query }}{% endif %}"
+           class="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm hover:bg-slate-50">
+          Next →
+        </a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
