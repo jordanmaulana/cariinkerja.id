@@ -41,8 +41,9 @@ class JobDetailView(SuperuserRequiredMixin, View):
     def get(self, request, pk):
         job = get_object_or_404(Job, pk=pk)
         assessments = list(
-            job.assessments.select_related("preference__profile")
-            .order_by("-created_on")[:50]
+            job.assessments.select_related("preference__profile").order_by(
+                "-created_on"
+            )[:50]
         )
         return render(
             request,

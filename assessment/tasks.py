@@ -52,7 +52,9 @@ def run_free_crawl(preference_id: str):
     Preference.objects.filter(id=preference_id).update(
         status=Status.WAITING_PAYMENT, updated_on=timezone.now()
     )
-    logger.info("run_free_crawl: preference=%s flipped to WAITING_PAYMENT", preference_id)
+    logger.info(
+        "run_free_crawl: preference=%s flipped to WAITING_PAYMENT", preference_id
+    )
 
 
 @shared_task
