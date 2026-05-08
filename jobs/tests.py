@@ -61,6 +61,23 @@ class ParseListingTests(TestCase):
         for u in urls:
             self.assertTrue(u.startswith("https://id.jobstreet.com/id/job/"))
 
+    def test_extracts_link_with_new_path_format(self):
+        # Regression: JobStreet listings now serve /job/<id> (no /id/ prefix).
+        html = '<a href="/job/12345?type=standard&origin=cardTitle">Job</a>'
+        urls = jobstreet.parse_listing(html)
+        self.assertEqual(
+            urls,
+            ["https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"],
+        )
+
+    def test_extracts_link_with_legacy_path_format(self):
+        html = '<a href="/id/job/12345?type=standard">Job</a>'
+        urls = jobstreet.parse_listing(html)
+        self.assertEqual(
+            urls,
+            ["https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"],
+        )
+
 
 class ParseDetailTests(TestCase):
     def test_returns_expected_fields(self):
