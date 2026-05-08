@@ -1,0 +1,54 @@
+{% extends "dashboard_base.html" %}
+{% block title %}SMTP Test — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <main class="space-y-6 max-w-2xl mx-auto">
+    <header>
+      <h2 class="text-2xl font-bold">SMTP Test</h2>
+      <p class="text-sm text-slate-600 mt-1">Send a test email using the configured SMTP server.</p>
+    </header>
+
+    <section class="p-4 rounded-lg border shadow-sm space-y-1 text-sm">
+      <h3 class="font-semibold mb-2">Current configuration</h3>
+      <div><span class="text-slate-500">Host:</span> {{ config.host }}:{{ config.port }}</div>
+      <div><span class="text-slate-500">User:</span> {{ config.user }}</div>
+      <div><span class="text-slate-500">From:</span> {{ config.from }}</div>
+      <div><span class="text-slate-500">SSL:</span> {{ config.use_ssl }} · <span class="text-slate-500">TLS:</span> {{ config.use_tls }}</div>
+      {% if not config.configured %}
+        <div class="mt-2 p-2 rounded bg-yellow-50 text-yellow-800 text-xs">
+          EMAIL_HOST / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD are not all set — set them in <code>.env</code> and restart.
+        </div>
+      {% endif %}
+    </section>
+
+    <form method="post" class="space-y-4 p-4 rounded-lg border shadow-sm">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="p-3 rounded bg-red-50 text-red-800 text-sm">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.to.id_for_label }}">Recipient</label>
+        {{ form.to }}
+        {% if form.to.errors %}<p class="text-xs text-red-600">{{ form.to.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.subject.id_for_label }}">Subject</label>
+        {{ form.subject }}
+        {% if form.subject.errors %}<p class="text-xs text-red-600">{{ form.subject.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.body.id_for_label }}">Body</label>
+        {{ form.body }}
+        {% if form.body.errors %}<p class="text-xs text-red-600">{{ form.body.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button type="submit" class="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">
+          Send test email
+        </button>
+      </div>
+    </form>
+  </main>
+{% endblock %}

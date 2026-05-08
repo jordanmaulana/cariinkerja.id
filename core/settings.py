@@ -210,6 +210,23 @@ DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
 
+# --- Email (SMTP) ---
+# cariinkerja.id mailbox is hosted on mailspace.id. The TLS cert at
+# mail.cariinkerja.id is issued for mx2.mailspace.id, so we connect there
+# directly to satisfy hostname verification. Default port 587 + STARTTLS;
+# 465 + SSL also works (set EMAIL_PORT=465, EMAIL_USE_SSL=True, EMAIL_USE_TLS=False).
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "mx2.mailspace.id")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "contact@cariinkerja.id")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "False").lower() == "true"
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "15"))
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@cariinkerja.id"
+)
+
 CORS_ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",")

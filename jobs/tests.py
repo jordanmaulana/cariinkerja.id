@@ -67,7 +67,9 @@ class ParseListingTests(TestCase):
         urls = jobstreet.parse_listing(html)
         self.assertEqual(
             urls,
-            ["https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"],
+            [
+                "https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"
+            ],
         )
 
     def test_extracts_link_with_legacy_path_format(self):
@@ -75,7 +77,9 @@ class ParseListingTests(TestCase):
         urls = jobstreet.parse_listing(html)
         self.assertEqual(
             urls,
-            ["https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"],
+            [
+                "https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"
+            ],
         )
 
 

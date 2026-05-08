@@ -1,6 +1,9 @@
 import json
+import logging
+import smtplib
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.views import LoginView
@@ -19,11 +22,15 @@ from assessment.models import Assessment
 from assessment.tasks import crawl_and_assess_preference
 from billing.forms import PlanForm
 from billing.models import Plan, Subscription, SubscriptionStatus
+from core.forms import SmtpTestForm
+from core.notifications.email import send_email
 from core.realtime import publish, user_channel
 from jobs.models import Job
 from jobs.scrapers import scraper_for_url
 from profiles.consts import Status
 from profiles.models import Preference, Profile
+
+logger = logging.getLogger(__name__)
 
 
 class SuperuserRequiredMixin(View):
@@ -398,3 +405,51 @@ class SubscriptionDetailView(SuperuserRequiredMixin, View):
         else:
             messages.error(request, "Unknown action.")
         return redirect("subscription_detail", pk=sub.pk)
+
+
+class SmtpTestView(SuperuserRequiredMixin, View):
+    template_name = "settings/smtp_test.html"
+
+    def _context(self, form):
+        return {
+            "form": form,
+            "config": {
+                "host": settings.EMAIL_HOST or "(unset)",
+                "port": settings.EMAIL_PORT,
+                "user": settings.EMAIL_HOST_USER or "(unset)",
+                "use_ssl": settings.EMAIL_USE_SSL,
+                "use_tls": settings.EMAIL_USE_TLS,
+                "from": settings.DEFAULT_FROM_EMAIL,
+                "configured": bool(
+                    settings.EMAIL_HOST
+                    and settings.EMAIL_HOST_USER
+                    and settings.EMAIL_HOST_PASSWORD
+                ),
+            },
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context(SmtpTestForm()))
+
+    def post(self, request):
+        form = SmtpTestForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, self._context(form))
+
+        to = form.cleaned_data["to"]
+        try:
+            sent = send_email(
+                subject=form.cleaned_data["subject"],
+                to=[to],
+                body=form.cleaned_data["body"],
+            )
+        except (smtplib.SMTPException, OSError) as exc:
+            logger.exception("smtp test failed")
+            messages.error(request, f"Send failed: {exc.__class__.__name__}: {exc}")
+            return render(request, self.template_name, self._context(form))
+
+        if sent:
+            messages.success(request, f"Sent test email to {to}.")
+        else:
+            messages.warning(request, "send() returned 0 — check SMTP env vars.")
+        return redirect("smtp_test")
