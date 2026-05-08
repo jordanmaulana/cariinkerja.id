@@ -58,26 +58,30 @@ def crawl_and_assess_preference(preference_id: str):
         if scraper is None:
             logger.warning("preference %s has unknown crawl_url %r", pref.id, url)
             continue
-        for posting in scraper.crawl(url):
-            try:
-                with transaction.atomic():
-                    job, _ = Job.objects.update_or_create(
-                        url=posting["url"],
-                        defaults={
-                            "title": posting["title"],
-                            "company": posting.get("company"),
-                            "description": posting["description"],
-                            "location": posting["location"],
-                            "job_type": posting["job_type"],
-                            "remote_option": posting["remote_option"],
-                            "source": source,
-                        },
-                    )
-            except Exception:
-                logger.exception("persist failed for %s", posting.get("url"))
-                continue
-            assess_job.delay(job.id, pref.id)
-            count += 1
+        try:
+            for posting in scraper.crawl(url):
+                try:
+                    with transaction.atomic():
+                        job, _ = Job.objects.update_or_create(
+                            url=posting["url"],
+                            defaults={
+                                "title": posting["title"],
+                                "company": posting.get("company"),
+                                "description": posting["description"],
+                                "location": posting["location"],
+                                "job_type": posting["job_type"],
+                                "remote_option": posting["remote_option"],
+                                "source": source,
+                            },
+                        )
+                except Exception:
+                    logger.exception("persist failed for %s", posting.get("url"))
+                    continue
+                assess_job.delay(job.id, pref.id)
+                count += 1
+        except Exception:
+            logger.exception("crawl failed for preference=%s url=%s", pref.id, url)
+            continue
     return count
 
 
