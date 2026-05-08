@@ -169,6 +169,7 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
                 "preference": pref,
                 "profile": pref.profile,
                 "status_choices": Status.choices,
+                "crawl_urls_text": "\n".join(pref.crawl_urls or []),
             },
         )
 

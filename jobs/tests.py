@@ -10,6 +10,7 @@ from django.test import TestCase
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
 from jobs.scrapers import indeed, jobstreet, scraper_for_url
+from jobs.url_builders import build_jobstreet_url
 
 FIXTURES = Path(__file__).parent / "fixtures_html"
 LISTING_HTML = (FIXTURES / "listing.html").read_text()
@@ -162,3 +163,146 @@ class ScraperForUrlTests(TestCase):
     def test_malformed_url(self):
         self.assertEqual(scraper_for_url(""), (None, None))
         self.assertEqual(scraper_for_url("not a url"), (None, None))
+
+
+class BuildJobstreetUrlTests(TestCase):
+    BASE = "https://id.jobstreet.com/mobile-developer-jobs"
+
+    def test_title_only(self):
+        self.assertEqual(build_jobstreet_url("Mobile Developer"), self.BASE)
+
+    def test_single_full_time(self):
+        self.assertEqual(
+            build_jobstreet_url("Mobile Developer", [JobType.FULL_TIME]),
+            f"{self.BASE}/full-time",
+        )
+
+    def test_single_part_time(self):
+        self.assertEqual(
+            build_jobstreet_url("Mobile Developer", [JobType.PART_TIME]),
+            f"{self.BASE}/part-time",
+        )
+
+    def test_single_contract_uses_temp_slug(self):
+        self.assertEqual(
+            build_jobstreet_url("Mobile Developer", [JobType.CONTRACT]),
+            f"{self.BASE}/contract-temp",
+        )
+
+    def test_single_internship_uses_casual_vacation_slug(self):
+        self.assertEqual(
+            build_jobstreet_url("Mobile Developer", [JobType.INTERNSHIP]),
+            f"{self.BASE}/casual-vacation",
+        )
+
+    def test_multi_job_type_uses_worktype_query_param(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer", [JobType.FULL_TIME, JobType.PART_TIME]
+            ),
+            f"{self.BASE}?worktype=242%2C243",
+        )
+
+    def test_remote_only_uses_workarrangement_query_param(self):
+        self.assertEqual(
+            build_jobstreet_url("Mobile Developer", None, [RemoteOption.ON_SITE]),
+            f"{self.BASE}?workarrangement=2",
+        )
+
+    def test_multi_remote_only(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer",
+                None,
+                [RemoteOption.HYBRID, RemoteOption.ON_SITE],
+            ),
+            f"{self.BASE}?workarrangement=1%2C2",
+        )
+
+    def test_single_jt_single_ro(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer", [JobType.FULL_TIME], [RemoteOption.ON_SITE]
+            ),
+            f"{self.BASE}/full-time/on-site",
+        )
+
+    def test_single_jt_multi_ro(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer",
+                [JobType.FULL_TIME],
+                [RemoteOption.HYBRID, RemoteOption.ON_SITE],
+            ),
+            f"{self.BASE}/full-time?workarrangement=1%2C2",
+        )
+
+    def test_multi_jt_single_ro(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer",
+                [JobType.FULL_TIME, JobType.PART_TIME],
+                [RemoteOption.ON_SITE],
+            ),
+            f"{self.BASE}?worktype=242%2C243&workarrangement=2",
+        )
+
+    def test_multi_jt_multi_ro(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer",
+                [JobType.FULL_TIME, JobType.CONTRACT],
+                [RemoteOption.REMOTE, RemoteOption.HYBRID],
+            ),
+            f"{self.BASE}?worktype=242%2C244&workarrangement=3%2C1",
+        )
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_jobstreet_url(""))
+        self.assertIsNone(build_jobstreet_url(None))
+        self.assertIsNone(build_jobstreet_url("   "))
+
+    def test_emoji_only_title_returns_none(self):
+        self.assertIsNone(build_jobstreet_url("🚀✨"))
+
+    def test_non_ascii_title_is_normalized(self):
+        self.assertEqual(
+            build_jobstreet_url("Sénior Developer"),
+            "https://id.jobstreet.com/senior-developer-jobs",
+        )
+
+    def test_unknown_values_are_dropped(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer", ["bogus", JobType.FULL_TIME], ["unknown"]
+            ),
+            f"{self.BASE}/full-time",
+        )
+
+    def test_duplicates_are_deduped_preserving_order(self):
+        self.assertEqual(
+            build_jobstreet_url(
+                "Mobile Developer",
+                [JobType.PART_TIME, JobType.FULL_TIME, JobType.PART_TIME],
+            ),
+            f"{self.BASE}?worktype=243%2C242",
+        )
+
+    def test_long_title_is_truncated_on_hyphen(self):
+        title = "Senior " * 30 + "Developer"
+        url = build_jobstreet_url(title)
+        slug = url.removeprefix("https://id.jobstreet.com/").removesuffix("-jobs")
+        self.assertLessEqual(len(slug), 80)
+        self.assertFalse(slug.endswith("-"))
+
+    def test_round_trips_through_scraper_for_url(self):
+        for jts, ros in [
+            (None, None),
+            ([JobType.FULL_TIME], None),
+            ([JobType.FULL_TIME, JobType.PART_TIME], [RemoteOption.HYBRID]),
+            (None, [RemoteOption.REMOTE]),
+        ]:
+            url = build_jobstreet_url("Mobile Developer", jts, ros)
+            scraper, source = scraper_for_url(url)
+            self.assertIs(scraper, jobstreet)
+            self.assertEqual(source, "jobstreet")

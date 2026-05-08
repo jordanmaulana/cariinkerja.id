@@ -204,6 +204,49 @@ class PreferenceQualityGateTests(TestCase):
         self.assertEqual(self.pref.status, Status.RUNNING)
 
 
+class MaybeStartFreeCrawlTests(TestCase):
+    """The post_save signal on Preference invokes maybe_start_free_crawl, so
+    we observe its effect via .objects.create() rather than calling it again
+    (the second call returns False due to the idempotency check on crawl_urls).
+    """
+
+    def setUp(self):
+        self.profile = Profile.objects.create(
+            full_name="Cody Coder",
+            full_profile="Plenty of substantive content here.",
+        )
+
+    @patch("assessment.tasks.run_free_crawl")
+    def test_appends_indeed_and_jobstreet_urls(self, run_free_crawl):
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title="Mobile Developer",
+            job_type=[JobType.FULL_TIME],
+            remote_option=[RemoteOption.ON_SITE],
+            status=Status.WAITING_ADMIN,
+        )
+        pref.refresh_from_db()
+
+        self.assertEqual(len(pref.crawl_urls), 2)
+        self.assertIn("id.indeed.com/jobs?q=Mobile+Developer", pref.crawl_urls[0])
+        self.assertEqual(
+            pref.crawl_urls[1],
+            "https://id.jobstreet.com/mobile-developer-jobs/full-time/on-site",
+        )
+
+    @patch("assessment.tasks.run_free_crawl")
+    def test_no_filters_yields_base_jobstreet_url(self, run_free_crawl):
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title="Developer",
+            status=Status.WAITING_ADMIN,
+        )
+        pref.refresh_from_db()
+
+        self.assertEqual(len(pref.crawl_urls), 2)
+        self.assertEqual(pref.crawl_urls[1], "https://id.jobstreet.com/developer-jobs")
+
+
 class PreferenceDetailAPITests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("user", "user@example.com", "secret")
