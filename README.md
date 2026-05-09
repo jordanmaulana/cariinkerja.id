@@ -21,9 +21,9 @@ Cari kerja di Indonesia itu melelahkan. Buka Indeed, buka JobStreet, scroll ratu
 
 ## Status
 
-Masih early stage, akses by invite. Domain produksi: [cariinkerja.id](https://cariinkerja.id).
+Udah live di [cariinkerja.id](https://cariinkerja.id) — dipake paying users tiap hari. Daftar terbuka untuk umum.
 
-Sebelum daftar, baca dulu [Before You Buy](beforeyoubuy.md).
+Sebelum beli, baca dulu [Before You Buy](beforeyoubuy.md).
 
 ---
 
