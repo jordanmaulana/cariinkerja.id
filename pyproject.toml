@@ -1,9 +1,10 @@
 [project]
 name = "cariinkerja-id"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered job matching platform for Indonesian job seekers"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
 dependencies = [
     "beautifulsoup4>=4.14.3",
     "bson>=0.5.10",
