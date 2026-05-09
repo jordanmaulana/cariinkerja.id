@@ -1,5 +1,4 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -7,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  getAssessment,
-  updateAssessmentStatus,
-} from "@/features/assessments/api"
+  useAssessment,
+  useUpdateAssessmentStatusDetailMutation,
+} from "@/features/assessments/hooks"
 import { AssessmentDetail } from "@/features/assessments/components/assessment-detail"
-import type { AssessmentStatus } from "@/features/assessments/types"
 import { STATUS_LABEL, STATUS_VARIANT } from "@/features/assessments/consts"
 
 export const Route = createFileRoute("/assessments/$id")({
@@ -20,20 +18,8 @@ export const Route = createFileRoute("/assessments/$id")({
 
 function AssessmentDetailPage() {
   const { id } = Route.useParams()
-  const queryClient = useQueryClient()
-
-  const query = useQuery({
-    queryKey: ["assessment", id],
-    queryFn: () => getAssessment(id),
-  })
-
-  const mutation = useMutation({
-    mutationFn: (next: AssessmentStatus) => updateAssessmentStatus(id, next),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["assessment", id], data)
-      queryClient.invalidateQueries({ queryKey: ["assessments"] })
-    },
-  })
+  const query = useAssessment(id)
+  const mutation = useUpdateAssessmentStatusDetailMutation(id)
 
   return (
     <div className="space-y-6">

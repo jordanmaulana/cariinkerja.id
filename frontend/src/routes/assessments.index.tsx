@@ -1,9 +1,8 @@
 import { useState } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 
-import { usePaymentGate } from "@/features/billing/hooks"
+import { useHasWaitingPayment } from "@/features/billing/hooks"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,14 +11,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { listPreferences } from "@/features/preferences/api"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  listAssessments,
-  updateAssessmentStatus,
-} from "@/features/assessments/api"
+  useAssessmentsList,
+  useUpdateAssessmentStatusListMutation,
+} from "@/features/assessments/hooks"
+import {
+  isAssessmentStatus,
+  parseMinScoreInput,
+  sortStatuses,
+} from "@/features/assessments/utils"
 import { AssessmentsTable } from "@/features/assessments/components/assessments-table"
 import type { AssessmentStatus } from "@/features/assessments/types"
 import {
@@ -31,14 +34,6 @@ import {
 type AssessmentsSearch = {
   status?: AssessmentStatus[]
   min_score?: number
-}
-
-const ASSESSMENT_STATUS_SET = new Set<AssessmentStatus>(ASSESSMENT_STATUSES)
-
-function isAssessmentStatus(v: unknown): v is AssessmentStatus {
-  return (
-    typeof v === "string" && ASSESSMENT_STATUS_SET.has(v as AssessmentStatus)
-  )
 }
 
 export const Route = createFileRoute("/assessments/")({
@@ -70,24 +65,16 @@ function AssessmentsPage() {
     search.min_score != null ? String(search.min_score) : "",
   )
   const [page, setPage] = useState(1)
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const parsed = minScoreInput === "" ? undefined : Number(minScoreInput)
-  const minScore =
-    parsed != null && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined
+  const minScore = parseMinScoreInput(minScoreInput)
+  const statuses = sortStatuses(selectedStatuses)
 
-  const statuses = [...selectedStatuses].sort()
-
-  const query = useQuery({
-    queryKey: ["assessments", { statuses, minScore: minScore ?? null, page }],
-    queryFn: () =>
-      listAssessments({
-        statuses: statuses.length ? statuses : undefined,
-        minScore,
-        page,
-        pageSize: PAGE_SIZE,
-      }),
+  const query = useAssessmentsList({
+    statuses,
+    minScore,
+    page,
+    pageSize: PAGE_SIZE,
   })
 
   const rows = query.data?.results
@@ -109,22 +96,8 @@ function AssessmentsPage() {
     setPage(1)
   }
 
-  const mutation = useMutation({
-    mutationFn: ({ id, next }: { id: string; next: AssessmentStatus }) =>
-      updateAssessmentStatus(id, next),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assessments"] })
-    },
-  })
-
-  const gate = usePaymentGate()
-  const prefs = useQuery({
-    queryKey: ["preferences"],
-    queryFn: listPreferences,
-  })
-  const hasWaitingPayment =
-    !gate.data?.locked &&
-    !!prefs.data?.some((p) => p.status === "waiting_payment")
+  const mutation = useUpdateAssessmentStatusListMutation()
+  const hasWaitingPayment = useHasWaitingPayment()
 
   return (
     <div className="space-y-6">

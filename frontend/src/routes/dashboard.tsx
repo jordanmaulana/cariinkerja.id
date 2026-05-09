@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -10,10 +9,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { PaymentGateBanner } from "@/features/billing/components/payment-gate-banner"
-import { usePaymentGate } from "@/features/billing/hooks"
-import { listAssessments } from "@/features/assessments/api"
-import { getDashboardStats } from "@/features/dashboard/api"
-import { listPreferences } from "@/features/preferences/api"
+import { useHasWaitingPayment } from "@/features/billing/hooks"
+import {
+  useDashboardStats,
+  useRecentAssessments,
+} from "@/features/dashboard/hooks"
 import { DashboardSkeleton } from "@/features/dashboard/components/dashboard-skeleton"
 import { EmptyState } from "@/features/dashboard/components/empty-state"
 import { RecentList } from "@/features/dashboard/components/recent-list"
@@ -28,25 +28,9 @@ export const Route = createFileRoute("/dashboard")({
 })
 
 function DashboardPage() {
-  const stats = useQuery({
-    queryKey: ["dashboard", "stats"],
-    queryFn: getDashboardStats,
-    staleTime: 60_000,
-  })
-  const recent = useQuery({
-    queryKey: ["dashboard", "recent"],
-    queryFn: () => listAssessments({ pageSize: 5 }),
-    staleTime: 30_000,
-    select: (page) => page.results,
-  })
-  const gate = usePaymentGate()
-  const prefs = useQuery({
-    queryKey: ["preferences"],
-    queryFn: listPreferences,
-  })
-  const hasWaitingPayment =
-    !gate.data?.locked &&
-    !!prefs.data?.some((p) => p.status === "waiting_payment")
+  const stats = useDashboardStats()
+  const recent = useRecentAssessments()
+  const hasWaitingPayment = useHasWaitingPayment()
 
   if (stats.isLoading) {
     return <DashboardSkeleton />

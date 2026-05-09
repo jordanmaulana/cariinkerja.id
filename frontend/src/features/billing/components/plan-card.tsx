@@ -12,14 +12,9 @@ import {
 import { OPEN_TO_WORK_HINT } from "@/features/billing/consts";
 import type { Plan, UpgradeQuote } from "@/features/billing/types";
 import { formatRupiah } from "@/features/billing/utils";
+import type { PlanMode } from "@/features/billing/types";
 
-export type PlanMode =
-  | "buy"
-  | "current"
-  | "upgrade"
-  | "downgrade-blocked"
-  | "pending-other"
-  | "locked";
+export type { PlanMode };
 
 function buttonLabelFor(
   mode: PlanMode,

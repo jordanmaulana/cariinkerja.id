@@ -46,6 +46,14 @@ export type CheckoutResponse = {
   payment_link: string;
 };
 
+export type PlanMode =
+  | "buy"
+  | "current"
+  | "upgrade"
+  | "downgrade-blocked"
+  | "pending-other"
+  | "locked";
+
 export type PaymentGateCode = "waiting_admin" | "linkedin_quality";
 
 export type PaymentGate =
