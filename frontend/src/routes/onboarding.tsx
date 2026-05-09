@@ -2,21 +2,25 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSetAtom } from "jotai";
 
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api";
-import { getProfile, submitOnboarding } from "@/lib/auth";
-import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts";
-import type { JobType, RemoteOption } from "@/lib/consts";
-import { userAtom } from "@/state/atoms";
+import { getProfile, submitOnboarding } from "@/features/auth/api";
+import {
+  OnboardingForm,
+  type OnboardingPayload,
+} from "@/features/auth/components/onboarding-form";
+import { userAtom } from "@/features/auth/state";
 
 export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
 });
 
 function OnboardingPage() {
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [initialFullName, setInitialFullName] = useState("");
+  const [initialPhone, setInitialPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const setUser = useSetAtom(userAtom);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -24,8 +28,8 @@ function OnboardingPage() {
       .then((p) => {
         if (cancelled) return;
         const prefill = p.full_name || p.suggested_full_name || "";
-        if (prefill) setFullName(prefill);
-        if (p.phone) setPhone(p.phone);
+        if (prefill) setInitialFullName(prefill);
+        if (p.phone) setInitialPhone(p.phone);
       })
       .catch(() => {});
     return () => {
@@ -33,63 +37,26 @@ function OnboardingPage() {
     };
   }, []);
 
-  const [linkedinUrl, setLinkedinUrl] = useState("");
-  const [bio, setBio] = useState("");
-  const [title, setTitle] = useState("");
-  const [jobType, setJobType] = useState<JobType[]>([]);
-  const [remoteOption, setRemoteOption] = useState<RemoteOption[]>([]);
-
-  function toggleJobType(value: JobType, checked: boolean) {
-    setJobType((prev) => {
-      if (checked) {
-        if (prev.includes(value)) return prev;
-        return JOB_TYPES.map((o) => o.value).filter(
-          (v) => prev.includes(v) || v === value,
-        );
-      }
-      return prev.filter((v) => v !== value);
-    });
-  }
-
-  function toggleRemoteOption(value: RemoteOption, checked: boolean) {
-    setRemoteOption((prev) => {
-      if (checked) {
-        if (prev.includes(value)) return prev;
-        return REMOTE_OPTIONS.map((o) => o.value).filter(
-          (v) => prev.includes(v) || v === value,
-        );
-      }
-      return prev.filter((v) => v !== value);
-    });
-  }
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const setUser = useSetAtom(userAtom);
-  const navigate = useNavigate();
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(payload: OnboardingPayload) {
     setError(null);
     setSubmitting(true);
     try {
       await submitOnboarding({
-        full_name: fullName,
-        phone,
-        linkedin_url: linkedinUrl,
-        bio: bio || undefined,
-        title,
-        job_type: jobType,
-        remote_option: remoteOption,
+        full_name: payload.full_name,
+        phone: payload.phone,
+        linkedin_url: payload.linkedin_url,
+        bio: payload.bio || undefined,
+        title: payload.title,
+        job_type: payload.job_type,
+        remote_option: payload.remote_option,
       });
       setUser((prev) =>
-        prev ? { ...prev, full_name: fullName, onboarded: true } : prev,
+        prev ? { ...prev, full_name: payload.full_name, onboarded: true } : prev,
       );
       navigate({ to: "/" });
     } catch (err) {
       const msg =
-        err instanceof ApiError
-          ? err.message
-          : "Gagal menyimpan. Coba lagi.";
+        err instanceof ApiError ? err.message : "Gagal menyimpan. Coba lagi.";
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -106,148 +73,13 @@ function OnboardingPage() {
           ditagih apa-apa.
         </p>
       </div>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold">Profil</legend>
-          <div className="space-y-1">
-            <label htmlFor="full_name" className="text-sm font-medium">
-              Nama lengkap
-            </label>
-            <input
-              id="full_name"
-              required
-              autoFocus
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="phone" className="text-sm font-medium">
-              Nomor HP
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              required
-              placeholder="08xxxxxxxxxx"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            />
-            <p className="text-xs text-muted-foreground">
-              Dipakai pas kamu langganan nanti. Sekarang kamu belum ditagih.
-            </p>
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="linkedin_url" className="text-sm font-medium">
-              URL LinkedIn
-            </label>
-            <input
-              id="linkedin_url"
-              type="url"
-              required
-              placeholder="https://linkedin.com/in/..."
-              value={linkedinUrl}
-              onChange={(e) => setLinkedinUrl(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            />
-            <p className="text-xs text-muted-foreground">
-              Kami ambil LinkedIn-mu buat verifikasi profil dan menyesuaikan
-              kecocokan loker.
-            </p>
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="bio" className="text-sm font-medium">
-              Bio
-            </label>
-            <textarea
-              id="bio"
-              rows={3}
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            />
-          </div>
-        </fieldset>
-
-        <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold">Pencarian pertama</legend>
-          <div className="space-y-1">
-            <label htmlFor="title" className="text-sm font-medium">
-              Judul pekerjaan
-            </label>
-            <input
-              id="title"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            />
-          </div>
-          <div className="space-y-2">
-            <span className="text-sm font-medium">Tipe pekerjaan</span>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {JOB_TYPES.map((o) => {
-                const id = `onboarding-job-type-${o.value}`;
-                const checked = jobType.includes(o.value);
-                return (
-                  <label
-                    key={o.value}
-                    htmlFor={id}
-                    className="inline-flex items-center gap-2 text-sm cursor-pointer select-none"
-                  >
-                    <Checkbox
-                      id={id}
-                      checked={checked}
-                      onCheckedChange={(state) =>
-                        toggleJobType(o.value, state === true)
-                      }
-                    />
-                    {o.label}
-                  </label>
-                );
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Centang yang kamu cari. Kosongin = semua tipe.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <span className="text-sm font-medium">Opsi remote</span>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {REMOTE_OPTIONS.map((o) => {
-                const id = `onboarding-remote-${o.value}`;
-                const checked = remoteOption.includes(o.value);
-                return (
-                  <label
-                    key={o.value}
-                    htmlFor={id}
-                    className="inline-flex items-center gap-2 text-sm cursor-pointer select-none"
-                  >
-                    <Checkbox
-                      id={id}
-                      checked={checked}
-                      onCheckedChange={(state) =>
-                        toggleRemoteOption(o.value, state === true)
-                      }
-                    />
-                    {o.label}
-                  </label>
-                );
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Centang yang kamu cari. Kosongin = semua opsi.
-            </p>
-          </div>
-        </fieldset>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? "Menyimpan…" : "Selesaikan onboarding"}
-        </Button>
-      </form>
+      <OnboardingForm
+        initialFullName={initialFullName}
+        initialPhone={initialPhone}
+        submitting={submitting}
+        error={error}
+        onSubmit={handleSubmit}
+      />
     </main>
   );
 }

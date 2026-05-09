@@ -3,8 +3,7 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 
-import { usePaymentGate } from "@/components/payment-gate-banner"
-import { Badge } from "@/components/ui/badge"
+import { usePaymentGate } from "@/features/billing/hooks"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,35 +12,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { listPreferences } from "@/lib/preferences"
+import { listPreferences } from "@/features/preferences/api"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  type Assessment,
-  type AssessmentStatus,
-  ASSESSMENT_STATUSES,
   listAssessments,
   updateAssessmentStatus,
-} from "@/lib/assessments"
-import { JOB_TYPES, REMOTE_OPTIONS } from "@/lib/consts"
+} from "@/features/assessments/api"
+import { AssessmentsTable } from "@/features/assessments/components/assessments-table"
+import type { AssessmentStatus } from "@/features/assessments/types"
+import {
+  ASSESSMENT_STATUSES,
+  STATUS_HINT,
+  STATUS_LABEL,
+} from "@/features/assessments/consts"
 
 type AssessmentsSearch = {
   status?: AssessmentStatus[]
@@ -73,91 +58,6 @@ export const Route = createFileRoute("/assessments/")({
   },
   component: AssessmentsPage,
 })
-
-const STATUS_LABEL: Record<AssessmentStatus, string> = {
-  new: "Baru",
-  seen: "Sudah dilihat",
-  applied: "Sudah dilamar",
-  rejected: "Tidak tertarik",
-  accepted: "Dapat tawaran",
-}
-
-const STATUS_HINT: Record<AssessmentStatus, string> = {
-  new: "Belum dilihat.",
-  seen: "Sudah kamu lihat tapi belum dilamar.",
-  applied: "Kamu sudah kirim lamaran.",
-  rejected: "Kamu memutuskan untuk tidak ngelanjutin loker ini.",
-  accepted: "Perusahaan ngasih tawaran.",
-}
-
-const STATUS_VARIANT: Record<
-  AssessmentStatus,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  new: "secondary",
-  seen: "outline",
-  applied: "default",
-  rejected: "destructive",
-  accepted: "default",
-}
-
-const JOB_TYPE_LABEL = Object.fromEntries(
-  JOB_TYPES.map((j) => [j.value, j.label]),
-)
-const REMOTE_LABEL = Object.fromEntries(
-  REMOTE_OPTIONS.map((r) => [r.value, r.label]),
-)
-
-type Action = {
-  label: string
-  next: AssessmentStatus
-  variant?: "default" | "destructive" | "outline"
-  confirm?: { title: string; description: string; confirmLabel: string }
-}
-
-const REJECT_CONFIRM = {
-  title: "Tolak kecocokan ini?",
-  description:
-    "Setelah ditolak, loker ini disembunyiin dari antreanmu dan cuma bisa dikembalikan oleh support. Yakin?",
-  confirmLabel: "Ya, tolak",
-}
-
-function getActionsForStatus(status: AssessmentStatus): Action[] {
-  switch (status) {
-    case "new":
-      return [
-        { label: "Tandai sudah dilihat", next: "seen", variant: "outline" },
-        {
-          label: "Tolak",
-          next: "rejected",
-          variant: "destructive",
-          confirm: REJECT_CONFIRM,
-        },
-      ]
-    case "seen":
-      return [
-        { label: "Sudah dilamar", next: "applied", variant: "default" },
-        {
-          label: "Tolak",
-          next: "rejected",
-          variant: "destructive",
-          confirm: REJECT_CONFIRM,
-        },
-      ]
-    case "applied":
-      return [
-        { label: "Dapat tawaran", next: "accepted", variant: "default" },
-        {
-          label: "Tolak",
-          next: "rejected",
-          variant: "destructive",
-          confirm: REJECT_CONFIRM,
-        },
-      ]
-    default:
-      return []
-  }
-}
 
 const PAGE_SIZE = 10
 
@@ -351,176 +251,5 @@ function AssessmentsPage() {
         </CardContent>
       </Card>
     </div>
-  )
-}
-
-function AssessmentsTable({
-  rows,
-  isPending,
-  pendingId,
-  onAction,
-  onOpen,
-}: {
-  rows: Assessment[]
-  isPending: boolean
-  pendingId?: string
-  onAction: (id: string, next: AssessmentStatus) => void
-  onOpen: (id: string) => void
-}) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Loker</TableHead>
-          <TableHead>Perusahaan</TableHead>
-          <TableHead>Tipe</TableHead>
-          <TableHead>Remote</TableHead>
-          <TableHead className="text-right">Skor</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Tanggal</TableHead>
-          <TableHead className="text-right">Aksi</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => {
-          const actions = getActionsForStatus(row.status)
-          const rowPending = isPending && pendingId === row.id
-          const created = new Date(row.created_on).toLocaleDateString("id-ID", {
-            day: "2-digit",
-            month: "short",
-          })
-          return (
-            <TableRow
-              key={row.id}
-              className="cursor-pointer"
-              onClick={() => {
-                if (row.status === "new") onAction(row.id, "seen")
-                onOpen(row.id)
-              }}
-            >
-              <TableCell className="max-w-[280px]">
-                <span
-                  className="block truncate font-medium hover:underline"
-                  title={row.job.title}
-                >
-                  {row.job.title}
-                </span>
-              </TableCell>
-              <TableCell>
-                <div className="font-medium">{row.job.company ?? "—"}</div>
-                {row.job.location && (
-                  <div className="text-xs text-muted-foreground">
-                    {row.job.location}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>
-                {row.job.job_type ? JOB_TYPE_LABEL[row.job.job_type] : "—"}
-              </TableCell>
-              <TableCell>
-                {row.job.remote_option
-                  ? REMOTE_LABEL[row.job.remote_option]
-                  : "—"}
-              </TableCell>
-              <TableCell className="text-right font-medium tabular-nums">
-                {row.score}
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant={STATUS_VARIANT[row.status]}
-                  title={STATUS_HINT[row.status]}
-                >
-                  {STATUS_LABEL[row.status]}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-xs text-muted-foreground">
-                {created}
-              </TableCell>
-              <TableCell
-                className="space-x-1.5 text-right"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {actions.length === 0 && (
-                  <span
-                    className="text-xs text-muted-foreground"
-                    title="Status final — tidak ada aksi lebih lanjut."
-                  >
-                    —
-                  </span>
-                )}
-                {actions.map((a) =>
-                  a.confirm ? (
-                    <ConfirmActionButton
-                      key={a.next}
-                      action={a}
-                      disabled={rowPending}
-                      onConfirm={() => onAction(row.id, a.next)}
-                    />
-                  ) : (
-                    <Button
-                      key={a.next}
-                      size="xs"
-                      variant={a.variant ?? "default"}
-                      disabled={rowPending}
-                      onClick={() => onAction(row.id, a.next)}
-                    >
-                      {a.label}
-                    </Button>
-                  ),
-                )}
-              </TableCell>
-            </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
-  )
-}
-
-function ConfirmActionButton({
-  action,
-  disabled,
-  onConfirm,
-}: {
-  action: Action
-  disabled: boolean
-  onConfirm: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  if (!action.confirm) return null
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        size="xs"
-        variant={action.variant ?? "default"}
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-      >
-        {action.label}
-      </Button>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{action.confirm.title}</DialogTitle>
-          <DialogDescription>{action.confirm.description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Batal
-            </Button>
-          </DialogClose>
-          <Button
-            type="button"
-            variant={action.variant ?? "default"}
-            onClick={() => {
-              setOpen(false)
-              onConfirm()
-            }}
-          >
-            {action.confirm.confirmLabel}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }

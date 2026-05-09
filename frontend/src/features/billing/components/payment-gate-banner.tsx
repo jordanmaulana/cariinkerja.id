@@ -1,17 +1,20 @@
-import { useQuery } from "@tanstack/react-query"
-import { AlertTriangle, Clock } from "lucide-react"
+import { AlertTriangle, Clock } from "lucide-react";
 
-import { getPaymentGate, type PaymentGate } from "@/lib/plans"
-import { cn } from "@/lib/utils"
+import { usePaymentGate } from "@/features/billing/hooks";
+import type { PaymentGate } from "@/features/billing/types";
+import { cn } from "@/lib/utils";
 
-type GateCode = Extract<PaymentGate, { locked: true }>["code"]
+type GateCode = Extract<PaymentGate, { locked: true }>["code"];
 
 const TITLE: Record<GateCode, string> = {
   waiting_admin: "Lagi ngumpulin loker yang kamu cari",
   linkedin_quality: "Profil LinkedIn perlu lebih lengkap",
-}
+};
 
-const VARIANT_CLS: Record<GateCode, { wrap: string; title: string; icon: string; body: string }> = {
+const VARIANT_CLS: Record<
+  GateCode,
+  { wrap: string; title: string; icon: string; body: string }
+> = {
   waiting_admin: {
     wrap: "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950",
     title: "text-amber-900 dark:text-amber-100",
@@ -24,21 +27,13 @@ const VARIANT_CLS: Record<GateCode, { wrap: string; title: string; icon: string;
     icon: "text-destructive",
     body: "text-muted-foreground",
   },
-}
-
-export function usePaymentGate() {
-  return useQuery({
-    queryKey: ["payment-gate"],
-    queryFn: getPaymentGate,
-    staleTime: 30_000,
-  })
-}
+};
 
 export function PaymentGateBanner() {
-  const { data } = usePaymentGate()
-  if (!data || !data.locked) return null
-  const Icon = data.code === "waiting_admin" ? Clock : AlertTriangle
-  const cls = VARIANT_CLS[data.code]
+  const { data } = usePaymentGate();
+  if (!data || !data.locked) return null;
+  const Icon = data.code === "waiting_admin" ? Clock : AlertTriangle;
+  const cls = VARIANT_CLS[data.code];
   return (
     <div
       role="alert"
@@ -59,10 +54,12 @@ export function PaymentGateBanner() {
         </p>
       </div>
     </div>
-  )
+  );
 }
 
-export function paymentGateMessage(data: PaymentGate | undefined): string | null {
-  if (!data || !data.locked) return null
-  return TITLE[data.code]
+export function paymentGateMessage(
+  data: PaymentGate | undefined,
+): string | null {
+  if (!data || !data.locked) return null;
+  return TITLE[data.code];
 }

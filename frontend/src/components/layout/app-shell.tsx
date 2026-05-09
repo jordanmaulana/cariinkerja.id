@@ -1,5 +1,5 @@
-import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
-import { useAtom, useSetAtom } from "jotai"
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useAtom, useSetAtom } from "jotai";
 import {
   ClipboardCheck,
   CreditCard,
@@ -7,10 +7,10 @@ import {
   LogOut,
   MessageCircle,
   SlidersHorizontal,
-} from "lucide-react"
+} from "lucide-react";
 
-import { LogoMark } from "@/components/logo-mark"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { LogoMark } from "@/components/brand/logo-mark";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,51 +18,51 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { logout } from "@/lib/auth"
-import { cn } from "@/lib/utils"
-import { tokenAtom, userAtom } from "@/state/atoms"
+} from "@/components/ui/dropdown-menu";
+import { logout } from "@/features/auth/api";
+import { tokenAtom, userAtom } from "@/features/auth/state";
+import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/assessments", label: "Loker Tersedia", icon: ClipboardCheck },
   { to: "/preferences", label: "Pencarian", icon: SlidersHorizontal },
   { to: "/plans", label: "Paket", icon: CreditCard },
-] as const
+] as const;
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/assessments": "Loker Tersedia",
   "/preferences": "Pencarian",
   "/plans": "Paket",
-}
+};
 
 function pageTitle(pathname: string) {
-  const exact = PAGE_TITLES[pathname]
-  if (exact) return exact
-  const match = Object.keys(PAGE_TITLES).find((k) => pathname.startsWith(k))
-  return match ? PAGE_TITLES[match] : ""
+  const exact = PAGE_TITLES[pathname];
+  if (exact) return exact;
+  const match = Object.keys(PAGE_TITLES).find((k) => pathname.startsWith(k));
+  return match ? PAGE_TITLES[match] : "";
 }
 
 function initialsOf(user: { email: string; full_name: string | null }) {
-  const src = user.full_name || user.email
-  const parts = src.trim().split(/\s+|@/).filter(Boolean)
-  const first = parts[0]?.[0] ?? ""
-  const second = parts.length > 1 ? parts[1][0] : ""
-  return (first + second).toUpperCase() || "U"
+  const src = user.full_name || user.email;
+  const parts = src.trim().split(/\s+|@/).filter(Boolean);
+  const first = parts[0]?.[0] ?? "";
+  const second = parts.length > 1 ? parts[1][0] : "";
+  return (first + second).toUpperCase() || "U";
 }
 
 export function AppShell() {
-  const [user, setUser] = useAtom(userAtom)
-  const setToken = useSetAtom(tokenAtom)
-  const navigate = useNavigate()
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const [user, setUser] = useAtom(userAtom);
+  const setToken = useSetAtom(tokenAtom);
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   async function onLogout() {
-    await logout()
-    setUser(null)
-    setToken(null)
-    navigate({ to: "/login" })
+    await logout();
+    setUser(null);
+    setToken(null);
+    navigate({ to: "/login" });
   }
 
   return (
@@ -77,7 +77,7 @@ export function AppShell() {
         <nav className="flex flex-col gap-1 p-3">
           {NAV.map(({ to, label, icon: Icon }) => {
             const active =
-              pathname === to || pathname.startsWith(`${to}/`)
+              pathname === to || pathname.startsWith(`${to}/`);
             return (
               <Link
                 key={to}
@@ -90,7 +90,7 @@ export function AppShell() {
                 <Icon className="size-4" />
                 {label}
               </Link>
-            )
+            );
           })}
         </nav>
       </aside>
@@ -164,5 +164,5 @@ export function AppShell() {
         </footer>
       </div>
     </div>
-  )
+  );
 }

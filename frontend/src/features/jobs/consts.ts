@@ -14,3 +14,11 @@ export const REMOTE_OPTIONS = [
 ] as const;
 
 export type RemoteOption = (typeof REMOTE_OPTIONS)[number]["value"];
+
+export const JOB_TYPE_LABEL: Record<JobType, string> = Object.fromEntries(
+  JOB_TYPES.map((j) => [j.value, j.label]),
+) as Record<JobType, string>;
+
+export const REMOTE_LABEL: Record<RemoteOption, string> = Object.fromEntries(
+  REMOTE_OPTIONS.map((r) => [r.value, r.label]),
+) as Record<RemoteOption, string>;
