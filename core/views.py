@@ -170,9 +170,7 @@ class DashboardView(SuperuserRequiredMixin, View):
             .annotate(count=Count("id"))
         )
         sub_counts = {row["date"]: row["count"] for row in sub_per_day_rows}
-        daily_subs = [
-            sub_counts.get(str(d), sub_counts.get(d, 0)) for d in date_range
-        ]
+        daily_subs = [sub_counts.get(str(d), sub_counts.get(d, 0)) for d in date_range]
 
         latest_subs = list(
             Subscription.objects.select_related("profile", "plan").order_by(
