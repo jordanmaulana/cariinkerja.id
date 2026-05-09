@@ -31,8 +31,8 @@ class CheckoutLockTests(TestCase):
         self.plan_a = Plan.objects.create(name="A", price=10000, preference_limit=1)
         self.plan_b = Plan.objects.create(name="B", price=20000, preference_limit=2)
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_first_checkout_creates_pending(self, link, _poll):
         link.return_value = _mock_link("tx-a", "https://pay/a")
         resp = self.api.post(
@@ -46,8 +46,8 @@ class CheckoutLockTests(TestCase):
             1,
         )
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_same_plan_reclick_idempotent(self, link, _poll):
         link.return_value = _mock_link("tx-a", "https://pay/a")
         first = self.api.post(
@@ -65,8 +65,8 @@ class CheckoutLockTests(TestCase):
         self.assertEqual(Subscription.objects.filter(profile=self.profile).count(), 1)
         self.assertEqual(link.call_count, 1)
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_different_plan_blocked_with_409(self, link, _poll):
         link.return_value = _mock_link("tx-a", "https://pay/a")
         first = self.api.post(
@@ -83,8 +83,8 @@ class CheckoutLockTests(TestCase):
         self.assertEqual(Subscription.objects.filter(profile=self.profile).count(), 1)
         self.assertEqual(link.call_count, 1)
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_cancel_pending_unlocks_checkout(self, link, _poll):
         link.side_effect = [
             _mock_link("tx-a", "https://pay/a"),
@@ -245,8 +245,8 @@ class PaymentGateTests(TestCase):
         resp = self.api.get(self.gate_url)
         self.assertEqual(resp.data, {"locked": False})
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_checkout_blocked_on_waiting_admin(self, link, _poll):
         Preference.objects.create(
             profile=self.profile,
@@ -261,8 +261,8 @@ class PaymentGateTests(TestCase):
         self.assertEqual(Subscription.objects.filter(profile=self.profile).count(), 0)
         link.assert_not_called()
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_checkout_blocked_on_linkedin_quality(self, link, _poll):
         self.profile.linkedin_ingested_at = timezone.now()
         self.profile.linkedin_quality_ok = False
@@ -407,8 +407,8 @@ class UpgradeCheckoutTests(TestCase):
             amount_paid=99000,
         )
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_upgrade_charges_full_pro_price_and_links_replaces(self, link, _poll):
         link.return_value = _mock_link("tx-up", "https://pay/up")
         resp = self.api.post(self.checkout_url, {"plan_id": self.pro.id}, format="json")
@@ -422,8 +422,8 @@ class UpgradeCheckoutTests(TestCase):
         self.assertEqual(sub.amount_paid, 159000)
         self.assertEqual(sub.status, SubscriptionStatus.PENDING)
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_downgrade_blocked_with_400(self, link, _poll):
         # swap active to Pro, request Basic
         self.active.plan = self.pro
@@ -436,8 +436,8 @@ class UpgradeCheckoutTests(TestCase):
         self.assertEqual(resp.data["code"], "downgrade")
         link.assert_not_called()
 
-    @patch("core.api.v1.views.poll_subscription_after_checkout")
-    @patch("core.api.v1.views.create_payment_link")
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_upgrade_idempotent_same_plan(self, link, _poll):
         link.return_value = _mock_link("tx-up", "https://pay/up")
         first = self.api.post(

@@ -54,6 +54,6 @@ urlpatterns = [
     path("assessments/", include("assessment.urls")),
     path("profiles/", include("profiles.urls")),
     path("jobs/", include("jobs.urls")),
-    path("api/", include("core.api.urls")),
+    path("api/v1/", include("api.v1.urls")),
     path("", RedirectView.as_view(url="/dashboard/", permanent=False), name="home"),
 ]

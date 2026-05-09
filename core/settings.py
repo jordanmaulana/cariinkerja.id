@@ -258,7 +258,7 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": "INFO"},
     "loggers": {
         "core.payments": {"level": "INFO", "propagate": True},
-        "core.api": {"level": "INFO", "propagate": True},
+        "api": {"level": "INFO", "propagate": True},
         "billing": {"level": "INFO", "propagate": True},
     },
 }
