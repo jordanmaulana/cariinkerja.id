@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
 RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
 ARG VITE_API_URL
