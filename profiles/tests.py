@@ -7,7 +7,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from jobs.consts import JobType, RemoteOption
-from profiles.consts import Source, Status
+from profiles.consts import Status
 from profiles.models import Preference, Profile
 from profiles.services import LinkedInIngest, ingest_linkedin
 
@@ -179,8 +179,7 @@ class PreferenceQualityGateTests(TestCase):
         resp = self.client.post(
             url,
             {
-                "crawl_url": "",
-                "crawl_source": "",
+                "crawl_urls": "",
                 "status": Status.RUNNING,
             },
         )
@@ -194,8 +193,7 @@ class PreferenceQualityGateTests(TestCase):
         resp = self.client.post(
             url,
             {
-                "crawl_url": "",
-                "crawl_source": "",
+                "crawl_urls": "",
                 "status": Status.RUNNING,
                 "override_quality_gate": "1",
             },
@@ -204,6 +202,49 @@ class PreferenceQualityGateTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.pref.refresh_from_db()
         self.assertEqual(self.pref.status, Status.RUNNING)
+
+
+class MaybeStartFreeCrawlTests(TestCase):
+    """The post_save signal on Preference invokes maybe_start_free_crawl, so
+    we observe its effect via .objects.create() rather than calling it again
+    (the second call returns False due to the idempotency check on crawl_urls).
+    """
+
+    def setUp(self):
+        self.profile = Profile.objects.create(
+            full_name="Cody Coder",
+            full_profile="Plenty of substantive content here.",
+        )
+
+    @patch("assessment.tasks.run_free_crawl")
+    def test_appends_indeed_and_jobstreet_urls(self, run_free_crawl):
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title="Mobile Developer",
+            job_type=[JobType.FULL_TIME],
+            remote_option=[RemoteOption.ON_SITE],
+            status=Status.WAITING_ADMIN,
+        )
+        pref.refresh_from_db()
+
+        self.assertEqual(len(pref.crawl_urls), 2)
+        self.assertIn("id.indeed.com/jobs?q=Mobile+Developer", pref.crawl_urls[0])
+        self.assertEqual(
+            pref.crawl_urls[1],
+            "https://id.jobstreet.com/mobile-developer-jobs/full-time/on-site",
+        )
+
+    @patch("assessment.tasks.run_free_crawl")
+    def test_no_filters_yields_base_jobstreet_url(self, run_free_crawl):
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title="Developer",
+            status=Status.WAITING_ADMIN,
+        )
+        pref.refresh_from_db()
+
+        self.assertEqual(len(pref.crawl_urls), 2)
+        self.assertEqual(pref.crawl_urls[1], "https://id.jobstreet.com/developer-jobs")
 
 
 class PreferenceDetailAPITests(TestCase):
@@ -285,14 +326,16 @@ class PreferenceDetailAPITests(TestCase):
         pref.refresh_from_db()
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
-    def test_user_cannot_set_crawl_source(self):
-        pref = self._pref(status=Status.WAITING_PAYMENT, crawl_source="")
+    def test_user_cannot_set_crawl_urls(self):
+        pref = self._pref(status=Status.WAITING_PAYMENT, crawl_urls=[])
         resp = self.api.patch(
-            self.url(pref.id), {"crawl_source": Source.INDEED}, format="json"
+            self.url(pref.id),
+            {"crawl_urls": ["https://id.indeed.com/jobs?q=x"]},
+            format="json",
         )
         self.assertEqual(resp.status_code, 200)
         pref.refresh_from_db()
-        self.assertEqual(pref.crawl_source, "")
+        self.assertEqual(pref.crawl_urls, [])
 
 
 class OnboardingAPITests(TestCase):
@@ -307,8 +350,8 @@ class OnboardingAPITests(TestCase):
             "full_name": "Jane Doe",
             "phone": "08123456789",
             "title": "Backend Engineer",
-            "job_type": JobType.FULL_TIME,
-            "remote_option": RemoteOption.REMOTE,
+            "job_type": [JobType.FULL_TIME],
+            "remote_option": [RemoteOption.REMOTE],
         }
 
     def test_onboarding_persists_phone_and_creates_preference(self):

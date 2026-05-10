@@ -1,0 +1,35 @@
+{% comment %}
+  KPI card. Args:
+    label  — small muted label
+    value  — the big number / string
+    delta  — optional secondary line (e.g., "+12 today")
+    icon   — name passed to _partials/icon.html
+    tone   — primary | positive | warning | danger | neutral (default neutral)
+    href   — optional link; if given, the card becomes clickable
+{% endcomment %}
+{% with t=tone|default:"neutral" %}
+<{% if href %}a href="{{ href }}"{% else %}div{% endif %}
+   class="group relative flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm
+          {% if href %}hover:border-blue-300 hover:shadow-md transition{% endif %}">
+  <div class="flex h-10 w-10 flex-none items-center justify-center rounded-lg
+              {% if t == 'primary' %}bg-blue-50 text-blue-600
+              {% elif t == 'positive' %}bg-emerald-50 text-emerald-600
+              {% elif t == 'warning' %}bg-amber-50 text-amber-600
+              {% elif t == 'danger' %}bg-rose-50 text-rose-600
+              {% else %}bg-slate-100 text-slate-500{% endif %}">
+    {% include "_partials/icon.html" with name=icon class="w-5 h-5" %}
+  </div>
+  <div class="min-w-0 flex-1">
+    <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ label }}</p>
+    <p class="mt-1 text-2xl font-semibold text-slate-900 tabular-nums leading-none">{{ value }}</p>
+    {% if delta %}
+      <p class="mt-1.5 text-xs text-slate-500">{{ delta }}</p>
+    {% endif %}
+  </div>
+  {% if href %}
+    <span class="absolute right-3 top-3 text-slate-300 group-hover:text-blue-500">
+      {% include "_partials/icon.html" with name="arrow-right" class="w-4 h-4" %}
+    </span>
+  {% endif %}
+</{% if href %}a{% else %}div{% endif %}>
+{% endwith %}

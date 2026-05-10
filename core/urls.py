@@ -15,6 +15,7 @@ from core.views import (
     PreferenceCrawlNowView,
     PreferenceDetailView,
     PreferenceListView,
+    SmtpTestView,
     SubscriptionDetailView,
     SubscriptionListView,
 )
@@ -49,9 +50,10 @@ urlpatterns = [
         SubscriptionDetailView.as_view(),
         name="subscription_detail",
     ),
+    path("settings/smtp-test/", SmtpTestView.as_view(), name="smtp_test"),
     path("assessments/", include("assessment.urls")),
     path("profiles/", include("profiles.urls")),
     path("jobs/", include("jobs.urls")),
-    path("api/", include("core.api.urls")),
+    path("api/v1/", include("api.v1.urls")),
     path("", RedirectView.as_view(url="/dashboard/", permanent=False), name="home"),
 ]

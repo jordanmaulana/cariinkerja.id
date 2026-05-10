@@ -56,7 +56,7 @@ REMOTE_FROM_LABEL: dict[str, str] = {
     "di kantor": RemoteOption.ON_SITE,
 }
 
-JOB_LINK_RE = re.compile(r"^/id/job/(\d+)")
+JOB_LINK_RE = re.compile(r"^/(?:id/)?job/(\d+)")
 
 
 def build_client() -> httpx.Client:

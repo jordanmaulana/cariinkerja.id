@@ -1,87 +1,64 @@
 {% extends "dashboard_base.html" %}
 {% block title %}Assessments — cariinkerja.id Admin{% endblock %}
 {% block content %}
-  <main class="space-y-6 max-w-7xl mx-auto">
-    <header class="flex items-center justify-between">
-      <h2 class="text-2xl font-bold">Assessments</h2>
-    </header>
+  <div class="space-y-6">
+    {% include "_partials/page_header.html" with eyebrow="Operations" title="Assessments" count=total_count %}
 
-    <nav class="flex flex-wrap gap-2">
-      <a href="{% url 'assessment_list' %}"
-         class="px-3 py-1 rounded border text-sm {% if not selected_status %}bg-blue-600 text-white border-blue-600{% else %}hover:bg-slate-100{% endif %}">
-        All
-        <span class="ml-1 text-xs opacity-80">({{ total_count }})</span>
-      </a>
-      {% for tab in status_tabs %}
-        <a href="?status={{ tab.value }}"
-           class="px-3 py-1 rounded border text-sm {% if selected_status == tab.value %}bg-blue-600 text-white border-blue-600{% else %}hover:bg-slate-100{% endif %}">
-          {{ tab.label }}
-          <span class="ml-1 text-xs opacity-80">({{ tab.count }})</span>
-        </a>
-      {% endfor %}
-    </nav>
+    {% include "_partials/tab_filter.html" with base_url=request.path selected=selected_status total_count=total_count tabs=status_tabs param="status" %}
 
-    <section class="p-4 rounded-lg border shadow-sm">
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="text-left text-slate-500">
-            <tr class="border-b">
-              <th class="py-2">Profile</th>
-              <th class="py-2">Job title</th>
-              <th class="py-2">Company</th>
-              <th class="py-2">Score</th>
-              <th class="py-2">Status</th>
-              <th class="py-2">Created</th>
+          <thead>
+            <tr class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-6 py-3 text-left font-medium">Profile</th>
+              <th class="px-6 py-3 text-left font-medium">Job title</th>
+              <th class="px-6 py-3 text-left font-medium">Company</th>
+              <th class="px-6 py-3 text-left font-medium">Source</th>
+              <th class="px-6 py-3 text-right font-medium">Score</th>
+              <th class="px-6 py-3 text-left font-medium">Status</th>
+              <th class="px-6 py-3 text-left font-medium">Created</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-slate-100">
             {% for a in assessments %}
-              <tr class="border-b last:border-0 hover:bg-slate-50">
-                <td class="py-2">
-                  <a href="{% url 'assessment_detail' a.id %}" class="text-blue-600 hover:underline">
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-3">
+                  <a href="{% url 'assessment_detail' a.id %}" class="font-medium text-blue-600 hover:underline">
                     {{ a.preference.profile.full_name|default:"(no name)" }}
                   </a>
                 </td>
-                <td class="py-2">{{ a.job.title|default:"—" }}</td>
-                <td class="py-2">{{ a.job.company|default:"—" }}</td>
-                <td class="py-2 font-medium">{{ a.score }}</td>
-                <td class="py-2">
-                  <span class="px-2 py-0.5 rounded text-xs
-                    {% if a.status == 'new' %}bg-blue-100 text-blue-800
-                    {% elif a.status == 'seen' %}bg-slate-100 text-slate-700
-                    {% elif a.status == 'applied' %}bg-yellow-100 text-yellow-800
-                    {% elif a.status == 'rejected' %}bg-red-100 text-red-800
-                    {% elif a.status == 'accepted' %}bg-green-100 text-green-800
-                    {% else %}bg-slate-100 text-slate-700{% endif %}">
-                    {{ a.get_status_display }}
-                  </span>
+                <td class="px-6 py-3 text-slate-700">{{ a.job.title|default:"—" }}</td>
+                <td class="px-6 py-3 text-slate-700">{{ a.job.company|default:"—" }}</td>
+                <td class="px-6 py-3">
+                  {% if a.job.url %}
+                    <a href="{{ a.job.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline" title="{{ a.job.url }}">
+                      {{ a.job.source|default:"—" }}
+                    </a>
+                  {% else %}
+                    <span class="text-slate-500">{{ a.job.source|default:"—" }}</span>
+                  {% endif %}
                 </td>
-                <td class="py-2 text-slate-500">{{ a.created_on|date:"Y-m-d H:i" }}</td>
+                <td class="px-6 py-3 text-right">
+                  {% include "_partials/score_pill.html" with score=a.score %}
+                </td>
+                <td class="px-6 py-3">
+                  {% include "_partials/status_pill.html" with value=a.status label=a.get_status_display %}
+                </td>
+                <td class="px-6 py-3 text-slate-500 whitespace-nowrap">{{ a.created_on|date:"Y-m-d H:i" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="py-4 text-slate-400 text-center">No assessments match this filter.</td></tr>
+              <tr><td colspan="7" class="py-8 text-slate-400 text-center">No assessments match this filter.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
       {% if assessments.has_other_pages %}
-        <div class="mt-4 flex items-center justify-between text-sm">
-          <span class="text-slate-500">
-            Page {{ assessments.number }} of {{ assessments.paginator.num_pages }}
-          </span>
-          <div class="space-x-2">
-            {% if assessments.has_previous %}
-              <a href="?page={{ assessments.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}"
-                 class="px-3 py-1 rounded border hover:bg-slate-100">Previous</a>
-            {% endif %}
-            {% if assessments.has_next %}
-              <a href="?page={{ assessments.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}"
-                 class="px-3 py-1 rounded border hover:bg-slate-100">Next</a>
-            {% endif %}
-          </div>
+        <div class="border-t border-slate-100 px-6 py-3">
+          {% include "_partials/pagination.html" with page_obj=assessments extra_query="status="|add:selected_status %}
         </div>
       {% endif %}
     </section>
-  </main>
+  </div>
 {% endblock %}

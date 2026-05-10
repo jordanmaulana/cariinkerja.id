@@ -1,0 +1,25 @@
+{% comment %}
+  Centralized status pill. Args:
+    value — raw status value (e.g., "running", "ACTIVE", "waiting_admin", "new")
+    label — display label (usually get_status_display)
+{% endcomment %}
+<span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium
+  {% if value == 'running' or value == 'ACTIVE' or value == 'accepted' %}bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20
+  {% elif value == 'waiting_admin' or value == 'PENDING' or value == 'applied' %}bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20
+  {% elif value == 'waiting_payment' %}bg-yellow-50 text-yellow-700 ring-1 ring-inset ring-yellow-600/20
+  {% elif value == 'expired' or value == 'EXPIRED' or value == 'seen' %}bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-500/20
+  {% elif value == 'CANCELLED' or value == 'rejected' %}bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-600/20
+  {% elif value == 'REPLACED' %}bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/20
+  {% elif value == 'new' %}bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20
+  {% else %}bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/20{% endif %}">
+  <span class="h-1.5 w-1.5 rounded-full
+    {% if value == 'running' or value == 'ACTIVE' or value == 'accepted' %}bg-emerald-500
+    {% elif value == 'waiting_admin' or value == 'PENDING' or value == 'applied' %}bg-amber-500
+    {% elif value == 'waiting_payment' %}bg-yellow-500
+    {% elif value == 'expired' or value == 'EXPIRED' or value == 'seen' %}bg-slate-400
+    {% elif value == 'CANCELLED' or value == 'rejected' %}bg-rose-500
+    {% elif value == 'REPLACED' %}bg-violet-500
+    {% elif value == 'new' %}bg-blue-500
+    {% else %}bg-slate-400{% endif %}"></span>
+  {{ label }}
+</span>

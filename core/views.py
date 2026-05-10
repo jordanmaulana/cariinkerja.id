@@ -1,6 +1,9 @@
 import json
+import logging
+import smtplib
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.views import LoginView
@@ -9,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import URLValidator
 from django.db import transaction
-from django.db.models import Avg, Count, Max, Q
+from django.db.models import Avg, Count, Max, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -19,10 +22,15 @@ from assessment.models import Assessment
 from assessment.tasks import crawl_and_assess_preference
 from billing.forms import PlanForm
 from billing.models import Plan, Subscription, SubscriptionStatus
+from core.forms import SmtpTestForm
+from core.notifications.email import send_email
 from core.realtime import publish, user_channel
 from jobs.models import Job
-from profiles.consts import Source, Status
+from jobs.scrapers import scraper_for_url
+from profiles.consts import Status
 from profiles.models import Preference, Profile
+
+logger = logging.getLogger(__name__)
 
 
 class SuperuserRequiredMixin(View):
@@ -41,7 +49,8 @@ class AdminLoginView(LoginView):
 class DashboardView(SuperuserRequiredMixin, View):
     def get(self, request):
         today = timezone.localdate()
-        cache_key = f"dashboard_stats_{today}_{request.GET.get('page', 1)}"
+        now = timezone.now()
+        cache_key = f"dashboard_stats_v2_{today}_{request.GET.get('page', 1)}"
         cached = cache.get(cache_key)
         if cached:
             return render(request, "dashboard.html", cached)
@@ -55,16 +64,6 @@ class DashboardView(SuperuserRequiredMixin, View):
         job_stats = Job.objects.aggregate(
             job_count=Count("id"),
             jobs_today=Count("id", filter=Q(created_on__date=today)),
-        )
-        jobs_by_type = list(
-            Job.objects.values("job_type")
-            .annotate(count=Count("id"))
-            .order_by("-count")
-        )
-        jobs_by_remote = list(
-            Job.objects.values("remote_option")
-            .annotate(count=Count("id"))
-            .order_by("-count")
         )
         assessment_stats = Assessment.objects.aggregate(
             assessment_count=Count("id"),
@@ -107,21 +106,103 @@ class DashboardView(SuperuserRequiredMixin, View):
         avg_score = assessment_stats["avg_score"]
         avg_score_display = round(avg_score, 1) if avg_score is not None else 0
 
+        # Operator attention — what needs my action right now?
+        pref_pipeline_rows = Preference.objects.values("status").annotate(c=Count("id"))
+        preference_pipeline = {row["status"]: row["c"] for row in pref_pipeline_rows}
+        waiting_admin = preference_pipeline.get(Status.WAITING_ADMIN, 0)
+        waiting_payment = preference_pipeline.get(Status.WAITING_PAYMENT, 0)
+        running_prefs = preference_pipeline.get(Status.RUNNING, 0)
+        expired_prefs = preference_pipeline.get(Status.EXPIRED, 0)
+        pref_pipeline_total = (
+            waiting_payment + waiting_admin + running_prefs + expired_prefs
+        )
+
+        pending_payments = Subscription.objects.filter(
+            status=SubscriptionStatus.PENDING
+        ).count()
+        expiring_soon = Subscription.objects.filter(
+            status=SubscriptionStatus.ACTIVE,
+            expires_at__lte=now + timedelta(days=7),
+            expires_at__gt=now,
+        ).count()
+        linkedin_gate_failed = (
+            Profile.objects.filter(linkedin_quality_ok=False)
+            .exclude(linkedin_raw="")
+            .count()
+        )
+
+        # Billing pulse — is the business healthy?
+        active_subs_qs = Subscription.objects.filter(
+            status=SubscriptionStatus.ACTIVE,
+            expires_at__gt=now,
+        )
+        billing = active_subs_qs.aggregate(
+            active_subs=Count("id"),
+            mrr=Sum("amount_paid"),
+        )
+        active_subs = billing["active_subs"] or 0
+        mrr = billing["mrr"] or 0
+
+        month_start = today.replace(day=1)
+        paid_this_month = (
+            Subscription.objects.filter(
+                started_at__date__gte=month_start,
+                status__in=[
+                    SubscriptionStatus.ACTIVE,
+                    SubscriptionStatus.EXPIRED,
+                    SubscriptionStatus.REPLACED,
+                ],
+            ).aggregate(total=Sum("amount_paid"))["total"]
+            or 0
+        )
+
+        sub_per_day_rows = (
+            Subscription.objects.filter(
+                started_at__date__range=[thirty_days_ago, today],
+                status__in=[
+                    SubscriptionStatus.ACTIVE,
+                    SubscriptionStatus.EXPIRED,
+                    SubscriptionStatus.REPLACED,
+                ],
+            )
+            .extra({"date": "date(started_at)"})
+            .values("date")
+            .annotate(count=Count("id"))
+        )
+        sub_counts = {row["date"]: row["count"] for row in sub_per_day_rows}
+        daily_subs = [sub_counts.get(str(d), sub_counts.get(d, 0)) for d in date_range]
+
+        latest_subs = list(
+            Subscription.objects.select_related("profile", "plan").order_by(
+                "-created_on"
+            )[:5]
+        )
+
         context = {
             **profile_stats,
             **job_stats,
             **assessment_stats,
             "avg_score_display": avg_score_display,
-            "jobs_by_type": jobs_by_type,
-            "jobs_by_remote": jobs_by_remote,
             "recent_assessments": recent_assessments,
             "top_profiles": top_profiles,
             "daily_assessments_json": json.dumps(daily_assessments),
             "date_labels_json": json.dumps(date_labels),
-            "jobs_by_type_labels_json": json.dumps(
-                [(j["job_type"] or "unspecified") for j in jobs_by_type]
-            ),
-            "jobs_by_type_counts_json": json.dumps([j["count"] for j in jobs_by_type]),
+            "daily_subs_json": json.dumps(daily_subs),
+            # Operator attention
+            "waiting_admin": waiting_admin,
+            "waiting_payment_count": waiting_payment,
+            "running_prefs": running_prefs,
+            "expired_prefs": expired_prefs,
+            "pref_pipeline_total": pref_pipeline_total,
+            "pending_payments": pending_payments,
+            "expiring_soon": expiring_soon,
+            "linkedin_gate_failed": linkedin_gate_failed,
+            # Billing
+            "active_subs": active_subs,
+            "mrr": mrr,
+            "paid_this_month": paid_this_month,
+            "latest_subs": latest_subs,
+            "now": now,
         }
         cache.set(cache_key, context, 300)
         return render(request, "dashboard.html", context)
@@ -168,7 +249,7 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
                 "preference": pref,
                 "profile": pref.profile,
                 "status_choices": Status.choices,
-                "source_choices": Source.choices,
+                "crawl_urls_text": "\n".join(pref.crawl_urls or []),
             },
         )
 
@@ -178,24 +259,27 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
 
     def post(self, request, pk):
         pref = self._get(pk)
-        crawl_url = request.POST.get("crawl_url", "").strip()
-        crawl_source = request.POST.get("crawl_source", "").strip()
+        raw_urls = request.POST.get("crawl_urls", "")
+        urls = [line.strip() for line in raw_urls.splitlines() if line.strip()]
         status = request.POST.get("status", "").strip()
         override_quality = request.POST.get("override_quality_gate") == "1"
 
-        if crawl_url:
+        validator = URLValidator()
+        for url in urls:
             try:
-                URLValidator()(crawl_url)
+                validator(url)
             except ValidationError:
-                messages.error(request, "Invalid URL for crawl_url.")
+                messages.error(request, f"Invalid URL: {url}")
+                return self._render(request, pref)
+            if scraper_for_url(url)[0] is None:
+                messages.error(
+                    request,
+                    f"No scraper available for URL: {url}",
+                )
                 return self._render(request, pref)
 
         if status not in Status.values:
             messages.error(request, "Invalid status.")
-            return self._render(request, pref)
-
-        if crawl_source and crawl_source not in Source.values:
-            messages.error(request, "Invalid crawl_source.")
             return self._render(request, pref)
 
         moving_to_running = pref.status != Status.RUNNING and status == Status.RUNNING
@@ -213,13 +297,11 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
             return self._render(request, pref)
 
         with transaction.atomic():
-            pref.crawl_url = crawl_url or None
-            pref.crawl_source = crawl_source or None
+            pref.crawl_urls = urls
             pref.status = status
             pref.save(
                 update_fields=[
-                    "crawl_url",
-                    "crawl_source",
+                    "crawl_urls",
                     "status",
                     "updated_on",
                 ]
@@ -243,10 +325,10 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
 class PreferenceCrawlNowView(SuperuserRequiredMixin, View):
     def post(self, request, pk):
         pref = get_object_or_404(Preference, pk=pk)
-        if not pref.crawl_url or not pref.crawl_source:
+        if not pref.crawl_urls:
             messages.error(
                 request,
-                "Preference is missing crawl_url or crawl_source — fill them first.",
+                "Preference has no crawl_urls — fill them first.",
             )
         else:
             crawl_and_assess_preference.delay(pref.id)
@@ -396,3 +478,51 @@ class SubscriptionDetailView(SuperuserRequiredMixin, View):
         else:
             messages.error(request, "Unknown action.")
         return redirect("subscription_detail", pk=sub.pk)
+
+
+class SmtpTestView(SuperuserRequiredMixin, View):
+    template_name = "settings/smtp_test.html"
+
+    def _context(self, form):
+        return {
+            "form": form,
+            "config": {
+                "host": settings.EMAIL_HOST or "(unset)",
+                "port": settings.EMAIL_PORT,
+                "user": settings.EMAIL_HOST_USER or "(unset)",
+                "use_ssl": settings.EMAIL_USE_SSL,
+                "use_tls": settings.EMAIL_USE_TLS,
+                "from": settings.DEFAULT_FROM_EMAIL,
+                "configured": bool(
+                    settings.EMAIL_HOST
+                    and settings.EMAIL_HOST_USER
+                    and settings.EMAIL_HOST_PASSWORD
+                ),
+            },
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context(SmtpTestForm()))
+
+    def post(self, request):
+        form = SmtpTestForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, self._context(form))
+
+        to = form.cleaned_data["to"]
+        try:
+            sent = send_email(
+                subject=form.cleaned_data["subject"],
+                to=[to],
+                body=form.cleaned_data["body"],
+            )
+        except (smtplib.SMTPException, OSError) as exc:
+            logger.exception("smtp test failed")
+            messages.error(request, f"Send failed: {exc.__class__.__name__}: {exc}")
+            return render(request, self.template_name, self._context(form))
+
+        if sent:
+            messages.success(request, f"Sent test email to {to}.")
+        else:
+            messages.warning(request, "send() returned 0 — check SMTP env vars.")
+        return redirect("smtp_test")

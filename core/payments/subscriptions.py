@@ -78,10 +78,7 @@ def activate_subscription(sub: Subscription) -> bool:
         )
         crawlable = (
             Preference.objects.filter(id__in=pref_ids)
-            .exclude(crawl_url__isnull=True)
-            .exclude(crawl_url="")
-            .exclude(crawl_source__isnull=True)
-            .exclude(crawl_source="")
+            .exclude(crawl_urls=[])
             .values_list("id", flat=True)
         )
         for pid in crawlable:

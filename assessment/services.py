@@ -27,7 +27,15 @@ SYSTEM_PROMPT = (
     "Do NOT write the verdict in English under any circumstance, even if "
     "the job posting or candidate context is in English. "
     "Skill fields (soft_skill_match, soft_skill_gap, hard_skill_match, "
-    "hard_skill_gap) stay as short skill names (English technical terms OK)."
+    "hard_skill_gap) stay as short skill names (English technical terms OK).\n\n"
+    "JOB-TYPE / REMOTE-OPTION FIT RULE: The candidate's preference includes "
+    "a list of acceptable `job_type` values and a list of acceptable "
+    "`remote_option` values. If a list is 'any' (or empty), treat it as no "
+    "constraint. If a list is non-empty and the job posting's job_type is NOT "
+    "in the candidate's list, significantly reduce the score and cap it at "
+    "around 30. Apply the same penalty for a remote_option mismatch. If BOTH "
+    "mismatch, cap the score even lower (around 15). When you apply this "
+    "penalty, mention the mismatch briefly in the verdict (in Bahasa, 'kamu')."
 )
 
 RELEVANCE_SYSTEM_PROMPT = (
@@ -43,15 +51,23 @@ def _candidate_context(profile) -> str:
     return "\n\n".join(filter(None, [profile.full_profile, profile.bio])) or "(empty)"
 
 
+def _format_choices(values) -> str:
+    return ", ".join(values) if values else "any"
+
+
 def assess(job, preference) -> SkillAssessment:
     profile = preference.profile
+    pref_job_types = _format_choices(preference.job_type)
+    pref_remote_opts = _format_choices(preference.remote_option)
     user_msg = (
         f"CANDIDATE:\n{_candidate_context(profile)}\n\n"
         f"PREFERENCE: title={preference.title}, "
-        f"job_type={preference.job_type}, remote_option={preference.remote_option}\n\n"
+        f"job_type={pref_job_types}, remote_option={pref_remote_opts}\n\n"
         f"JOB TITLE: {job.title}\n"
         f"JOB COMPANY: {job.company}\n"
         f"JOB LOCATION: {job.location}\n"
+        f"JOB JOB_TYPE: {job.job_type or 'unspecified'}\n"
+        f"JOB REMOTE_OPTION: {job.remote_option or 'unspecified'}\n"
         f"JOB DESCRIPTION:\n{job.description}"
     )
     return get_prompt_manager().parse(
@@ -62,9 +78,10 @@ def assess(job, preference) -> SkillAssessment:
 
 
 def check_relevance(job, preference) -> RelevanceCheck:
+    pref_job_types = _format_choices(preference.job_type)
     user_msg = (
         f"PREFERENCE TITLE: {preference.title}\n"
-        f"PREFERENCE JOB TYPE: {preference.job_type}\n\n"
+        f"PREFERENCE JOB TYPE: {pref_job_types}\n\n"
         f"JOB TITLE: {job.title}\n"
         f"JOB COMPANY: {job.company}\n"
         f"JOB DESCRIPTION (first 1500 chars):\n{(job.description or '')[:1500]}"

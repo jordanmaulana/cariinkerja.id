@@ -1,73 +1,64 @@
 {% extends "dashboard_base.html" %}
 {% block title %}Profiles — cariinkerja.id Admin{% endblock %}
 {% block content %}
-  <main class="space-y-6 max-w-7xl mx-auto">
-    <header class="flex items-center justify-between">
-      <h2 class="text-2xl font-bold">Profiles
-        <span class="ml-2 text-sm font-normal text-slate-500">({{ total_count }})</span>
-      </h2>
-    </header>
+  <div class="space-y-6">
+    {% include "_partials/page_header.html" with eyebrow="Operations" title="Profiles" count=total_count %}
 
     <form method="get" class="flex gap-2">
-      <input type="text" name="q" value="{{ q }}" placeholder="Search by name…"
-             class="w-72 rounded border-slate-300 border px-3 py-1.5 text-sm" />
-      <button type="submit" class="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700">Search</button>
+      <div class="relative">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+          {% include "_partials/icon.html" with name="search" class="w-4 h-4" %}
+        </span>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search by name…"
+               class="w-72 rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+      </div>
+      <button type="submit" class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">Search</button>
       {% if q %}
-        <a href="{% url 'profile_list' %}" class="px-3 py-1.5 rounded border text-sm hover:bg-slate-100">Clear</a>
+        <a href="{% url 'profile_list' %}" class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50">Clear</a>
       {% endif %}
     </form>
 
-    <section class="p-4 rounded-lg border shadow-sm">
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="text-left text-slate-500">
-            <tr class="border-b">
-              <th class="py-2">Name</th>
-              <th class="py-2">Preferences</th>
-              <th class="py-2">LinkedIn</th>
-              <th class="py-2">Created</th>
+          <thead>
+            <tr class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-6 py-3 text-left font-medium">Name</th>
+              <th class="px-6 py-3 text-right font-medium">Preferences</th>
+              <th class="px-6 py-3 text-left font-medium">LinkedIn</th>
+              <th class="px-6 py-3 text-left font-medium">Created</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-slate-100">
             {% for p in profiles %}
-              <tr class="border-b last:border-0 hover:bg-slate-50">
-                <td class="py-2">
-                  <a href="{% url 'profile_detail' p.id %}" class="text-blue-600 hover:underline">
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-3">
+                  <a href="{% url 'profile_detail' p.id %}" class="font-medium text-blue-600 hover:underline">
                     {{ p.full_name|default:"(no name)" }}
                   </a>
                 </td>
-                <td class="py-2">{{ p.preference_count }}</td>
-                <td class="py-2">
+                <td class="px-6 py-3 text-right tabular-nums">{{ p.preference_count }}</td>
+                <td class="px-6 py-3">
                   {% if p.linkedin_url %}
                     <a href="{{ p.linkedin_url }}" class="text-blue-600 hover:underline" target="_blank" rel="noopener">{{ p.linkedin_url|truncatechars:40 }}</a>
-                  {% else %}—{% endif %}
+                  {% else %}
+                    <span class="text-slate-400">—</span>
+                  {% endif %}
                 </td>
-                <td class="py-2 text-slate-500">{{ p.created_on|date:"Y-m-d H:i" }}</td>
+                <td class="px-6 py-3 text-slate-500 whitespace-nowrap">{{ p.created_on|date:"Y-m-d H:i" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="4" class="py-4 text-slate-400 text-center">No profiles match.</td></tr>
+              <tr><td colspan="4" class="py-8 text-slate-400 text-center">No profiles match.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
       {% if profiles.has_other_pages %}
-        <div class="mt-4 flex items-center justify-between text-sm">
-          <span class="text-slate-500">
-            Page {{ profiles.number }} of {{ profiles.paginator.num_pages }}
-          </span>
-          <div class="space-x-2">
-            {% if profiles.has_previous %}
-              <a href="?page={{ profiles.previous_page_number }}{% if q %}&q={{ q }}{% endif %}"
-                 class="px-3 py-1 rounded border hover:bg-slate-100">Previous</a>
-            {% endif %}
-            {% if profiles.has_next %}
-              <a href="?page={{ profiles.next_page_number }}{% if q %}&q={{ q }}{% endif %}"
-                 class="px-3 py-1 rounded border hover:bg-slate-100">Next</a>
-            {% endif %}
-          </div>
+        <div class="border-t border-slate-100 px-6 py-3">
+          {% include "_partials/pagination.html" with page_obj=profiles extra_query="q="|add:q %}
         </div>
       {% endif %}
     </section>
-  </main>
+  </div>
 {% endblock %}
