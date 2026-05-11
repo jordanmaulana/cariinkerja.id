@@ -121,7 +121,7 @@ if os.environ.get("POSTGRES_HOST"):
             "HOST": os.environ["POSTGRES_HOST"],
             "PORT": os.environ.get("POSTGRES_PORT", "5432"),
             "CONN_MAX_AGE": 60,
-            "CONN_HEALTH_CHECKS": True,
+            "CONN_HEALTH_CHECKS": False,
         }
     }
 else:

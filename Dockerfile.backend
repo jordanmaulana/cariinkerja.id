@@ -27,4 +27,12 @@ COPY docker/backend-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 EXPOSE 8000
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["uv", "run", "gunicorn", "core.wsgi", "--bind", "0.0.0.0:8000", "--workers", "3"]
+CMD ["uv", "run", "gunicorn", "core.wsgi", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "3", \
+     "--worker-class", "gthread", \
+     "--threads", "4", \
+     "--max-requests", "1000", \
+     "--max-requests-jitter", "100", \
+     "--timeout", "60", \
+     "--access-logfile", "-"]
