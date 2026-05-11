@@ -27,6 +27,7 @@ from core.notifications.email import send_email
 from core.realtime import publish, user_channel
 from jobs.models import Job
 from jobs.scrapers import scraper_for_url
+from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status
 from profiles.models import Preference, Profile
 
@@ -333,6 +334,19 @@ class PreferenceCrawlNowView(SuperuserRequiredMixin, View):
         else:
             crawl_and_assess_preference.delay(pref.id)
             messages.success(request, f"Queued crawl + assessment for {pref}.")
+        return redirect("preference_detail", pk=pref.pk)
+
+
+class PreferenceRegenerateUrlsView(SuperuserRequiredMixin, View):
+    def post(self, request, pk):
+        pref = get_object_or_404(Preference, pk=pk)
+        urls = build_crawl_urls(pref.title, pref.job_type, pref.remote_option)
+        if not urls:
+            messages.error(request, "Preference has no title — cannot regenerate.")
+            return redirect("preference_detail", pk=pref.pk)
+        pref.crawl_urls = urls
+        pref.save(update_fields=["crawl_urls", "updated_on"])
+        messages.success(request, f"Regenerated {len(urls)} crawl URL(s).")
         return redirect("preference_detail", pk=pref.pk)
 
 

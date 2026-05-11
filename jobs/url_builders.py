@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from urllib.parse import urlencode
+from urllib.parse import quote_plus, urlencode
 
 from jobs.consts import JobType, RemoteOption
 
@@ -107,3 +107,18 @@ def build_jobstreet_url(
     if query:
         url = f"{url}?{urlencode(query)}"
     return url
+
+
+def build_crawl_urls(
+    title: str | None,
+    job_types: list[str] | None = None,
+    remote_options: list[str] | None = None,
+) -> list[str]:
+    """Standard Indeed + JobStreet listing URLs for a Preference."""
+    if not title or not title.strip():
+        return []
+    urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
+    js = build_jobstreet_url(title, job_types, remote_options)
+    if js:
+        urls.append(js)
+    return urls

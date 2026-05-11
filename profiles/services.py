@@ -1,12 +1,11 @@
 import logging
-from urllib.parse import quote_plus
 
 from django.conf import settings
 from django.db import transaction
 from openai import OpenAI
 from pydantic import BaseModel
 
-from jobs.url_builders import build_jobstreet_url
+from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status
 
 logger = logging.getLogger(__name__)
@@ -79,13 +78,9 @@ def maybe_start_free_crawl(preference) -> bool:
     if not profile.full_profile:
         return False
 
-    urls = [f"https://id.indeed.com/jobs?q={quote_plus(preference.title)}"]
-    js_url = build_jobstreet_url(
+    preference.crawl_urls = build_crawl_urls(
         preference.title, preference.job_type, preference.remote_option
     )
-    if js_url:
-        urls.append(js_url)
-    preference.crawl_urls = urls
     preference.save(update_fields=["crawl_urls", "updated_on"])
     transaction.on_commit(lambda: run_free_crawl.delay(preference.id))
     logger.info(

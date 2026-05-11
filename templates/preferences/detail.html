@@ -13,14 +13,24 @@
         <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ preference.title|default:"(untitled preference)" }}</h1>
         <p class="mt-1 text-sm text-slate-500">Preference ID: {{ preference.id }}</p>
       </div>
-      <form method="post" action="{% url 'preference_crawl_now' pk=preference.pk %}">
-        {% csrf_token %}
-        <button type="submit"
-                class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
-                {% if not preference.crawl_urls %}disabled title="Set crawl_urls first"{% endif %}>
-          Crawl &amp; Assess Now
-        </button>
-      </form>
+      <div class="flex gap-2">
+        <form method="post" action="{% url 'preference_regenerate_urls' pk=preference.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-md bg-slate-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+                  {% if not preference.title %}disabled title="Preference has no title"{% endif %}>
+            Regenerate URLs
+          </button>
+        </form>
+        <form method="post" action="{% url 'preference_crawl_now' pk=preference.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+                  {% if not preference.crawl_urls %}disabled title="Set crawl_urls first"{% endif %}>
+            Crawl &amp; Assess Now
+          </button>
+        </form>
+      </div>
     </header>
 
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
