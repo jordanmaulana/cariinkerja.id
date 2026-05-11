@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,18 +64,23 @@ export function AssessmentsTable({
             <TableRow
               key={row.id}
               className="cursor-pointer"
-              onClick={() => {
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1)
+                  return;
                 if (row.status === "new") onAction(row.id, "seen");
                 onOpen(row.id);
               }}
             >
               <TableCell className="max-w-[280px]">
-                <span
+                <Link
+                  to="/assessments/$id"
+                  params={{ id: row.id }}
                   className="block truncate font-medium hover:underline"
                   title={row.job.title}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {row.job.title}
-                </span>
+                </Link>
               </TableCell>
               <TableCell>
                 <div className="font-medium">{row.job.company ?? "—"}</div>

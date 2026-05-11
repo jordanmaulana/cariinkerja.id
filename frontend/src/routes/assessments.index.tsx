@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Search } from "lucide-react"
 
@@ -33,7 +33,9 @@ import {
 
 type AssessmentsSearch = {
   status?: AssessmentStatus[]
+  status_all?: boolean
   min_score?: number
+  page?: number
 }
 
 export const Route = createFileRoute("/assessments/")({
@@ -42,13 +44,23 @@ export const Route = createFileRoute("/assessments/")({
     const arr = Array.isArray(raw) ? raw : raw == null ? [] : [raw]
     const status = arr.filter(isAssessmentStatus)
 
+    const allCleared =
+      search.status_all === "1" ||
+      search.status_all === 1 ||
+      search.status_all === true
+
     const ms = Number(search.min_score)
     const min_score =
       Number.isFinite(ms) && ms >= 0 && ms <= 100 ? Math.floor(ms) : undefined
 
+    const p = Number(search.page)
+    const page = Number.isFinite(p) && p >= 1 ? Math.floor(p) : undefined
+
     return {
       status: status.length ? status : undefined,
+      status_all: allCleared || undefined,
       min_score,
+      page,
     }
   },
   component: AssessmentsPage,
@@ -58,15 +70,19 @@ const PAGE_SIZE = 10
 
 function AssessmentsPage() {
   const search = Route.useSearch()
-  const [selectedStatuses, setSelectedStatuses] = useState<
-    Set<AssessmentStatus>
-  >(() => new Set(search.status ?? ["new"]))
+  const navigate = useNavigate()
+
+  const selectedStatuses = useMemo<Set<AssessmentStatus>>(() => {
+    if (search.status_all) return new Set()
+    if (search.status) return new Set(search.status)
+    return new Set<AssessmentStatus>(["new"])
+  }, [search.status, search.status_all])
+
   const [minScoreInput, setMinScoreInput] = useState(() =>
     search.min_score != null ? String(search.min_score) : "",
   )
-  const [page, setPage] = useState(1)
-  const navigate = useNavigate()
 
+  const page = search.page ?? 1
   const minScore = parseMinScoreInput(minScoreInput)
   const statuses = sortStatuses(selectedStatuses)
 
@@ -82,18 +98,41 @@ function AssessmentsPage() {
   const numPages = query.data?.num_pages ?? 1
 
   function toggleStatus(s: AssessmentStatus, checked: boolean) {
-    setSelectedStatuses((prev) => {
-      const next = new Set(prev)
-      if (checked) next.add(s)
-      else next.delete(s)
-      return next
+    const next = new Set(selectedStatuses)
+    if (checked) next.add(s)
+    else next.delete(s)
+    const nextArr = sortStatuses(next)
+    navigate({
+      to: "/assessments",
+      search: (prev) => ({
+        ...prev,
+        status: nextArr.length ? nextArr : undefined,
+        status_all: nextArr.length === 0 ? true : undefined,
+        page: undefined,
+      }),
+      replace: true,
     })
-    setPage(1)
   }
 
   function handleMinScoreChange(value: string) {
     setMinScoreInput(value)
-    setPage(1)
+    const parsed = parseMinScoreInput(value)
+    navigate({
+      to: "/assessments",
+      search: (prev) => ({
+        ...prev,
+        min_score: parsed,
+        page: undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  function goToPage(p: number) {
+    navigate({
+      to: "/assessments",
+      search: (prev) => ({ ...prev, page: p <= 1 ? undefined : p }),
+    })
   }
 
   const mutation = useUpdateAssessmentStatusListMutation()
@@ -206,7 +245,7 @@ function AssessmentsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1 || query.isFetching}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => goToPage(page - 1)}
                 >
                   Sebelumnya
                 </Button>
@@ -214,7 +253,7 @@ function AssessmentsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= numPages || query.isFetching}
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => goToPage(page + 1)}
                 >
                   Berikutnya
                 </Button>
