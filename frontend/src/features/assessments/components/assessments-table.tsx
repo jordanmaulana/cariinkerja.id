@@ -22,11 +22,13 @@ import type {
   AssessmentStatus,
 } from "@/features/assessments/types";
 import { JOB_TYPE_LABEL, REMOTE_LABEL } from "@/features/jobs/consts";
+import type { AssessmentsSearch } from "@/routes/assessments.index";
 
 type Props = {
   rows: Assessment[];
   isPending: boolean;
   pendingId?: string;
+  fromSearch: AssessmentsSearch;
   onAction: (id: string, next: AssessmentStatus) => void;
   onOpen: (id: string) => void;
 };
@@ -35,6 +37,7 @@ export function AssessmentsTable({
   rows,
   isPending,
   pendingId,
+  fromSearch,
   onAction,
   onOpen,
 }: Props) {
@@ -75,9 +78,13 @@ export function AssessmentsTable({
                 <Link
                   to="/assessments/$id"
                   params={{ id: row.id }}
+                  state={{ fromSearch } as never}
                   className="block truncate font-medium hover:underline"
                   title={row.job.title}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (row.status === "new") onAction(row.id, "seen");
+                  }}
                 >
                   {row.job.title}
                 </Link>

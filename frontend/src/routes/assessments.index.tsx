@@ -31,7 +31,7 @@ import {
   STATUS_LABEL,
 } from "@/features/assessments/consts"
 
-type AssessmentsSearch = {
+export type AssessmentsSearch = {
   status?: AssessmentStatus[]
   status_all?: boolean
   min_score?: number
@@ -231,8 +231,15 @@ function AssessmentsPage() {
               rows={rows}
               isPending={mutation.isPending}
               pendingId={mutation.variables?.id}
+              fromSearch={search}
               onAction={(id, next) => mutation.mutate({ id, next })}
-              onOpen={(id) => navigate({ to: "/assessments/$id", params: { id } })}
+              onOpen={(id) =>
+                navigate({
+                  to: "/assessments/$id",
+                  params: { id },
+                  state: { fromSearch: search } as never,
+                })
+              }
             />
           )}
           {count > 0 && (

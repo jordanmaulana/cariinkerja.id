@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router"
+import { Link, createFileRoute, useLocation } from "@tanstack/react-router"
 import { ArrowLeft } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import {
 } from "@/features/assessments/hooks"
 import { AssessmentDetail } from "@/features/assessments/components/assessment-detail"
 import { STATUS_LABEL, STATUS_VARIANT } from "@/features/assessments/consts"
+import type { AssessmentsSearch } from "@/routes/assessments.index"
 
 export const Route = createFileRoute("/assessments/$id")({
   component: AssessmentDetailPage,
@@ -20,12 +21,16 @@ function AssessmentDetailPage() {
   const { id } = Route.useParams()
   const query = useAssessment(id)
   const mutation = useUpdateAssessmentStatusDetailMutation(id)
+  const locationState = useLocation({
+    select: (l) => l.state as { fromSearch?: AssessmentsSearch } | undefined,
+  })
+  const fromSearch = locationState?.fromSearch
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
         <Button asChild variant="ghost" size="sm">
-          <Link to="/assessments">
+          <Link to="/assessments" search={fromSearch ?? {}}>
             <ArrowLeft className="size-4" />
             Kembali ke loker tersedia
           </Link>
