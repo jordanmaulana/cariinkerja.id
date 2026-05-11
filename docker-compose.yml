@@ -31,8 +31,9 @@ services:
       POSTGRES_HOST: postgres
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-    ports:
-      - "8006:8000"
+    expose:
+      - "8000"
+    stop_grace_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,8 +120,27 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
-    ports:
-      - "3005:3000"
+    expose:
+      - "3000"
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN required in .env.docker}
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
 
 volumes:
   pgdata:
