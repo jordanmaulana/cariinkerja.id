@@ -20,13 +20,7 @@
         {% include "_partials/kpi_card.html" with label="Profiles" value=profile_count|intdot delta=profiles_today|stringformat:"s"|add:" today" icon="user" tone="primary" %}
         {% include "_partials/kpi_card.html" with label="Jobs crawled" value=job_count|intdot delta=jobs_today|stringformat:"s"|add:" today" icon="briefcase" tone="neutral" %}
         {% include "_partials/kpi_card.html" with label="Assessments" value=assessment_count|intdot delta=assessments_today|stringformat:"s"|add:" today" icon="spark" tone="neutral" %}
-        {% if avg_score_display >= 70 %}
-          {% include "_partials/kpi_card.html" with label="Avg score" value=avg_score_display delta="across all assessments" icon="trending-up" tone="positive" %}
-        {% elif avg_score_display >= 40 %}
-          {% include "_partials/kpi_card.html" with label="Avg score" value=avg_score_display delta="across all assessments" icon="trending-up" tone="warning" %}
-        {% else %}
-          {% include "_partials/kpi_card.html" with label="Avg score" value=avg_score_display delta="across all assessments" icon="trending-up" tone="danger" %}
-        {% endif %}
+        {% include "_partials/kpi_card.html" with label="Highly suitable jobs" value=highly_suitable_count|intdot delta=highly_suitable_today|stringformat:"s"|add:" today (score 80+)" icon="trending-up" tone="positive" %}
       </div>
     </section>
 

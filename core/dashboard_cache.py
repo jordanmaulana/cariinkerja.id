@@ -1,7 +1,7 @@
 from django.core.cache import cache
 from django.utils import timezone
 
-SHELL_PREFIX = "dashboard_stats_v3"
+SHELL_PREFIX = "dashboard_stats_v4"
 CHARTS_PREFIX = "dashboard_charts_v3"
 TOP_PROFILES_PREFIX = "dashboard_top_profiles_v3"
 

@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import URLValidator
 from django.db import transaction
-from django.db.models import Avg, Count, Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -84,11 +84,14 @@ def _build_shell_context():
     assessment_stats = Assessment.objects.aggregate(
         assessment_count=Count("id"),
         assessments_today=Count("id", filter=Q(created_on__date=today)),
-        avg_score=Avg("score"),
         bucket_low=Count("id", filter=Q(score__lte=25)),
         bucket_mid_low=Count("id", filter=Q(score__gt=25, score__lte=50)),
         bucket_mid_high=Count("id", filter=Q(score__gt=50, score__lte=75)),
         bucket_high=Count("id", filter=Q(score__gt=75)),
+        highly_suitable_count=Count("id", filter=Q(score__gte=80)),
+        highly_suitable_today=Count(
+            "id", filter=Q(score__gte=80, created_on__date=today)
+        ),
     )
 
     sub_stats = Subscription.objects.aggregate(
@@ -131,14 +134,10 @@ def _build_shell_context():
         ]
     )
 
-    avg_score = assessment_stats["avg_score"]
-    avg_score_display = round(avg_score, 1) if avg_score is not None else 0
-
     return {
         **profile_stats,
         **job_stats,
         **assessment_stats,
-        "avg_score_display": avg_score_display,
         "waiting_admin": waiting_admin,
         "waiting_payment_count": waiting_payment,
         "running_prefs": running_prefs,
