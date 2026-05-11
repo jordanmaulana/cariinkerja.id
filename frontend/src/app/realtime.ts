@@ -55,6 +55,9 @@ export function useRealtimeQueryInvalidation() {
   const handler = useCallback(
     (e: UserEvent) => {
       switch (e.event) {
+        case "assessment.created":
+          queryClient.invalidateQueries({ queryKey: ["assessments"] });
+          break;
         case "assessment.status_changed":
           if (typeof e.assessment_id === "string") {
             queryClient.invalidateQueries({

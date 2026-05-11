@@ -16,6 +16,7 @@ from assessment.models import Assessment
 from assessment.services import assess, check_relevance
 from billing.models import SubscriptionStatus
 from core.notifications.email import send_email
+from core.realtime import publish, user_channel
 from jobs.models import Job
 from jobs.scrapers import scraper_for_url
 from profiles.consts import Status
@@ -95,6 +96,22 @@ def crawl_and_assess_preference(preference_id: str):
     return count
 
 
+def _publish_assessment_created(assessment, preference):
+    user_id = getattr(getattr(preference.profile, "user", None), "id", None)
+    if user_id is None:
+        return
+    publish(
+        user_channel(user_id),
+        {
+            "event": "assessment.created",
+            "assessment_id": assessment.id,
+            "preference_id": preference.id,
+            "score": assessment.score,
+            "is_relevant": assessment.is_relevant,
+        },
+    )
+
+
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def assess_job(job_id: str, preference_id: str):
     if Assessment.objects.filter(job_id=job_id, preference_id=preference_id).exists():
@@ -104,7 +121,7 @@ def assess_job(job_id: str, preference_id: str):
 
     relevance = check_relevance(job, pref)
     if not relevance.is_relevant:
-        Assessment.objects.get_or_create(
+        assessment, created = Assessment.objects.get_or_create(
             job=job,
             preference=pref,
             defaults={
@@ -113,10 +130,12 @@ def assess_job(job_id: str, preference_id: str):
                 "verdict": f"Filtered as irrelevant: {relevance.reason}",
             },
         )
+        if created:
+            _publish_assessment_created(assessment, pref)
         return "irrelevant"
 
     result = assess(job, pref)
-    _, created = Assessment.objects.get_or_create(
+    assessment, created = Assessment.objects.get_or_create(
         job=job,
         preference=pref,
         defaults={
@@ -128,6 +147,8 @@ def assess_job(job_id: str, preference_id: str):
             "verdict": result.verdict,
         },
     )
+    if created:
+        _publish_assessment_created(assessment, pref)
     return "created" if created else "skipped"
 
 
