@@ -46,9 +46,9 @@ export function PaymentGateBanner() {
       <div className="space-y-1">
         <p className={cn("font-semibold", cls.title)}>{TITLE[data.code]}</p>
         <p className={cls.body}>
-          {data.detail}
-          {data.code === "waiting_admin" &&
-            " Coba liat paketnya dulu biar nanti ga kaget lihat harga wkwkwk"}
+          {data.code === "waiting_admin"
+            ? "Sabar, kami lagi ngumpulin loker, nanti muncul di menu Loker Tersedia. Jadi biar kamu tau hasilnya dulu, baru beli. Ok?"
+            : data.detail}
           {data.code === "linkedin_quality" &&
             " Lengkapi profil LinkedIn-mu dan kirim ulang sebelum bayar."}
         </p>
