@@ -80,6 +80,7 @@ class Subscription(BaseModel):
         indexes = [
             models.Index(fields=["profile", "status"]),
             models.Index(fields=["payment_ref"]),
+            models.Index(fields=["status", "expires_at"]),
         ]
 
     def __str__(self):

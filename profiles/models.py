@@ -42,6 +42,9 @@ class Profile(BaseModel):
 
     class Meta:
         app_label = "profiles"
+        indexes = [
+            models.Index(fields=["linkedin_quality_ok"]),
+        ]
 
     @property
     def linkedin_discount_eligible(self) -> bool:
@@ -62,3 +65,6 @@ class Preference(BaseModel):
 
     class Meta:
         app_label = "profiles"
+        indexes = [
+            models.Index(fields=["status"]),
+        ]

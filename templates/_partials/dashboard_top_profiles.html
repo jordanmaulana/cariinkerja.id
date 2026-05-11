@@ -1,0 +1,21 @@
+{% load format_number %}
+<ul class="space-y-2">
+  {% for profile in top_profiles %}
+    <li>
+      <a href="{% url 'admin:profiles_profile_change' profile.id %}"
+         class="group flex items-center gap-3 rounded-lg p-2 hover:bg-slate-50 transition">
+        <div class="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-600">
+          {{ profile.full_name|default:"?"|slice:":1"|upper }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-medium text-slate-900">{{ profile.full_name|default:"(no name)" }}</p>
+          <p class="text-xs text-slate-500">{{ profile.assessment_count|intdot }} assessments</p>
+        </div>
+        {% include "_partials/score_pill.html" with score=profile.best_score %}
+        <span class="text-xs tabular-nums text-slate-400 w-6 text-right">#{{ forloop.counter }}</span>
+      </a>
+    </li>
+  {% empty %}
+    <li class="py-6 text-center text-sm text-slate-400">No matched candidates in last 30 days</li>
+  {% endfor %}
+</ul>

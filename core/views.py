@@ -1,4 +1,3 @@
-import json
 import logging
 import smtplib
 from datetime import timedelta
@@ -13,6 +12,8 @@ from django.core.paginator import Paginator
 from django.core.validators import URLValidator
 from django.db import transaction
 from django.db.models import Avg, Count, Max, Q, Sum
+from django.db.models.functions import TruncDate
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -22,6 +23,14 @@ from assessment.models import Assessment
 from assessment.tasks import crawl_and_assess_preference
 from billing.forms import PlanForm
 from billing.models import Plan, Subscription, SubscriptionStatus
+from core.dashboard_cache import (
+    CHARTS_TTL,
+    SHELL_TTL,
+    TOP_PROFILES_TTL,
+    charts_key,
+    shell_key,
+    top_profiles_key,
+)
 from core.forms import SmtpTestForm
 from core.notifications.email import send_email
 from core.realtime import publish, user_channel
@@ -47,166 +56,208 @@ class AdminLoginView(LoginView):
     success_url = "/dashboard/"
 
 
+SUB_PAID_STATUSES = [
+    SubscriptionStatus.ACTIVE,
+    SubscriptionStatus.EXPIRED,
+    SubscriptionStatus.REPLACED,
+]
+
+
+def _build_shell_context():
+    today = timezone.localdate()
+    now = timezone.now()
+    month_start = today.replace(day=1)
+    seven_days_out = now + timedelta(days=7)
+
+    profile_stats = Profile.objects.aggregate(
+        profile_count=Count("id"),
+        profiles_today=Count("id", filter=Q(created_on__date=today)),
+        linkedin_gate_failed=Count(
+            "id",
+            filter=Q(linkedin_quality_ok=False) & ~Q(linkedin_raw=""),
+        ),
+    )
+    job_stats = Job.objects.aggregate(
+        job_count=Count("id"),
+        jobs_today=Count("id", filter=Q(created_on__date=today)),
+    )
+    assessment_stats = Assessment.objects.aggregate(
+        assessment_count=Count("id"),
+        assessments_today=Count("id", filter=Q(created_on__date=today)),
+        avg_score=Avg("score"),
+        bucket_low=Count("id", filter=Q(score__lte=25)),
+        bucket_mid_low=Count("id", filter=Q(score__gt=25, score__lte=50)),
+        bucket_mid_high=Count("id", filter=Q(score__gt=50, score__lte=75)),
+        bucket_high=Count("id", filter=Q(score__gt=75)),
+    )
+
+    sub_stats = Subscription.objects.aggregate(
+        pending_payments=Count("id", filter=Q(status=SubscriptionStatus.PENDING)),
+        expiring_soon=Count(
+            "id",
+            filter=Q(
+                status=SubscriptionStatus.ACTIVE,
+                expires_at__lte=seven_days_out,
+                expires_at__gt=now,
+            ),
+        ),
+        active_subs=Count(
+            "id",
+            filter=Q(status=SubscriptionStatus.ACTIVE, expires_at__gt=now),
+        ),
+        mrr=Sum(
+            "amount_paid",
+            filter=Q(status=SubscriptionStatus.ACTIVE, expires_at__gt=now),
+        ),
+        paid_this_month=Sum(
+            "amount_paid",
+            filter=Q(
+                started_at__date__gte=month_start,
+                status__in=SUB_PAID_STATUSES,
+            ),
+        ),
+    )
+
+    pref_pipeline_rows = Preference.objects.values("status").annotate(c=Count("id"))
+    preference_pipeline = {row["status"]: row["c"] for row in pref_pipeline_rows}
+    waiting_admin = preference_pipeline.get(Status.WAITING_ADMIN, 0)
+    waiting_payment = preference_pipeline.get(Status.WAITING_PAYMENT, 0)
+    running_prefs = preference_pipeline.get(Status.RUNNING, 0)
+    expired_prefs = preference_pipeline.get(Status.EXPIRED, 0)
+
+    latest_subs = list(
+        Subscription.objects.select_related("profile", "plan").order_by("-created_on")[
+            :5
+        ]
+    )
+
+    avg_score = assessment_stats["avg_score"]
+    avg_score_display = round(avg_score, 1) if avg_score is not None else 0
+
+    return {
+        **profile_stats,
+        **job_stats,
+        **assessment_stats,
+        "avg_score_display": avg_score_display,
+        "waiting_admin": waiting_admin,
+        "waiting_payment_count": waiting_payment,
+        "running_prefs": running_prefs,
+        "expired_prefs": expired_prefs,
+        "pref_pipeline_total": (
+            waiting_admin + waiting_payment + running_prefs + expired_prefs
+        ),
+        "pending_payments": sub_stats["pending_payments"] or 0,
+        "expiring_soon": sub_stats["expiring_soon"] or 0,
+        "active_subs": sub_stats["active_subs"] or 0,
+        "mrr": sub_stats["mrr"] or 0,
+        "paid_this_month": sub_stats["paid_this_month"] or 0,
+        "latest_subs": latest_subs,
+    }
+
+
+def _build_charts_payload():
+    today = timezone.localdate()
+    thirty_days_ago = today - timedelta(days=29)
+    date_range = [thirty_days_ago + timedelta(days=i) for i in range(30)]
+
+    assess_rows = (
+        Assessment.objects.filter(created_on__date__range=[thirty_days_ago, today])
+        .annotate(date=TruncDate("created_on"))
+        .values("date")
+        .annotate(count=Count("id"))
+    )
+    assess_counts = {row["date"]: row["count"] for row in assess_rows}
+
+    sub_rows = (
+        Subscription.objects.filter(
+            started_at__date__range=[thirty_days_ago, today],
+            status__in=SUB_PAID_STATUSES,
+        )
+        .annotate(date=TruncDate("started_at"))
+        .values("date")
+        .annotate(count=Count("id"))
+    )
+    sub_counts = {row["date"]: row["count"] for row in sub_rows}
+
+    return {
+        "date_labels": [d.strftime("%Y-%m-%d") for d in date_range],
+        "daily_assessments": [assess_counts.get(d, 0) for d in date_range],
+        "daily_subs": [sub_counts.get(d, 0) for d in date_range],
+    }
+
+
+def _build_top_profiles():
+    today = timezone.localdate()
+    thirty_days_ago = today - timedelta(days=29)
+
+    profile_rows = (
+        Assessment.objects.filter(created_on__date__gte=thirty_days_ago)
+        .values("preference__profile_id")
+        .annotate(assessment_count=Count("id"), best_score=Max("score"))
+        .order_by("-best_score", "-assessment_count")[:10]
+    )
+    rows = list(profile_rows)
+    profile_ids = [r["preference__profile_id"] for r in rows]
+    profiles_by_id = {p.id: p for p in Profile.objects.filter(id__in=profile_ids)}
+
+    top_profiles = []
+    for row in rows:
+        profile = profiles_by_id.get(row["preference__profile_id"])
+        if profile is None:
+            continue
+        profile.assessment_count = row["assessment_count"]
+        profile.best_score = row["best_score"]
+        top_profiles.append(profile)
+    return top_profiles
+
+
 class DashboardView(SuperuserRequiredMixin, View):
     def get(self, request):
-        today = timezone.localdate()
-        now = timezone.now()
-        cache_key = f"dashboard_stats_v2_{today}_{request.GET.get('page', 1)}"
-        cached = cache.get(cache_key)
-        if cached:
-            return render(request, "dashboard.html", cached)
+        key = shell_key()
+        context = cache.get(key)
+        if context is None:
+            context = _build_shell_context()
+            cache.set(key, context, SHELL_TTL)
+        context = {**context, "now": timezone.now()}
+        return render(request, "dashboard.html", context)
 
-        thirty_days_ago = today - timedelta(days=29)
 
-        profile_stats = Profile.objects.aggregate(
-            profile_count=Count("id"),
-            profiles_today=Count("id", filter=Q(created_on__date=today)),
-        )
-        job_stats = Job.objects.aggregate(
-            job_count=Count("id"),
-            jobs_today=Count("id", filter=Q(created_on__date=today)),
-        )
-        assessment_stats = Assessment.objects.aggregate(
-            assessment_count=Count("id"),
-            assessments_today=Count("id", filter=Q(created_on__date=today)),
-            avg_score=Avg("score"),
-            bucket_low=Count("id", filter=Q(score__lte=25)),
-            bucket_mid_low=Count("id", filter=Q(score__gt=25, score__lte=50)),
-            bucket_mid_high=Count("id", filter=Q(score__gt=50, score__lte=75)),
-            bucket_high=Count("id", filter=Q(score__gt=75)),
+class DashboardChartsFragmentView(SuperuserRequiredMixin, View):
+    def get(self, request):
+        key = charts_key()
+        payload = cache.get(key)
+        if payload is None:
+            payload = _build_charts_payload()
+            cache.set(key, payload, CHARTS_TTL)
+        return JsonResponse(payload)
+
+
+class DashboardTopProfilesFragmentView(SuperuserRequiredMixin, View):
+    def get(self, request):
+        key = top_profiles_key()
+        top_profiles = cache.get(key)
+        if top_profiles is None:
+            top_profiles = _build_top_profiles()
+            cache.set(key, top_profiles, TOP_PROFILES_TTL)
+        return render(
+            request,
+            "_partials/dashboard_top_profiles.html",
+            {"top_profiles": top_profiles},
         )
 
+
+class DashboardRecentAssessmentsFragmentView(SuperuserRequiredMixin, View):
+    def get(self, request):
         recent_qs = Assessment.objects.select_related(
             "job", "preference__profile"
         ).order_by("-created_on")
         paginator = Paginator(recent_qs, 10)
         recent_assessments = paginator.get_page(request.GET.get("page", 1))
-
-        top_profiles = (
-            Profile.objects.filter(
-                preferences__assessments__created_on__date__gte=thirty_days_ago
-            )
-            .annotate(
-                assessment_count=Count("preferences__assessments"),
-                best_score=Max("preferences__assessments__score"),
-            )
-            .order_by("-best_score", "-assessment_count")[:10]
+        return render(
+            request,
+            "_partials/dashboard_recent_assessments.html",
+            {"recent_assessments": recent_assessments},
         )
-
-        per_day = (
-            Assessment.objects.filter(created_on__date__range=[thirty_days_ago, today])
-            .extra({"date": "date(created_on)"})
-            .values("date")
-            .annotate(count=Count("id"))
-        )
-        counts = {row["date"]: row["count"] for row in per_day}
-        date_range = [thirty_days_ago + timedelta(days=i) for i in range(30)]
-        daily_assessments = [counts.get(str(d), counts.get(d, 0)) for d in date_range]
-        date_labels = [d.strftime("%Y-%m-%d") for d in date_range]
-
-        avg_score = assessment_stats["avg_score"]
-        avg_score_display = round(avg_score, 1) if avg_score is not None else 0
-
-        # Operator attention — what needs my action right now?
-        pref_pipeline_rows = Preference.objects.values("status").annotate(c=Count("id"))
-        preference_pipeline = {row["status"]: row["c"] for row in pref_pipeline_rows}
-        waiting_admin = preference_pipeline.get(Status.WAITING_ADMIN, 0)
-        waiting_payment = preference_pipeline.get(Status.WAITING_PAYMENT, 0)
-        running_prefs = preference_pipeline.get(Status.RUNNING, 0)
-        expired_prefs = preference_pipeline.get(Status.EXPIRED, 0)
-        pref_pipeline_total = (
-            waiting_payment + waiting_admin + running_prefs + expired_prefs
-        )
-
-        pending_payments = Subscription.objects.filter(
-            status=SubscriptionStatus.PENDING
-        ).count()
-        expiring_soon = Subscription.objects.filter(
-            status=SubscriptionStatus.ACTIVE,
-            expires_at__lte=now + timedelta(days=7),
-            expires_at__gt=now,
-        ).count()
-        linkedin_gate_failed = (
-            Profile.objects.filter(linkedin_quality_ok=False)
-            .exclude(linkedin_raw="")
-            .count()
-        )
-
-        # Billing pulse — is the business healthy?
-        active_subs_qs = Subscription.objects.filter(
-            status=SubscriptionStatus.ACTIVE,
-            expires_at__gt=now,
-        )
-        billing = active_subs_qs.aggregate(
-            active_subs=Count("id"),
-            mrr=Sum("amount_paid"),
-        )
-        active_subs = billing["active_subs"] or 0
-        mrr = billing["mrr"] or 0
-
-        month_start = today.replace(day=1)
-        paid_this_month = (
-            Subscription.objects.filter(
-                started_at__date__gte=month_start,
-                status__in=[
-                    SubscriptionStatus.ACTIVE,
-                    SubscriptionStatus.EXPIRED,
-                    SubscriptionStatus.REPLACED,
-                ],
-            ).aggregate(total=Sum("amount_paid"))["total"]
-            or 0
-        )
-
-        sub_per_day_rows = (
-            Subscription.objects.filter(
-                started_at__date__range=[thirty_days_ago, today],
-                status__in=[
-                    SubscriptionStatus.ACTIVE,
-                    SubscriptionStatus.EXPIRED,
-                    SubscriptionStatus.REPLACED,
-                ],
-            )
-            .extra({"date": "date(started_at)"})
-            .values("date")
-            .annotate(count=Count("id"))
-        )
-        sub_counts = {row["date"]: row["count"] for row in sub_per_day_rows}
-        daily_subs = [sub_counts.get(str(d), sub_counts.get(d, 0)) for d in date_range]
-
-        latest_subs = list(
-            Subscription.objects.select_related("profile", "plan").order_by(
-                "-created_on"
-            )[:5]
-        )
-
-        context = {
-            **profile_stats,
-            **job_stats,
-            **assessment_stats,
-            "avg_score_display": avg_score_display,
-            "recent_assessments": recent_assessments,
-            "top_profiles": top_profiles,
-            "daily_assessments_json": json.dumps(daily_assessments),
-            "date_labels_json": json.dumps(date_labels),
-            "daily_subs_json": json.dumps(daily_subs),
-            # Operator attention
-            "waiting_admin": waiting_admin,
-            "waiting_payment_count": waiting_payment,
-            "running_prefs": running_prefs,
-            "expired_prefs": expired_prefs,
-            "pref_pipeline_total": pref_pipeline_total,
-            "pending_payments": pending_payments,
-            "expiring_soon": expiring_soon,
-            "linkedin_gate_failed": linkedin_gate_failed,
-            # Billing
-            "active_subs": active_subs,
-            "mrr": mrr,
-            "paid_this_month": paid_this_month,
-            "latest_subs": latest_subs,
-            "now": now,
-        }
-        cache.set(cache_key, context, 300)
-        return render(request, "dashboard.html", context)
 
 
 class PreferenceListView(SuperuserRequiredMixin, View):

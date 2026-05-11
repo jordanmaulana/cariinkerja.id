@@ -86,7 +86,7 @@
           </div>
           <div class="mt-6">
             <p class="mb-2 text-xs font-medium text-slate-500">Activations · last 30 days</p>
-            <div class="h-32"><canvas id="subsChart"></canvas></div>
+            <div class="h-32"><canvas id="subsChart" data-chart-loading></canvas></div>
           </div>
         </div>
 
@@ -186,7 +186,7 @@
         <!-- Assessments time series -->
         <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 class="text-sm font-semibold text-slate-700">Assessments · last 30 days</h3>
-          <div class="mt-5 h-48"><canvas id="assessmentsChart"></canvas></div>
+          <div class="mt-5 h-48"><canvas id="assessmentsChart" data-chart-loading></canvas></div>
         </div>
       </div>
     </section>
@@ -201,26 +201,9 @@
             <h3 class="text-sm font-semibold text-slate-700">Top matched candidates</h3>
             <span class="text-xs text-slate-400">last 30 days</span>
           </div>
-          <ul class="mt-4 space-y-2">
-            {% for profile in top_profiles %}
-              <li>
-                <a href="{% url 'admin:profiles_profile_change' profile.id %}"
-                   class="group flex items-center gap-3 rounded-lg p-2 hover:bg-slate-50 transition">
-                  <div class="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-600">
-                    {{ profile.full_name|default:"?"|slice:":1"|upper }}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium text-slate-900">{{ profile.full_name|default:"(no name)" }}</p>
-                    <p class="text-xs text-slate-500">{{ profile.assessment_count|intdot }} assessments</p>
-                  </div>
-                  {% include "_partials/score_pill.html" with score=profile.best_score %}
-                  <span class="text-xs tabular-nums text-slate-400 w-6 text-right">#{{ forloop.counter }}</span>
-                </a>
-              </li>
-            {% empty %}
-              <li class="py-6 text-center text-sm text-slate-400">No matched candidates in last 30 days</li>
-            {% endfor %}
-          </ul>
+          <div class="mt-4" data-fragment data-fragment-url="{% url 'dashboard_fragment_top_profiles' %}">
+            <p class="py-6 text-center text-sm text-slate-400">Loading…</p>
+          </div>
         </div>
 
         <!-- Latest subscriptions -->
@@ -258,113 +241,124 @@
         <h3 class="text-sm font-semibold text-slate-700">Recent assessments</h3>
         <a href="{% url 'assessment_list' %}" class="text-xs font-medium text-blue-600 hover:text-blue-700">All →</a>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <th class="px-6 py-3 text-left font-medium">Profile</th>
-              <th class="px-6 py-3 text-left font-medium">Job</th>
-              <th class="px-6 py-3 text-left font-medium">Status</th>
-              <th class="px-6 py-3 text-right font-medium">Score</th>
-              <th class="px-6 py-3 text-left font-medium">Created</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            {% for a in recent_assessments %}
-              <tr class="hover:bg-slate-50 transition">
-                <td class="px-6 py-3">
-                  <a href="{% url 'admin:assessment_assessment_change' a.id %}" class="font-medium text-blue-600 hover:underline">
-                    {{ a.preference.profile.full_name|default:"(no name)" }}
-                  </a>
-                </td>
-                <td class="px-6 py-3 text-slate-700">{{ a.job.title|truncatechars:60 }}</td>
-                <td class="px-6 py-3">
-                  {% include "_partials/status_pill.html" with value=a.status label=a.get_status_display %}
-                </td>
-                <td class="px-6 py-3 text-right">
-                  {% include "_partials/score_pill.html" with score=a.score %}
-                </td>
-                <td class="px-6 py-3 text-slate-500 whitespace-nowrap">{{ a.created_on|date:"Y-m-d H:i" }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="5" class="py-8 text-slate-400 text-center">No assessments yet</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div data-fragment data-fragment-paginated data-fragment-url="{% url 'dashboard_fragment_recent_assessments' %}">
+        <p class="px-6 py-8 text-center text-sm text-slate-400">Loading…</p>
       </div>
-      {% if recent_assessments.has_other_pages %}
-        <div class="border-t border-slate-100 px-6 py-3">
-          {% include "_partials/pagination.html" with page_obj=recent_assessments %}
-        </div>
-      {% endif %}
     </section>
   </div>
 
   <script>
-    const dailyAssessments = {{ daily_assessments_json|safe }};
-    const dateLabels = {{ date_labels_json|safe }};
-    const dailySubs = {{ daily_subs_json|safe }};
+    (function () {
+      const CHARTS_URL = "{% url 'dashboard_fragment_charts' %}";
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const baseScales = {
-        y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8' }, grid: { color: '#f1f5f9' }, border: { display: false } },
-        x: {
-          ticks: {
-            color: '#94a3b8',
-            maxTicksLimit: 8,
-            callback: function (value) {
-              const d = new Date(this.getLabelForValue(value));
-              return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            },
-          },
-          grid: { display: false },
-          border: { display: false },
-        },
-      };
+      function hydrateFragment(el) {
+        const url = el.dataset.fragmentUrl;
+        if (!url) return;
+        fetch(url, { credentials: 'same-origin' })
+          .then(r => r.ok ? r.text() : Promise.reject(r.status))
+          .then(html => { el.innerHTML = html; })
+          .catch(() => {
+            el.innerHTML = '<p class="px-6 py-6 text-center text-sm text-rose-500">Failed to load.</p>';
+          });
+      }
 
-      new Chart(document.getElementById('assessmentsChart').getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels: dateLabels,
-          datasets: [{
-            label: 'Assessments',
-            data: dailyAssessments,
-            backgroundColor: 'rgba(59, 130, 246, 0.85)',
-            borderRadius: 4,
-            borderSkipped: false,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: baseScales,
-          plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', cornerRadius: 6 } },
-        },
+      function bindPaginatedFragment(el) {
+        el.addEventListener('click', (ev) => {
+          const a = ev.target.closest('a[href*="page="]');
+          if (!a || !el.contains(a)) return;
+          ev.preventDefault();
+          const page = new URL(a.href, window.location.origin).searchParams.get('page') || '1';
+          const url = el.dataset.fragmentUrl + '?page=' + encodeURIComponent(page);
+          fetch(url, { credentials: 'same-origin' })
+            .then(r => r.ok ? r.text() : Promise.reject(r.status))
+            .then(html => { el.innerHTML = html; })
+            .catch(() => {});
+        });
+      }
+
+      function loadCharts() {
+        const assessmentsCanvas = document.getElementById('assessmentsChart');
+        const subsCanvas = document.getElementById('subsChart');
+        if (!assessmentsCanvas && !subsCanvas) return;
+        if (typeof Chart === 'undefined') {
+          window.addEventListener('load', loadCharts, { once: true });
+          return;
+        }
+        fetch(CHARTS_URL, { credentials: 'same-origin' })
+          .then(r => r.json())
+          .then(data => {
+            const baseScales = {
+              y: { beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8' }, grid: { color: '#f1f5f9' }, border: { display: false } },
+              x: {
+                ticks: {
+                  color: '#94a3b8',
+                  maxTicksLimit: 8,
+                  callback: function (value) {
+                    const d = new Date(this.getLabelForValue(value));
+                    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  },
+                },
+                grid: { display: false },
+                border: { display: false },
+              },
+            };
+            if (assessmentsCanvas) {
+              new Chart(assessmentsCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                  labels: data.date_labels,
+                  datasets: [{
+                    label: 'Assessments',
+                    data: data.daily_assessments,
+                    backgroundColor: 'rgba(59, 130, 246, 0.85)',
+                    borderRadius: 4,
+                    borderSkipped: false,
+                  }],
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: baseScales,
+                  plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', cornerRadius: 6 } },
+                },
+              });
+            }
+            if (subsCanvas) {
+              new Chart(subsCanvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                  labels: data.date_labels,
+                  datasets: [{
+                    label: 'Activations',
+                    data: data.daily_subs,
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    borderWidth: 2,
+                  }],
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: baseScales,
+                  plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', cornerRadius: 6 } },
+                },
+              });
+            }
+          })
+          .catch(() => {});
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-fragment]').forEach((el) => {
+          hydrateFragment(el);
+          if (el.hasAttribute('data-fragment-paginated')) bindPaginatedFragment(el);
+        });
+        loadCharts();
       });
-
-      new Chart(document.getElementById('subsChart').getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: dateLabels,
-          datasets: [{
-            label: 'Activations',
-            data: dailySubs,
-            borderColor: 'rgba(16, 185, 129, 1)',
-            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-            fill: true,
-            tension: 0.35,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            borderWidth: 2,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: baseScales,
-          plugins: { legend: { display: false }, tooltip: { backgroundColor: '#0f172a', cornerRadius: 6 } },
-        },
-      });
-    });
+    })();
   </script>
 {% endblock content %}

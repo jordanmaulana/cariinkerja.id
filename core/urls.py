@@ -7,6 +7,9 @@ from django.views.generic import RedirectView
 
 from core.views import (
     AdminLoginView,
+    DashboardChartsFragmentView,
+    DashboardRecentAssessmentsFragmentView,
+    DashboardTopProfilesFragmentView,
     DashboardView,
     PlanCreateView,
     PlanDeleteView,
@@ -26,6 +29,21 @@ urlpatterns = [
     path("login/", AdminLoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(next_page="login"), name="logout"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path(
+        "dashboard/fragments/charts/",
+        DashboardChartsFragmentView.as_view(),
+        name="dashboard_fragment_charts",
+    ),
+    path(
+        "dashboard/fragments/top-profiles/",
+        DashboardTopProfilesFragmentView.as_view(),
+        name="dashboard_fragment_top_profiles",
+    ),
+    path(
+        "dashboard/fragments/recent-assessments/",
+        DashboardRecentAssessmentsFragmentView.as_view(),
+        name="dashboard_fragment_recent_assessments",
+    ),
     path(
         "preferences/",
         PreferenceListView.as_view(),
