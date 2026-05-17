@@ -214,6 +214,9 @@ def crawl(
     """Yield parsed job posting dicts for the given Jobstreet listing URL.
 
     Stops early when a listing page returns no postings or ``limit`` is hit.
+
+    Example usage:
+    https://id.jobstreet.com/mobile-developer-jobs
     """
     owns_client = client is None
     client = client or build_client()

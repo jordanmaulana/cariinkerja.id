@@ -23,6 +23,13 @@ from core.views import (
     SubscriptionDetailView,
     SubscriptionListView,
 )
+from jobs.views import (
+    CrawlHealthCreateView,
+    CrawlHealthDeleteView,
+    CrawlHealthListView,
+    CrawlHealthRunView,
+    CrawlHealthUpdateView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -73,6 +80,27 @@ urlpatterns = [
         "subscriptions/<str:pk>/",
         SubscriptionDetailView.as_view(),
         name="subscription_detail",
+    ),
+    path("crawl-health/", CrawlHealthListView.as_view(), name="crawl_health_list"),
+    path(
+        "crawl-health/new/",
+        CrawlHealthCreateView.as_view(),
+        name="crawl_health_create",
+    ),
+    path(
+        "crawl-health/run/",
+        CrawlHealthRunView.as_view(),
+        name="crawl_health_run",
+    ),
+    path(
+        "crawl-health/<str:pk>/edit/",
+        CrawlHealthUpdateView.as_view(),
+        name="crawl_health_update",
+    ),
+    path(
+        "crawl-health/<str:pk>/delete/",
+        CrawlHealthDeleteView.as_view(),
+        name="crawl_health_delete",
     ),
     path("settings/smtp-test/", SmtpTestView.as_view(), name="smtp_test"),
     path("assessments/", include("assessment.urls")),

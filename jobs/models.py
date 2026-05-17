@@ -1,10 +1,30 @@
 from django.db import models
 
-from core.models import make_object_id
+from core.models import BaseModel, make_object_id
 from jobs.consts import JobType, RemoteOption
 
 
-# Create your models here.
+class CrawlHealthTarget(BaseModel):
+    SOURCE_INDEED = "indeed"
+    SOURCE_JOBSTREET = "jobstreet"
+    SOURCE_CHOICES = [
+        (SOURCE_INDEED, "Indeed"),
+        (SOURCE_JOBSTREET, "Jobstreet"),
+    ]
+
+    label = models.CharField(max_length=120)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES)
+    url = models.URLField(max_length=500)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        app_label = "jobs"
+        ordering = ["label"]
+
+    def __str__(self):
+        return f"{self.label} ({self.source})"
+
+
 class Job(models.Model):
     id = models.CharField(primary_key=True, default=make_object_id, editable=False)
     url = models.URLField(unique=True)

@@ -1,0 +1,72 @@
+{% extends "dashboard_base.html" %}
+{% block title %}Crawl Health — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <div class="space-y-6">
+    <header class="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">System</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Crawl Health</h1>
+        <p class="mt-1 text-sm text-slate-500">Daily 06:00 WIB probe runs against active targets and reports to Discord.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <form method="post" action="{% url 'crawl_health_run' %}" class="inline">
+          {% csrf_token %}
+          <button type="submit"
+                  class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 transition">
+            Run now
+          </button>
+        </form>
+        <a href="{% url 'crawl_health_create' %}"
+           class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 transition">
+          + Add target
+        </a>
+      </div>
+    </header>
+
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-6 py-3 text-left font-medium">Label</th>
+              <th class="px-6 py-3 text-left font-medium">Source</th>
+              <th class="px-6 py-3 text-left font-medium">URL</th>
+              <th class="px-6 py-3 text-left font-medium">Active</th>
+              <th class="px-6 py-3 text-left font-medium">Updated</th>
+              <th class="px-6 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for t in targets %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-3 font-medium text-slate-900">{{ t.label }}</td>
+                <td class="px-6 py-3 text-slate-700">{{ t.get_source_display }}</td>
+                <td class="px-6 py-3 text-slate-500 max-w-md truncate">
+                  <a href="{{ t.url }}" target="_blank" rel="noopener" class="hover:underline">{{ t.url }}</a>
+                </td>
+                <td class="px-6 py-3">
+                  {% if t.is_active %}
+                    {% include "_partials/status_pill.html" with value="ACTIVE" label="Active" %}
+                  {% else %}
+                    {% include "_partials/status_pill.html" with value="EXPIRED" label="Inactive" %}
+                  {% endif %}
+                </td>
+                <td class="px-6 py-3 text-slate-500 whitespace-nowrap">{{ t.updated_on|date:"Y-m-d H:i" }}</td>
+                <td class="px-6 py-3 text-right space-x-3">
+                  <a href="{% url 'crawl_health_update' t.id %}" class="text-sm font-medium text-blue-600 hover:underline">Edit</a>
+                  <form method="post" action="{% url 'crawl_health_delete' t.id %}" class="inline"
+                        onsubmit="return confirm('Delete crawl target {{ t.label|escapejs }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="text-sm font-medium text-rose-600 hover:underline">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="py-8 text-slate-400 text-center">No crawl targets yet. Add one.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+{% endblock %}

@@ -337,6 +337,9 @@ def crawl(
     Stops early when a listing page returns no postings, ``limit`` is hit,
     or a Cloudflare interstitial is detected (retrying without a fingerprint
     change won't help — abort and surface clearly).
+
+    Example usage:
+    https://id.indeed.com/jobs?q=mobile+developer
     """
     owns_client = client is None
     client = client or build_client()

@@ -1,0 +1,49 @@
+{% extends "dashboard_base.html" %}
+{% block title %}{{ title }} — cariinkerja.id Admin{% endblock %}
+{% block content %}
+  <div class="space-y-6 max-w-2xl">
+    <div>
+      <a href="{% url 'crawl_health_list' %}" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">← Back to crawl health</a>
+    </div>
+
+    {% include "_partials/page_header.html" with eyebrow="System" title=title %}
+
+    <form method="post" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="rounded-md bg-rose-50 p-3 text-sm text-rose-800 border border-rose-200">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.label.id_for_label }}">Label</label>
+        {{ form.label }}
+        {% if form.label.errors %}<p class="text-xs text-red-600">{{ form.label.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.source.id_for_label }}">Source</label>
+        {{ form.source }}
+        {% if form.source.errors %}<p class="text-xs text-red-600">{{ form.source.errors.0 }}</p>{% endif %}
+      </div>
+
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.url.id_for_label }}">Listing URL</label>
+        {{ form.url }}
+        {% if form.url.errors %}<p class="text-xs text-red-600">{{ form.url.errors.0 }}</p>{% endif %}
+        <p class="text-xs text-slate-500">Full listing URL the scraper will fetch (e.g. https://id.indeed.com/jobs?q=python).</p>
+      </div>
+
+      <label class="flex items-center gap-2 text-sm">
+        {{ form.is_active }}
+        <span>Active (included in daily probe)</span>
+      </label>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <a href="{% url 'crawl_health_list' %}" class="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">Cancel</a>
+        <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+          Save
+        </button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

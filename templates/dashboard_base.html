@@ -86,6 +86,12 @@
             <div>
               <p class="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">System</p>
               <div class="space-y-0.5">
+                <a href="{% url 'crawl_health_list' %}"
+                   class="group flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition
+                     {% if 'crawl_health' in current %}bg-blue-500/15 text-white border-l-2 border-blue-400 -ml-px pl-2.5{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %}">
+                  {% include "_partials/icon.html" with name="spark" class="w-4 h-4 opacity-80" %}
+                  Crawl Health
+                </a>
                 <a href="{% url 'smtp_test' %}"
                    class="group flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition
                      {% if current == 'smtp_test' %}bg-blue-500/15 text-white border-l-2 border-blue-400 -ml-px pl-2.5{% else %}text-slate-300 hover:bg-white/5 hover:text-white{% endif %}">
