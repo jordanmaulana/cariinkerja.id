@@ -1,4 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { getPublicStats } from "./api";
+
+export function usePublicStats() {
+  return useQuery({
+    queryKey: ["landing", "public-stats"],
+    queryFn: getPublicStats,
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
 
 export function useInView<T extends HTMLElement>(
   options?: IntersectionObserverInit,

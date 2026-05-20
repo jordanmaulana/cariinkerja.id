@@ -5,12 +5,14 @@ from api.v1 import (
     auth_api,
     billing_api,
     dashboard_api,
+    landing_api,
     payments_api,
     preferences_api,
     profiles_api,
 )
 
 urlpatterns = [
+    path("landing/stats/", landing_api.public_stats, name="api-v1-landing-stats"),
     path("auth/google/", auth_api.google, name="api-v1-auth-google"),
     path("auth/logout/", auth_api.logout, name="api-v1-logout"),
     path("auth/me/", auth_api.me, name="api-v1-me"),
