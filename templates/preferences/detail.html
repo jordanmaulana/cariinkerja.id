@@ -124,5 +124,59 @@
         </div>
       </form>
     </section>
+
+    <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <h3 class="text-sm font-semibold text-slate-700">Latest assessments</h3>
+        <span class="text-xs text-slate-400">{{ assessments.paginator.count|intdot }} total</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-6 py-3 text-left font-medium">Job title</th>
+              <th class="px-6 py-3 text-left font-medium">Company</th>
+              <th class="px-6 py-3 text-left font-medium">Source</th>
+              <th class="px-6 py-3 text-right font-medium">Score</th>
+              <th class="px-6 py-3 text-left font-medium">Status</th>
+              <th class="px-6 py-3 text-left font-medium">Created</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for a in assessments %}
+              <tr class="hover:bg-slate-50 transition">
+                <td class="px-6 py-3">
+                  <a href="{% url 'assessment_detail' a.id %}" class="font-medium text-blue-600 hover:underline">
+                    {{ a.job.title|default:"—" }}
+                  </a>
+                </td>
+                <td class="px-6 py-3 text-slate-700">{{ a.job.company|default:"—" }}</td>
+                <td class="px-6 py-3">
+                  {% if a.job.url %}
+                    <a href="{{ a.job.url }}" target="_blank" rel="noopener" class="text-blue-600 hover:underline" title="{{ a.job.url }}">{{ a.job.source|default:"—" }}</a>
+                  {% else %}
+                    <span class="text-slate-500">{{ a.job.source|default:"—" }}</span>
+                  {% endif %}
+                </td>
+                <td class="px-6 py-3 text-right">
+                  {% include "_partials/score_pill.html" with score=a.score %}
+                </td>
+                <td class="px-6 py-3">
+                  {% include "_partials/status_pill.html" with value=a.status label=a.get_status_display %}
+                </td>
+                <td class="px-6 py-3 text-slate-500 whitespace-nowrap">{{ a.created_on|date:"Y-m-d H:i" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="py-8 text-slate-400 text-center">No assessments yet for this preference.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if assessments.has_other_pages %}
+        <div class="border-t border-slate-100 px-6 py-3">
+          {% include "_partials/pagination.html" with page_obj=assessments %}
+        </div>
+      {% endif %}
+    </section>
   </div>
 {% endblock %}

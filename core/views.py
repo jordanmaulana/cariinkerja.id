@@ -293,6 +293,8 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
         )
 
     def _render(self, request, pref):
+        qs = pref.assessments.select_related("job").order_by("-created_on")
+        page_obj = Paginator(qs, 20).get_page(request.GET.get("page", 1))
         return render(
             request,
             "preferences/detail.html",
@@ -301,6 +303,7 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
                 "profile": pref.profile,
                 "status_choices": Status.choices,
                 "crawl_urls_text": "\n".join(pref.crawl_urls or []),
+                "assessments": page_obj,
             },
         )
 
