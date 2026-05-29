@@ -43,7 +43,9 @@ make dock       # docker compose down/build/up -d --env-file .env.docker (then t
 
 Direct Django (when Make target missing): `uv run manage.py <cmd>`.
 
-Run a single test: `uv run manage.py test <app>.tests.<TestClass>.<test_method>` (e.g. `uv run manage.py test jobs.tests.JobModelTests.test_create`).
+Tests: `uv run manage.py test` (full suite), `uv run manage.py test <app>` (one app), or `uv run manage.py test <app>.tests.<TestClass>.<test_method>` for a single test (e.g. `uv run manage.py test jobs.tests.JobModelTests.test_create`).
+
+Frontend-only (no Make target): `cd frontend && pnpm run lint` (eslint), `cd frontend && pnpm run build` (`tsc -b && vite build`).
 
 Job crawlers (management commands — one-shot ad hoc; recurring crawls run through the Celery pipeline below):
 
@@ -103,7 +105,7 @@ Beat schedules live in DB (`django_celery_beat.schedulers:DatabaseScheduler`) �
 ### URLs / views
 
 - `core/urls.py` mounts: `admin/`, `login/` (`AdminLoginView`), `logout/`, `dashboard/`, `preferences/...`, `plans/...`, `subscriptions/...`, `assessments/`, `profiles/`, `jobs/`, `api/`, and `/` → redirect to `/dashboard/`. These server-rendered admin views are superuser-gated (`SuperuserRequiredMixin`).
-- DRF surface (consumed by the SPA) is at `api/v1/urls.py` (top-level `api` package, mounted via `core/urls.py` at `/api/v1/`; endpoint impls split per domain: `auth_api.py`, `profiles_api.py`, `preferences_api.py`, `assessments_api.py`, `billing_api.py`, `payments_api.py`, `dashboard_api.py`) — auth (Google + token), profile/onboarding, preferences, assessments, plans, subscriptions (incl. `stream/` SSE, `checkout/`, `upgrade-quote/`, `cancel-pending/`, `<pk>/recheck/`), Mayar webhook, dashboard stats. The empty `core/api/v1/` dir is stale — ignore.
+- DRF surface (consumed by the SPA) is at `api/v1/urls.py` (top-level `api` package, mounted via `core/urls.py` at `/api/v1/`; endpoint impls split per domain: `auth_api.py`, `profiles_api.py`, `preferences_api.py`, `assessments_api.py`, `billing_api.py`, `payments_api.py`, `dashboard_api.py`, `landing_api.py`) — auth (Google + token), profile/onboarding, preferences, assessments, plans, subscriptions (incl. `stream/` SSE, `checkout/`, `upgrade-quote/`, `cancel-pending/`, `<pk>/recheck/`), Mayar webhook, dashboard stats. The empty `core/api/v1/` dir is stale — ignore.
 - `DashboardView` — superuser-gated admin overview of Profile/Job/Assessment counts, top profiles, paginated recent assessments, and 30-day trends rendered with Chart.js.
 - Templates live at the project-root `templates/` dir (configured via `TEMPLATES.DIRS`), not per-app.
 
