@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cariinkerja — Investor Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080b0a;
+    --panel:#0d1311;
+    --ink:#f3f1e9;
+    --muted:#8b968f;
+    --faint:#566059;
+    --line:rgba(180,200,190,.12);
+    --line2:rgba(180,200,190,.06);
+    --emer:#34d399;
+    --emer-deep:#0f9d6b;
+    --amber:#e8b04b;
+    --serif:"Fraunces",Georgia,serif;
+    --sans:"Hanken Grotesk",-apple-system,system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:#000;color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:1280px 720px;margin:0}
+
+  .slide{
+    position:relative;width:1280px;height:720px;overflow:hidden;
+    background:var(--bg);
+    page-break-after:always;break-after:page;
+    display:flex;flex-direction:column;
+    padding:64px 80px;
+  }
+  .slide:last-child{page-break-after:auto}
+
+  /* atmosphere */
+  .slide::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(900px 520px at 88% -8%, rgba(52,211,153,.10), transparent 60%),
+      radial-gradient(760px 520px at 4% 108%, rgba(15,157,107,.08), transparent 62%);
+  }
+  /* hairline grid */
+  .slide::after{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(var(--line2) 1px,transparent 1px),linear-gradient(90deg,var(--line2) 1px,transparent 1px);
+    background-size:80px 80px;
+    mask-image:radial-gradient(120% 120% at 50% 30%,#000 40%,transparent 92%);
+    -webkit-mask-image:radial-gradient(120% 120% at 50% 30%,#000 40%,transparent 92%);
+  }
+  .slide > *{position:relative;z-index:1}
+
+  /* chrome: header + footer */
+  .topbar{display:flex;justify-content:space-between;align-items:center;
+    font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+  .topbar .brand{color:var(--muted)}
+  .topbar .brand b{color:var(--emer);font-weight:600}
+  .kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--emer);
+    display:flex;align-items:center;gap:10px}
+  .kicker::before{content:"";width:22px;height:1px;background:var(--emer);display:inline-block}
+  .idx{position:absolute;right:80px;bottom:52px;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--faint);z-index:1}
+  .footline{position:absolute;left:80px;bottom:52px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--faint);z-index:1}
+
+  .body{flex:1;display:flex;flex-direction:column;justify-content:center}
+  h1,h2{font-family:var(--serif);font-weight:400;letter-spacing:-.015em;line-height:1.02}
+  .lede{font-family:var(--sans);color:var(--muted);font-size:19px;line-height:1.5;font-weight:400}
+  em{font-style:italic;color:var(--emer)}
+  .serif-em{font-family:var(--serif);font-style:italic}
+
+  /* ---------- COVER ---------- */
+  .cover{justify-content:space-between}
+  .cover .body{justify-content:center}
+  .wordmark{font-family:var(--serif);font-size:30px;letter-spacing:-.01em}
+  .wordmark .dot{color:var(--emer)}
+  .cover h1{font-size:96px;margin:6px 0 26px}
+  .cover h1 .l2{display:block;color:var(--muted)}
+  .cover .tag{font-size:24px;max-width:760px;color:var(--ink);font-weight:400;line-height:1.32}
+  .cover .tag b{color:var(--emer);font-weight:600}
+  .meta-row{display:flex;gap:40px;margin-top:42px;align-items:center}
+  .meta-row .chip{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+    display:flex;align-items:center;gap:9px}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--emer);box-shadow:0 0 0 4px rgba(52,211,153,.16)}
+  .score-orb{position:absolute;right:30px;top:50%;transform:translateY(-50%);width:340px;height:340px;z-index:0;opacity:.9}
+
+  /* ---------- generic big head ---------- */
+  .head-xl{font-size:62px;max-width:14ch}
+  .head-lg{font-size:50px;max-width:16ch}
+  .head-md{font-size:42px}
+
+  /* problem stats */
+  .two-col{display:grid;grid-template-columns:1.05fr .95fr;gap:64px;align-items:center}
+  .pain-list{list-style:none;display:flex;flex-direction:column;gap:0}
+  .pain-list li{display:flex;gap:18px;padding:17px 0;border-bottom:1px solid var(--line2);align-items:baseline}
+  .pain-list li:last-child{border-bottom:none}
+  .pain-list .n{font-family:var(--mono);font-size:12px;color:var(--emer);min-width:26px}
+  .pain-list .t{font-size:17px;color:var(--ink);line-height:1.4}
+  .pain-list .t span{color:var(--muted)}
+  .quote-card{border:1px solid var(--line);border-radius:14px;padding:38px 36px;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}
+  .quote-card .big{font-family:var(--serif);font-size:74px;line-height:1;color:var(--ink)}
+  .quote-card .big small{font-size:26px;color:var(--faint);font-family:var(--mono);letter-spacing:.04em}
+  .quote-card .cap{margin-top:14px;color:var(--muted);font-size:15px;line-height:1.45}
+  .quote-card .strike{text-decoration:line-through;text-decoration-color:var(--emer);text-decoration-thickness:2px;color:var(--faint)}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:14px}
+  .step{border:1px solid var(--line);border-radius:14px;padding:26px 22px;background:var(--panel);
+    display:flex;flex-direction:column;gap:14px;position:relative;min-height:248px}
+  .step .sn{font-family:var(--mono);font-size:12px;color:var(--emer);letter-spacing:.1em}
+  .step h3{font-family:var(--serif);font-size:23px;font-weight:500;line-height:1.1}
+  .step p{font-size:14px;color:var(--muted);line-height:1.5}
+  .step .tagchip{margin-top:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:5px 10px;align-self:flex-start}
+  .flowdot{position:absolute;top:34px;right:-13px;color:var(--faint);font-size:18px;z-index:2}
+  .step:last-child .flowdot{display:none}
+
+  /* assessment card */
+  .assess-wrap{display:grid;grid-template-columns:380px 1fr;gap:56px;align-items:center}
+  .jobcard{border:1px solid var(--line);border-radius:16px;background:var(--panel);overflow:hidden}
+  .jobcard .jc-top{padding:24px 26px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;align-items:flex-start}
+  .jobcard .jt{font-family:var(--serif);font-size:21px;font-weight:500}
+  .jobcard .jco{color:var(--muted);font-size:13px;margin-top:3px;font-family:var(--mono);letter-spacing:.04em}
+  .ring{width:84px;height:84px;flex:none}
+  .ringnum{font-family:var(--mono);font-weight:600;font-size:23px;fill:var(--emer)}
+  .ringlbl{font-family:var(--mono);font-size:8px;fill:var(--faint);letter-spacing:.1em}
+  .jc-body{padding:22px 26px;display:flex;flex-direction:column;gap:16px}
+  .skrow .skh{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:9px}
+  .pills{display:flex;flex-wrap:wrap;gap:7px}
+  .pill{font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--line)}
+  .pill.match{color:var(--emer);border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.07)}
+  .pill.gap{color:var(--amber);border-color:rgba(232,176,75,.32);background:rgba(232,176,75,.06)}
+  .verdict{border-top:1px solid var(--line2);padding-top:16px;font-size:13.5px;color:var(--muted);line-height:1.5;font-style:italic;font-family:var(--serif)}
+  .verdict b{color:var(--emer);font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;display:block;margin-bottom:6px;font-weight:500}
+  .feat-list{list-style:none;display:flex;flex-direction:column;gap:20px}
+  .feat-list li{display:flex;gap:16px;align-items:flex-start}
+  .feat-list .fi{font-family:var(--mono);color:var(--emer);font-size:13px;min-width:30px;padding-top:3px}
+  .feat-list h4{font-family:var(--serif);font-size:19px;font-weight:500;margin-bottom:3px}
+  .feat-list p{color:var(--muted);font-size:14px;line-height:1.45}
+
+  /* compare (0-100) */
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:8px}
+  .cmp .card{border:1px solid var(--line);border-radius:16px;padding:30px 30px;background:var(--panel);position:relative}
+  .cmp .card.win{border-color:rgba(52,211,153,.4);background:linear-gradient(180deg,rgba(52,211,153,.06),var(--panel))}
+  .cmp .label{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:18px}
+  .cmp .win .label{color:var(--emer)}
+  .cmp .score-line{display:flex;align-items:baseline;gap:14px}
+  .cmp .sc{font-family:var(--serif);font-size:80px;line-height:.9}
+  .cmp .win .sc{color:var(--emer)}
+  .cmp .scnote{color:var(--muted);font-size:14px;line-height:1.4}
+  .cmp .bar{height:8px;border-radius:8px;background:rgba(255,255,255,.06);margin:22px 0 18px;overflow:hidden}
+  .cmp .bar i{display:block;height:100%;border-radius:8px}
+  .cmp .desc{color:var(--muted);font-size:14.5px;line-height:1.55}
+  .cmp .desc b{color:var(--ink);font-weight:600}
+
+  /* traction */
+  .tgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:6px}
+  .tstat{padding:38px 30px;border-right:1px solid var(--line);background:var(--panel);position:relative}
+  .tstat:last-child{border-right:none}
+  .tstat .tn{font-family:var(--serif);font-size:64px;line-height:1;letter-spacing:-.02em}
+  .tstat:nth-child(4) .tn{color:var(--emer)}
+  .tstat .tl{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:16px}
+  .tstat .td{font-size:13px;color:var(--faint);margin-top:6px;line-height:1.4}
+  .tnote{display:flex;gap:30px;margin-top:30px}
+  .tnote .it{display:flex;gap:11px;align-items:center;color:var(--muted);font-size:14px}
+  .tnote .it b{color:var(--emer)}
+
+  /* business model */
+  .bm{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:10px}
+  .bm .tier{border:1px solid var(--line);border-radius:16px;padding:30px 28px;background:var(--panel);display:flex;flex-direction:column;min-height:300px}
+  .bm .tier.mid{border-color:rgba(52,211,153,.4);background:linear-gradient(180deg,rgba(52,211,153,.07),var(--panel))}
+  .bm .tn{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .bm .mid .tn{color:var(--emer)}
+  .bm .tp{font-family:var(--serif);font-size:34px;margin:14px 0 6px;font-weight:500}
+  .bm .tp small{font-family:var(--sans);font-size:14px;color:var(--muted);font-weight:400}
+  .bm ul{list-style:none;margin-top:18px;display:flex;flex-direction:column;gap:12px}
+  .bm li{font-size:14px;color:var(--muted);line-height:1.4;display:flex;gap:10px}
+  .bm li::before{content:"—";color:var(--emer)}
+  .ethos{margin-top:26px;border-left:2px solid var(--emer);padding-left:20px;font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink);line-height:1.4}
+  .ethos span{color:var(--muted)}
+
+  /* moat */
+  .moat{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:8px}
+  .moat .m{border:1px solid var(--line);border-radius:14px;padding:26px 28px;background:var(--panel);display:flex;gap:20px;align-items:flex-start}
+  .moat .mn{font-family:var(--mono);font-size:12px;color:var(--emer);min-width:28px;padding-top:4px}
+  .moat h4{font-family:var(--serif);font-size:21px;font-weight:500;margin-bottom:7px}
+  .moat p{color:var(--muted);font-size:14px;line-height:1.5}
+
+  /* founder */
+  .founder{display:grid;grid-template-columns:300px 1fr;gap:60px;align-items:center}
+  .fbadge{border:1px solid var(--line);border-radius:18px;background:var(--panel);padding:36px 32px;text-align:left}
+  .fbadge .mono-init{font-family:var(--serif);font-size:64px;color:var(--emer);line-height:1}
+  .fbadge .fname{font-family:var(--serif);font-size:28px;margin-top:18px}
+  .fbadge .frole{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+  .fbadge .fc{margin-top:22px;font-size:13px;color:var(--faint);line-height:1.5}
+  .stacklist{display:flex;flex-wrap:wrap;gap:9px;margin-top:24px}
+  .stacklist .s{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+  .founder .lede{margin-bottom:22px}
+
+  /* close */
+  .close h2{font-size:58px;max-width:15ch}
+  .roadmap{display:flex;gap:0;margin:36px 0 0;border-top:1px solid var(--line)}
+  .roadmap .r{flex:1;padding:24px 26px 0;border-right:1px solid var(--line2)}
+  .roadmap .r:last-child{border-right:none}
+  .roadmap .rn{font-family:var(--mono);font-size:11px;color:var(--emer);letter-spacing:.12em}
+  .roadmap .rt{font-family:var(--serif);font-size:19px;font-weight:500;margin:12px 0 6px}
+  .roadmap .rp{font-size:13px;color:var(--muted);line-height:1.45}
+  .contact{display:flex;gap:40px;margin-top:40px;align-items:center}
+  .contact a,.contact span{font-family:var(--mono);font-size:14px;letter-spacing:.04em;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
+  .contact .dim{color:var(--faint)}
+</style>
+</head>
+<body>
+
+<!-- 01 COVER -->
+<section class="slide cover">
+  <div class="topbar">
+    <span class="wordmark">cariinkerja<span class="dot">.id</span></span>
+    <span class="brand">Investor Brief · 2026</span>
+  </div>
+  <svg class="score-orb" viewBox="0 0 200 200" fill="none">
+    <circle cx="100" cy="100" r="92" stroke="rgba(180,200,190,.10)" stroke-width="1"/>
+    <circle cx="100" cy="100" r="70" stroke="rgba(180,200,190,.08)" stroke-width="1"/>
+    <circle cx="100" cy="100" r="70" stroke="#34d399" stroke-width="3" stroke-linecap="round"
+      stroke-dasharray="440" stroke-dashoffset="93" transform="rotate(-90 100 100)"/>
+    <text x="100" y="96" text-anchor="middle" font-family="Fraunces,serif" font-size="50" fill="#f3f1e9">87</text>
+    <text x="100" y="122" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" letter-spacing="2" fill="#8b968f">FIT SCORE</text>
+  </svg>
+  <div class="body">
+    <h1>Stop applying<span class="l2 serif-em">blind.</span></h1>
+    <p class="tag">An AI job-search assistant for Indonesia that scores <b>every</b> new posting <b>0–100</b> — with the exact skills you match and the gaps to close.</p>
+    <div class="meta-row">
+      <span class="chip"><span class="pulse"></span>Live in production</span>
+      <span class="chip">Indeed · JobStreet</span>
+      <span class="chip">cariinkerja.id</span>
+    </div>
+  </div>
+  <div class="footline">SIGNAL OVER NOISE</div>
+  <div class="idx">01 / 11</div>
+</section>
+
+<!-- 02 PROBLEM -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">The Problem</span><span class="brand"><b>·</b></span></div>
+  <div class="body">
+    <div class="two-col">
+      <div>
+        <h2 class="head-lg" style="margin-bottom:30px">Job hunting in Indonesia still feels like <span class="serif-em">2010.</span></h2>
+        <ul class="pain-list">
+          <li><span class="n">01</span><span class="t">Open Indeed in one tab, JobStreet in another. <span>Scroll past hundreds of postings.</span></span></li>
+          <li><span class="n">02</span><span class="t">Skim long JDs, copy-paste your resume into <span>200 forms, hope something sticks.</span></span></li>
+          <li><span class="n">03</span><span class="t">Most were never a fit — <span>wrong stack, seniority, location, contract type.</span></span></li>
+          <li><span class="n">04</span><span class="t">Candidates burn their evenings. Recruiters drown. <span>Nobody wins.</span></span></li>
+        </ul>
+      </div>
+      <div class="quote-card">
+        <div class="big">200<small>&nbsp;apps</small></div>
+        <div class="big" style="font-size:40px;margin-top:8px">→ <span style="color:var(--emer)">~5</span> <small style="font-size:18px">that fit</small></div>
+        <p class="cap">There has to be a better signal than <span class="strike">"I applied to everything."</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="footline">cariinkerja.id</div>
+  <div class="idx">02 / 11</div>
+</section>
+
+<!-- 03 SOLUTION -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">The Solution</span><span class="brand"><b>·</b></span></div>
+  <div class="body">
+    <h2 class="head-xl">We do the daily screening <span class="serif-em">for you</span> — automatically.</h2>
+    <p class="lede" style="margin-top:26px;max-width:60ch">Connect LinkedIn once. Every day, an AI reads each fresh posting against your profile and returns a calibrated fit score plus a skill-gap map. You open the dashboard, sort by score, and focus on the <em>5–10 jobs that actually fit</em> — instead of the 200 random ones in your inbox.</p>
+    <div style="display:flex;gap:54px;margin-top:46px">
+      <div><div style="font-family:var(--serif);font-size:44px;color:var(--emer)">1×</div><div class="lede" style="font-size:15px;margin-top:6px">setup,<br>not daily grind</div></div>
+      <div style="width:1px;background:var(--line)"></div>
+      <div><div style="font-family:var(--serif);font-size:44px">every</div><div class="lede" style="font-size:15px;margin-top:6px">posting scored,<br>nothing skipped</div></div>
+      <div style="width:1px;background:var(--line)"></div>
+      <div><div style="font-family:var(--serif);font-size:44px">0–100</div><div class="lede" style="font-size:15px;margin-top:6px">a number you<br>can act on</div></div>
+    </div>
+  </div>
+  <div class="footline">cariinkerja.id</div>
+  <div class="idx">03 / 11</div>
+</section>
+
+<!-- 04 HOW IT WORKS -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">How It Works</span><span class="brand">An automated pipeline, not a search box</span></div>
+  <div class="body">
+    <h2 class="head-md" style="margin-bottom:6px">Four steps. Then it runs itself.</h2>
+    <div class="steps">
+      <div class="step"><span class="flowdot">→</span>
+        <span class="sn">STEP 01</span><h3>Connect LinkedIn</h3>
+        <p>We ingest your profile, then an LLM cleans and structures it into the exact shape our assessor needs.</p>
+        <span class="tagchip">Apify + LLM cleanup</span>
+      </div>
+      <div class="step"><span class="flowdot">→</span>
+        <span class="sn">STEP 02</span><h3>Set preferences</h3>
+        <p>Title, remote vs. on-site, full-time vs. freelance, and which source to crawl. Set once.</p>
+        <span class="tagchip">One-time config</span>
+      </div>
+      <div class="step"><span class="flowdot">→</span>
+        <span class="sn">STEP 03</span><h3>Crawl daily</h3>
+        <p>Background workers pull fresh postings matching your preferences from Indeed &amp; JobStreet. No manual scrolling.</p>
+        <span class="tagchip">Celery · automated</span>
+      </div>
+      <div class="step">
+        <span class="sn">STEP 04</span><h3>Score every job</h3>
+        <p>An LLM reads each posting against your profile and returns a structured 0–100 assessment.</p>
+        <span class="tagchip">GPT-4o · structured</span>
+      </div>
+    </div>
+  </div>
+  <div class="footline">Profile → ingest → preference → crawl → assess</div>
+  <div class="idx">04 / 11</div>
+</section>
+
+<!-- 05 THE ASSESSMENT -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">The Product</span><span class="brand">What every job returns</span></div>
+  <div class="body">
+    <div class="assess-wrap">
+      <div class="jobcard">
+        <div class="jc-top">
+          <div><div class="jt">Backend Engineer</div><div class="jco">PT · Jakarta · Remote</div></div>
+          <svg class="ring" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#34d399" stroke-width="7" stroke-linecap="round"
+              stroke-dasharray="251" stroke-dashoffset="33" transform="rotate(-90 50 50)"/>
+            <text x="50" y="49" text-anchor="middle" class="ringnum">87</text>
+            <text x="50" y="64" text-anchor="middle" class="ringlbl">FIT</text>
+          </svg>
+        </div>
+        <div class="jc-body">
+          <div class="skrow"><div class="skh">Hard skills matched</div>
+            <div class="pills"><span class="pill match">Python</span><span class="pill match">Django</span><span class="pill match">Postgres</span></div></div>
+          <div class="skrow"><div class="skh">Gaps to close</div>
+            <div class="pills"><span class="pill gap">Kubernetes</span><span class="pill gap">gRPC</span></div></div>
+          <div class="verdict"><b>Verdict · Bahasa</b>"Cocok banget sama kamu — stack-nya kepake semua. Tinggal pelajari K8s dikit, peluangnya gede."</div>
+        </div>
+      </div>
+      <div>
+        <h2 class="head-md" style="margin-bottom:24px">Not a match flag — <span class="serif-em">a decision tool.</span></h2>
+        <ul class="feat-list">
+          <li><span class="fi">0–100</span><div><h4>Calibrated fit score</h4><p>How well your profile fits this specific posting.</p></div></li>
+          <li><span class="fi">✓ / ✗</span><div><h4>Skills matched &amp; missing</h4><p>Hard and soft. The gap list doubles as a "what to learn next" map.</p></div></li>
+          <li><span class="fi">"…"</span><div><h4>Plain-Bahasa verdict</h4><p>Why it fits or doesn't — casual "kamu", no corporate-speak.</p></div></li>
+          <li><span class="fi">⤳</span><div><h4>Status tracking</h4><p>Seen · applied · accepted · rejected, as you work the list.</p></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footline">cariinkerja.id</div>
+  <div class="idx">05 / 11</div>
+</section>
+
+<!-- 06 WHY 0-100 -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">Differentiation</span><span class="brand">Why a score, not a yes/no</span></div>
+  <div class="body">
+    <h2 class="head-md" style="margin-bottom:8px">Gaps matter. A binary match hides too much.</h2>
+    <div class="cmp">
+      <div class="card win">
+        <div class="label">The better lead</div>
+        <div class="score-line"><div class="sc">72</div><div class="scnote">with <b style="color:var(--emer)">2 fixable gaps</b><br>— a few weeks of focused learning</div></div>
+        <div class="bar"><i style="width:72%;background:var(--emer)"></i></div>
+        <p class="desc"><b>Closeable.</b> You can act on it. We surface the number <b>and</b> the gaps so you can decide for yourself.</p>
+      </div>
+      <div class="card">
+        <div class="label">The mirage</div>
+        <div class="score-line"><div class="sc" style="color:var(--faint)">85</div><div class="scnote">but a callback<br>you'll <b style="color:var(--amber)">never get</b></div></div>
+        <div class="bar"><i style="width:85%;background:var(--faint)"></i></div>
+        <p class="desc">A higher number you can't convert. Binary "match" would have ranked it first — and wasted your week.</p>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:26px;font-size:17px">The verdict text adds the human context: not just the number, but <em>why</em>.</p>
+  </div>
+  <div class="footline">cariinkerja.id</div>
+  <div class="idx">06 / 11</div>
+</section>
+
+<!-- 07 TRACTION -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">Traction</span><span class="brand">Snapshot · 1 June 2026 · WIB</span></div>
+  <div class="body">
+    <h2 class="head-md" style="margin-bottom:20px">Live, in production, working every day.</h2>
+    <div class="tgrid">
+      <div class="tstat"><div class="tn">615</div><div class="tl">Profiles</div><div class="td">candidates onboarded</div></div>
+      <div class="tstat"><div class="tn">4,118</div><div class="tl">Jobs crawled</div><div class="td">across Indeed &amp; JobStreet</div></div>
+      <div class="tstat"><div class="tn">13,660</div><div class="tl">Assessments</div><div class="td">LLM scores produced</div></div>
+      <div class="tstat"><div class="tn">2,649</div><div class="tl">High-fit matches</div><div class="td">score 80+, surfaced to users</div></div>
+    </div>
+    <div class="tnote">
+      <span class="it"><span class="pulse"></span>Paying Indonesian seekers using it daily</span>
+      <span class="it"><b>~1 in 5</b>&nbsp;assessed jobs clears the 80+ high-fit bar</span>
+      <span class="it"><b>22×</b>&nbsp;more assessments than profiles — the pipeline compounds</span>
+    </div>
+  </div>
+  <div class="footline">cariinkerja.id · figures from production dashboard</div>
+  <div class="idx">07 / 11</div>
+</section>
+
+<!-- 08 BUSINESS MODEL -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">Business Model</span><span class="brand">Trust-first, low-churn</span></div>
+  <div class="body">
+    <h2 class="head-md" style="margin-bottom:6px">Prove the signal free. Then pay as you go.</h2>
+    <div class="bm">
+      <div class="tier"><span class="tn">Free tier</span><div class="tp">Rp 0</div>
+        <ul><li>~20 assessments included</li><li>See the signal before paying</li><li>No card, no friction</li></ul>
+      </div>
+      <div class="tier mid"><span class="tn">Subscription</span><div class="tp">30-day <small>cycle</small></div>
+        <ul><li>Pay-as-you-go, no annual lock-in</li><li>Daily crawl + unlimited scoring</li><li>Cancel anytime</li></ul>
+      </div>
+      <div class="tier"><span class="tn">Open-to-Work</span><div class="tp">Auto <small>discount</small></div>
+        <ul><li>Toggle "Open to Work" on LinkedIn</li><li>Cheapest plan auto-discounted</li><li>Hunting hard ≠ paying full price</li></ul>
+      </div>
+    </div>
+    <div class="ethos">"We don't sell to people who can't afford it." <span>Sustainable over predatory — fewer paying users who get real value beats a churn-and-burn funnel.</span></div>
+  </div>
+  <div class="footline">cariinkerja.id/plans</div>
+  <div class="idx">08 / 11</div>
+</section>
+
+<!-- 09 MOAT -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">Why It Defends</span><span class="brand">More than a wrapper</span></div>
+  <div class="body">
+    <h2 class="head-md" style="margin-bottom:8px">A vertical pipeline, built for this market.</h2>
+    <div class="moat">
+      <div class="m"><span class="mn">01</span><div><h4>Structured scoring pipeline</h4><p>Every score is schema-validated (Pydantic) — not free-text. A cheap relevance gate runs first, the full model only on real candidates. Reliable, idempotent, retried.</p></div></div>
+      <div class="m"><span class="mn">02</span><div><h4>Local-first by design</h4><p>Indonesian job boards, Bahasa "kamu" verdicts, IDR pricing, LinkedIn-native onboarding. Built for the market, not translated into it.</p></div></div>
+      <div class="m"><span class="mn">03</span><div><h4>Open source &amp; auditable</h4><p>AGPL-3.0. Users can verify how scoring works and how their data is handled — trust as a feature, not a promise.</p></div></div>
+      <div class="m"><span class="mn">04</span><div><h4>Shipped &amp; operating</h4><p>Full async crawl-and-assess infrastructure already in production, running daily for paying users. The hard part is built.</p></div></div>
+    </div>
+  </div>
+  <div class="footline">Django · DRF · React 19 · Celery · Redis · OpenAI · Postgres</div>
+  <div class="idx">09 / 11</div>
+</section>
+
+<!-- 10 FOUNDER -->
+<section class="slide">
+  <div class="topbar"><span class="kicker">Founder</span><span class="brand">Lean by choice</span></div>
+  <div class="body">
+    <div class="founder">
+      <div class="fbadge">
+        <div class="mono-init">J</div>
+        <div class="fname">Jordan</div>
+        <div class="frole">Solo Technical Founder</div>
+        <div class="fc">Designed, built, and shipped the entire product — frontend, backend, async pipeline, payments, and the LLM scoring engine.</div>
+      </div>
+      <div>
+        <p class="lede" style="font-size:21px;color:var(--ink)">One operator who <span class="serif-em">builds and ships.</span></p>
+        <p class="lede" style="margin-top:14px">From LinkedIn ingest to daily crawls to structured LLM assessment to a paid subscription flow — the full stack is live and running, built and operated by one person.</p>
+        <div class="stacklist">
+          <span class="s">Django 5.2 / DRF</span><span class="s">React 19 / TanStack</span><span class="s">Celery + Redis</span>
+          <span class="s">OpenAI structured output</span><span class="s">Postgres</span><span class="s">Mayar payments</span>
+          <span class="s">Google OAuth</span><span class="s">Apify ingest</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footline">jordanmaulana26@gmail.com</div>
+  <div class="idx">10 / 11</div>
+</section>
+
+<!-- 11 CLOSE -->
+<section class="slide close">
+  <div class="topbar"><span class="wordmark">cariinkerja<span class="dot">.id</span></span><span class="brand"><b>Signal</b> over noise</span></div>
+  <div class="body">
+    <h2>Turn the job search into a <span class="serif-em">calibrated signal.</span></h2>
+    <div class="roadmap">
+      <div class="r"><div class="rn">NEXT</div><div class="rt">More sources</div><div class="rp">Add job boards on user demand — widen the daily crawl surface.</div></div>
+      <div class="r"><div class="rn">NEXT</div><div class="rt">Gap → learning loop</div><div class="rp">Turn skill gaps into concrete next-step recommendations.</div></div>
+      <div class="r"><div class="rn">VISION</div><div class="rt">Beyond search</div><div class="rp">Extend the fit signal across the whole career-decision journey.</div></div>
+    </div>
+    <div class="contact">
+      <span><span class="dim">↗</span>&nbsp;cariinkerja.id</span>
+      <span><span class="dim">✉</span>&nbsp;jordanmaulana26@gmail.com</span>
+      <span class="dim">Live · open source · AGPL-3.0</span>
+    </div>
+  </div>
+  <div class="idx">11 / 11</div>
+</section>
+
+</body>
+</html>
