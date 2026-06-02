@@ -26,6 +26,16 @@ Udah live di [cariinkerja.id](https://cariinkerja.id) — dipake paying users ti
 Sebelum beli, baca dulu [Before You Buy](beforeyoubuy.md).
 
 ---
+## Star History
+
+<a href="https://www.star-history.com/?repos=jordanmaulana%2Fcariinkerja.id&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=jordanmaulana/cariinkerja.id&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=jordanmaulana/cariinkerja.id&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=jordanmaulana/cariinkerja.id&type=date&legend=top-left" />
+ </picture>
+</a>
+---
 
 ## Development
 
