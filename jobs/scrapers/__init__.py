@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import ModuleType
 from urllib.parse import urlparse
 
-from jobs.scrapers import glints, indeed, jobstreet
+from jobs.scrapers import indeed, jobstreet
 from profiles.consts import Source
 
 
@@ -24,6 +24,4 @@ def scraper_for_url(url: str) -> tuple[ModuleType | None, str | None]:
         return (indeed, Source.INDEED.value)
     if host == "jobstreet.com" or host.endswith(".jobstreet.com"):
         return (jobstreet, Source.JOBSTREET.value)
-    if host == "glints.com" or host.endswith(".glints.com"):
-        return (glints, Source.GLINTS.value)
     return (None, None)

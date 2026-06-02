@@ -14,7 +14,6 @@ from urllib.parse import quote_plus, urlencode
 from jobs.consts import JobType, RemoteOption
 
 JOBSTREET_BASE = "https://id.jobstreet.com"
-GLINTS_BASE = "https://glints.com/id/opportunities/jobs/explore"
 SLUG_MAX_LEN = 80
 
 JOBSTREET_JT_SLUG: dict[str, str] = {
@@ -110,35 +109,16 @@ def build_jobstreet_url(
     return url
 
 
-def build_glints_url(title: str | None) -> str | None:
-    """Glints ``/explore`` listing URL for a Preference.
-
-    Only ``keyword`` varies — the location and filter params are a fixed
-    template (project-based + part-time, remote) by product decision, not
-    derived from the Preference's job_type/remote_option.
-    """
-    if not title or not title.strip():
-        return None
-    return (
-        f"{GLINTS_BASE}?keyword={quote_plus(title)}"
-        "&country=ID&locationName=All+Cities%2FProvinces&lowestLocationLevel=1"
-        "&jobTypes=PROJECT_BASED%2CPART_TIME&workArrangementOptions=REMOTE"
-    )
-
-
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet + Glints listing URLs for a Preference."""
+    """Standard Indeed + JobStreet listing URLs for a Preference."""
     if not title or not title.strip():
         return []
     urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
     js = build_jobstreet_url(title, job_types, remote_options)
     if js:
         urls.append(js)
-    gl = build_glints_url(title)
-    if gl:
-        urls.append(gl)
     return urls
