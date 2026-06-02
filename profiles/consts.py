@@ -11,3 +11,4 @@ class Status(models.TextChoices):
 class Source(models.TextChoices):
     JOBSTREET = "jobstreet", "JobStreet"
     INDEED = "indeed", "Indeed"
+    GLINTS = "glints", "Glints"

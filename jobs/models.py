@@ -7,9 +7,11 @@ from jobs.consts import JobType, RemoteOption
 class CrawlHealthTarget(BaseModel):
     SOURCE_INDEED = "indeed"
     SOURCE_JOBSTREET = "jobstreet"
+    SOURCE_GLINTS = "glints"
     SOURCE_CHOICES = [
         (SOURCE_INDEED, "Indeed"),
         (SOURCE_JOBSTREET, "Jobstreet"),
+        (SOURCE_GLINTS, "Glints"),
     ]
 
     label = models.CharField(max_length=120)
