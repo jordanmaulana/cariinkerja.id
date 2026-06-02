@@ -24,6 +24,7 @@ from profiles.models import Preference
 
 JKT = ZoneInfo("Asia/Jakarta")
 HIGH_SCORE_THRESHOLD = 80
+CRAWL_ITEM_LIMIT = 10
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def crawl_and_assess_preference(preference_id: str):
             logger.warning("preference %s has unknown crawl_url %r", pref.id, url)
             continue
         try:
-            for posting in scraper.crawl(url):
+            for posting in scraper.crawl(url, limit=CRAWL_ITEM_LIMIT):
                 try:
                     with transaction.atomic():
                         job, _ = Job.objects.update_or_create(
