@@ -5,6 +5,8 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#ffffff" />
 
   <title>cariinkerja.id — Cariin kamu loker yang cocok</title>
   <meta name="description"
@@ -30,6 +32,86 @@
   <meta name="twitter:description"
     content="Tiap hari kita cek loker baru yang cocok sama profilmu, dan tunjukin skill apa yang kurang dari kamu." />
   <meta name="twitter:image" content="https://cariinkerja.id/og-image.png" />
+
+  <!-- Structured data (schema.org JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://cariinkerja.id/#organization",
+        "name": "cariinkerja.id",
+        "url": "https://cariinkerja.id/",
+        "logo": "https://cariinkerja.id/favicon.svg",
+        "sameAs": ["https://github.com/jordanmaulana/cariinkerja.id"]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://cariinkerja.id/#website",
+        "name": "cariinkerja.id",
+        "url": "https://cariinkerja.id/",
+        "inLanguage": "id-ID",
+        "publisher": { "@id": "https://cariinkerja.id/#organization" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://cariinkerja.id/#webapp",
+        "name": "cariinkerja.id",
+        "url": "https://cariinkerja.id/",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "id-ID",
+        "description": "Pencocokan loker bertenaga AI: tiap hari cek loker baru yang cocok sama profilmu dan tunjukin skill apa yang masih kurang.",
+        "publisher": { "@id": "https://cariinkerja.id/#organization" },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "IDR",
+          "description": "Crawl pertama gratis untuk lihat hasil penilaian sebelum berlangganan."
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://cariinkerja.id/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Gimana cara kerja pencocokan loker AI di cariinkerja.id?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Kamu set preferensi sekali — role, tipe kerja, remote atau on-site. Tiap hari kami ambilin loker baru yang cocok, lalu AI nilai kecocokannya sama profilmu."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Apa itu skor kecocokan dan skill gap?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Skor kecocokan itu angka 0–100 yang nunjukin seberapa nyambung loker sama profilmu. Skill gap nunjukin hard skill dan soft skill apa yang masih kurang buat loker itu."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Apakah ada versi gratis?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Ada. Kamu bisa coba crawl pertama gratis buat ngeliat hasil penilaiannya sebelum berlangganan."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Sumber lokernya dari mana?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Kami ngambil loker dari situs job board populer di Indonesia sesuai preferensi pencarianmu, terus dinilai otomatis pakai AI."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>

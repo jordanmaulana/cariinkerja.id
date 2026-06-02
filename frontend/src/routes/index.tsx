@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { BottomCta } from "@/features/landing/components/bottom-cta";
+import { Faq } from "@/features/landing/components/faq";
 import { FeatureList } from "@/features/landing/components/feature-list";
 import { Hero } from "@/features/landing/components/hero";
 import { LandingStats } from "@/features/landing/components/landing-stats";
@@ -18,6 +19,7 @@ function WelcomePage() {
       <Hero />
       <LandingStats />
       <FeatureList />
+      <Faq />
       <BottomCta />
       <SiteFooter />
     </main>
