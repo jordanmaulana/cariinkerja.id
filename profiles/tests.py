@@ -7,6 +7,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from jobs.consts import JobType, RemoteOption
+from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status
 from profiles.models import Preference, Profile
 from profiles.services import LinkedInIngest, ingest_linkedin
@@ -264,15 +265,18 @@ class PreferenceDetailAPITests(TestCase):
             profile=self.profile, title="Engineer", status=status, **kwargs
         )
 
-    def test_patch_running_flips_to_waiting_admin(self):
+    def test_patch_running_keeps_status_and_regenerates_urls(self):
         pref = self._pref(status=Status.RUNNING)
         resp = self.api.patch(self.url(pref.id), {"title": "New"}, format="json")
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data["status"], Status.WAITING_ADMIN)
+        self.assertEqual(resp.data["status"], Status.RUNNING)
         self.assertEqual(resp.data["title"], "New")
         pref.refresh_from_db()
-        self.assertEqual(pref.status, Status.WAITING_ADMIN)
+        self.assertEqual(pref.status, Status.RUNNING)
         self.assertEqual(pref.title, "New")
+        self.assertEqual(
+            pref.crawl_urls, build_crawl_urls("New", pref.job_type, pref.remote_option)
+        )
 
     def test_patch_waiting_payment_keeps_status(self):
         pref = self._pref(status=Status.WAITING_PAYMENT)
@@ -333,12 +337,17 @@ class PreferenceDetailAPITests(TestCase):
         pref = self._pref(status=Status.WAITING_PAYMENT, crawl_urls=[])
         resp = self.api.patch(
             self.url(pref.id),
-            {"crawl_urls": ["https://id.indeed.com/jobs?q=x"]},
+            {"crawl_urls": ["https://evil.example.com/inject"]},
             format="json",
         )
         self.assertEqual(resp.status_code, 200)
         pref.refresh_from_db()
-        self.assertEqual(pref.crawl_urls, [])
+        # Injected URL ignored; crawl_urls regenerated from the title.
+        self.assertNotIn("https://evil.example.com/inject", pref.crawl_urls)
+        self.assertEqual(
+            pref.crawl_urls,
+            build_crawl_urls("Engineer", pref.job_type, pref.remote_option),
+        )
 
 
 class OnboardingAPITests(TestCase):
@@ -352,6 +361,7 @@ class OnboardingAPITests(TestCase):
         self.payload = {
             "full_name": "Jane Doe",
             "phone": "08123456789",
+            "linkedin_url": "https://www.linkedin.com/in/jane-doe",
             "title": "Backend Engineer",
             "job_type": [JobType.FULL_TIME],
             "remote_option": [RemoteOption.REMOTE],
@@ -365,7 +375,8 @@ class OnboardingAPITests(TestCase):
         self.assertEqual(self.profile.phone, "08123456789")
         self.assertEqual(self.profile.full_name, "Jane Doe")
         pref = Preference.objects.get(profile=self.profile)
-        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+        # Default status; free-crawl flip to WAITING_PAYMENT runs in Celery (on_commit).
+        self.assertEqual(pref.status, Status.WAITING_ADMIN)
         self.assertEqual(pref.title, "Backend Engineer")
 
     def test_onboarding_missing_phone_rejected(self):

@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from api.v1.serializers import PreferenceSerializer
 from billing.upgrades import get_active_subscription
+from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status as PreferenceStatus
 from profiles.models import Preference
 
@@ -67,13 +68,13 @@ def detail(request, pk):
             )
         pref.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    was_running = pref.status == PreferenceStatus.RUNNING
     serializer = PreferenceSerializer(
         pref, data=request.data, partial=request.method == "PATCH"
     )
     serializer.is_valid(raise_exception=True)
     pref = serializer.save()
-    if was_running:
-        pref.status = PreferenceStatus.WAITING_ADMIN
-        pref.save(update_fields=["status", "updated_on"])
+    new_urls = build_crawl_urls(pref.title, pref.job_type, pref.remote_option)
+    if new_urls:
+        pref.crawl_urls = new_urls
+        pref.save(update_fields=["crawl_urls", "updated_on"])
     return Response(PreferenceSerializer(pref).data)
