@@ -19,6 +19,7 @@ from core.notifications.email import send_email
 from core.realtime import publish, user_channel
 from jobs.models import Job
 from jobs.scrapers import scraper_for_url
+from jobs.tasks import extract_job_skills
 from profiles.consts import Status
 from profiles.models import Preference
 
@@ -89,6 +90,8 @@ def crawl_and_assess_preference(preference_id: str):
                 except Exception:
                     logger.exception("persist failed for %s", posting.get("url"))
                     continue
+                if not job.hard_skills and not job.soft_skills:
+                    extract_job_skills.delay(job.id)
                 assess_job.delay(job.id, pref.id)
                 count += 1
         except Exception:

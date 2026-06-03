@@ -6,8 +6,9 @@ from celery import shared_task
 from django.utils import timezone
 
 from core.notifications.discord import send_discord_message
-from jobs.models import CrawlHealthTarget
+from jobs.models import CrawlHealthTarget, Job
 from jobs.scrapers import indeed, jobstreet, linkedin
+from jobs.services import extract_skills
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,19 @@ def _format_report(results):
             f"{mark} {r['source']} — {r['count']} jobs in {r['elapsed_s']}s{tail}"
         )
     return "\n".join(lines)
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def extract_job_skills(job_id: str):
+    """Fill Job.hard_skills / soft_skills from the description via LLM. Idempotent."""
+    job = Job.objects.get(id=job_id)
+    if job.hard_skills or job.soft_skills:
+        return "skipped"
+    result = extract_skills(job)
+    job.hard_skills = result.hard_skills
+    job.soft_skills = result.soft_skills
+    job.save(update_fields=["hard_skills", "soft_skills", "updated_on"])
+    return "extracted"
 
 
 @shared_task

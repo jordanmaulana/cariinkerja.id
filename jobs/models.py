@@ -40,6 +40,8 @@ class Job(models.Model):
     remote_option = models.CharField(
         max_length=20, choices=RemoteOption.choices, null=True, blank=True
     )
+    hard_skills = models.JSONField(default=list, blank=True)
+    soft_skills = models.JSONField(default=list, blank=True)
     source = models.CharField(max_length=255, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)

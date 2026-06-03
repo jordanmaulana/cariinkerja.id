@@ -495,3 +495,44 @@ class BuildCrawlUrlsTests(TestCase):
 
     def test_empty_title_returns_empty(self):
         self.assertEqual(build_crawl_urls(""), [])
+
+
+class ExtractJobSkillsTaskTests(TestCase):
+    def _make_job(self, **kwargs):
+        defaults = dict(
+            url="https://id.indeed.com/viewjob?jk=skilltest",
+            title="Backend Engineer",
+            description="We need Python and Django experience plus teamwork.",
+        )
+        defaults.update(kwargs)
+        return Job.objects.create(**defaults)
+
+    @patch("jobs.tasks.extract_skills")
+    def test_fills_skills_from_llm(self, mock_extract):
+        from jobs.services import JobSkills
+
+        mock_extract.return_value = JobSkills(
+            hard_skills=["Python", "Django"], soft_skills=["teamwork"]
+        )
+        job = self._make_job()
+
+        from jobs.tasks import extract_job_skills
+
+        result = extract_job_skills(job.id)
+
+        self.assertEqual(result, "extracted")
+        job.refresh_from_db()
+        self.assertEqual(job.hard_skills, ["Python", "Django"])
+        self.assertEqual(job.soft_skills, ["teamwork"])
+        mock_extract.assert_called_once()
+
+    @patch("jobs.tasks.extract_skills")
+    def test_skips_when_already_filled(self, mock_extract):
+        job = self._make_job(hard_skills=["Go"])
+
+        from jobs.tasks import extract_job_skills
+
+        result = extract_job_skills(job.id)
+
+        self.assertEqual(result, "skipped")
+        mock_extract.assert_not_called()
