@@ -403,6 +403,30 @@ class PreferenceRegenerateUrlsView(SuperuserRequiredMixin, View):
         return redirect("preference_detail", pk=pref.pk)
 
 
+class PreferenceRegenerateAllUrlsView(SuperuserRequiredMixin, View):
+    def post(self, request):
+        updated = 0
+        skipped = 0
+        to_update = []
+        for pref in Preference.objects.all():
+            urls = build_crawl_urls(pref.title, pref.job_type, pref.remote_option)
+            if not urls:
+                skipped += 1
+                continue
+            pref.crawl_urls = urls
+            to_update.append(pref)
+            updated += 1
+        if to_update:
+            with transaction.atomic():
+                Preference.objects.bulk_update(to_update, ["crawl_urls", "updated_on"])
+        messages.success(
+            request,
+            f"Regenerated crawl URLs for {updated} preference(s)"
+            + (f"; skipped {skipped} without a title." if skipped else "."),
+        )
+        return redirect("preference_list")
+
+
 class PlanListView(SuperuserRequiredMixin, View):
     def get(self, request):
         qs = Plan.objects.all().order_by("price")

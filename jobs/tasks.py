@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from core.notifications.discord import send_discord_message
 from jobs.models import CrawlHealthTarget
-from jobs.scrapers import indeed, jobstreet
+from jobs.scrapers import indeed, jobstreet, linkedin
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,7 @@ TEST_SLEEP = 0.1
 SCRAPERS = {
     CrawlHealthTarget.SOURCE_INDEED: indeed.crawl,
     CrawlHealthTarget.SOURCE_JOBSTREET: jobstreet.crawl,
+    CrawlHealthTarget.SOURCE_LINKEDIN: linkedin.crawl,
 }
 
 

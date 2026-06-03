@@ -9,12 +9,14 @@ from django.test import TestCase
 
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
-from jobs.scrapers import indeed, jobstreet, scraper_for_url
-from jobs.url_builders import build_jobstreet_url
+from jobs.scrapers import indeed, jobstreet, linkedin, scraper_for_url
+from jobs.url_builders import build_crawl_urls, build_jobstreet_url, build_linkedin_url
 
 FIXTURES = Path(__file__).parent / "fixtures_html"
 LISTING_HTML = (FIXTURES / "listing.html").read_text()
 DETAIL_HTML = (FIXTURES / "detail.html").read_text()
+LI_LISTING_HTML = (FIXTURES / "linkedin_listing.html").read_text()
+LI_DETAIL_HTML = (FIXTURES / "linkedin_detail.html").read_text()
 DETAIL_URL = (
     "https://id.jobstreet.com/id/job/91819691?type=standard&ref=search-standalone"
 )
@@ -167,6 +169,121 @@ class CommandTests(TestCase):
         self.assertEqual(Job.objects.count(), first_count)
 
 
+class LinkedInGuestSearchUrlTests(TestCase):
+    INPUT = (
+        "https://www.linkedin.com/jobs/search/?geoId=91000014&keywords=flutter"
+        "&origin=JOBS_HOME_LOCATION_HISTORY&position=1&pageNum=0&currentJobId=4419429587"
+        "&f_WT=2"
+    )
+
+    def test_keeps_search_params_drops_ui_cruft(self):
+        out = linkedin._guest_search_url(self.INPUT, 0)
+        self.assertTrue(out.startswith(linkedin.GUEST_SEARCH))
+        self.assertIn("keywords=flutter", out)
+        self.assertIn("geoId=91000014", out)
+        self.assertIn("f_WT=2", out)
+        self.assertIn("start=0", out)
+        for cruft in ("origin=", "position=", "pageNum=", "currentJobId="):
+            self.assertNotIn(cruft, out)
+
+    def test_start_steps_by_ten(self):
+        pages = list(linkedin.iter_listing_pages(self.INPUT, 3))
+        self.assertEqual(len(pages), 3)
+        self.assertIn("start=0", pages[0])
+        self.assertIn("start=10", pages[1])
+        self.assertIn("start=20", pages[2])
+
+
+class LinkedInParseListingTests(TestCase):
+    def test_returns_card_dicts(self):
+        cards = linkedin.parse_listing(LI_LISTING_HTML)
+        self.assertGreater(len(cards), 0)
+        ids = [c["job_id"] for c in cards]
+        self.assertEqual(len(ids), len(set(ids)))
+        first = cards[0]
+        self.assertEqual(first["job_id"], "4419429587")
+        self.assertEqual(first["title"], "Flutter")
+        self.assertEqual(first["company"], "AARVY TECHNOLOGIES")
+        self.assertTrue(first["url"].endswith("4419429587"))
+
+
+class LinkedInParseDetailTests(TestCase):
+    BASE = {
+        "url": "https://id.linkedin.com/jobs/view/flutter-4419429587",
+        "job_id": "4419429587",
+        "title": "Flutter",
+        "company": "AARVY TECHNOLOGIES",
+        "location": "Lembang",
+    }
+
+    def test_merges_description_and_job_type(self):
+        result = linkedin.parse_detail(LI_DETAIL_HTML, dict(self.BASE))
+        self.assertIsNotNone(result)
+        self.assertEqual(result["url"], self.BASE["url"])
+        self.assertEqual(result["title"], "Flutter")
+        self.assertIn("Salary", result["description"])
+        # Localized "Penuh waktu" criteria value maps to FULL_TIME.
+        self.assertEqual(result["job_type"], JobType.FULL_TIME)
+
+    def test_returns_none_without_description(self):
+        self.assertIsNone(linkedin.parse_detail("<html></html>", dict(self.BASE)))
+
+
+class LinkedInEmploymentTypeTests(TestCase):
+    def test_english_and_indonesian_values(self):
+        self.assertEqual(
+            linkedin._employment_type_from_criteria(["Tidak Berlaku", "Penuh waktu"]),
+            JobType.FULL_TIME,
+        )
+        self.assertEqual(
+            linkedin._employment_type_from_criteria(["Full-time"]), JobType.FULL_TIME
+        )
+        self.assertEqual(
+            linkedin._employment_type_from_criteria(["Magang"]), JobType.INTERNSHIP
+        )
+        self.assertIsNone(linkedin._employment_type_from_criteria(["Lainnya"]))
+
+
+class _LiResp:
+    def __init__(self, text):
+        self.text = text
+        self.status_code = 200
+        self.url = ""
+
+    def raise_for_status(self):
+        pass
+
+
+def _li_stub_get(self, url, *args, **kwargs):
+    resp = _LiResp(LI_DETAIL_HTML if "/jobPosting/" in url else LI_LISTING_HTML)
+    resp.url = url
+    return resp
+
+
+class LinkedInCommandTests(TestCase):
+    URL = "https://www.linkedin.com/jobs/search/?keywords=flutter&geoId=102478259"
+
+    @patch("curl_cffi.requests.Session.get", new=_li_stub_get)
+    @patch("jobs.scrapers.linkedin.time.sleep", lambda *_: None)
+    def test_dry_run_does_not_write(self):
+        out = io.StringIO()
+        call_command(
+            "crawl_linkedin", self.URL, "--limit", "2", "--dry-run", stdout=out
+        )
+        self.assertEqual(Job.objects.count(), 0)
+        self.assertIn("AARVY TECHNOLOGIES", out.getvalue())
+
+    @patch("curl_cffi.requests.Session.get", new=_li_stub_get)
+    @patch("jobs.scrapers.linkedin.time.sleep", lambda *_: None)
+    def test_writes_and_is_idempotent(self):
+        call_command("crawl_linkedin", self.URL, "--limit", "2")
+        first_count = Job.objects.count()
+        self.assertGreater(first_count, 0)
+        self.assertTrue(Job.objects.filter(source="linkedin").exists())
+        call_command("crawl_linkedin", self.URL, "--limit", "2")
+        self.assertEqual(Job.objects.count(), first_count)
+
+
 class ScraperForUrlTests(TestCase):
     def test_indeed_host(self):
         scraper, source = scraper_for_url("https://id.indeed.com/jobs?q=python")
@@ -177,6 +294,15 @@ class ScraperForUrlTests(TestCase):
         scraper, source = scraper_for_url("https://id.jobstreet.com/jobs/foo")
         self.assertIs(scraper, jobstreet)
         self.assertEqual(source, "jobstreet")
+
+    def test_linkedin_host(self):
+        for url in (
+            "https://www.linkedin.com/jobs/search/?keywords=flutter",
+            "https://id.linkedin.com/jobs/view/flutter-4419429587",
+        ):
+            scraper, source = scraper_for_url(url)
+            self.assertIs(scraper, linkedin)
+            self.assertEqual(source, "linkedin")
 
     def test_unknown_host(self):
         self.assertEqual(scraper_for_url("https://example.com/jobs"), (None, None))
@@ -327,3 +453,45 @@ class BuildJobstreetUrlTests(TestCase):
             scraper, source = scraper_for_url(url)
             self.assertIs(scraper, jobstreet)
             self.assertEqual(source, "jobstreet")
+
+
+class BuildLinkedInUrlTests(TestCase):
+    def test_title_only(self):
+        url = build_linkedin_url("Mobile Developer")
+        self.assertTrue(url.startswith("https://www.linkedin.com/jobs/search/?"))
+        self.assertIn("keywords=Mobile+Developer", url)
+        self.assertIn("geoId=91000014", url)
+
+    def test_job_type_and_remote_filters(self):
+        url = build_linkedin_url(
+            "Mobile Developer", [JobType.FULL_TIME], [RemoteOption.REMOTE]
+        )
+        self.assertIn("f_JT=F", url)
+        self.assertIn("f_WT=2", url)
+
+    def test_unknown_values_dropped(self):
+        url = build_linkedin_url("Dev", ["bogus"], ["nope"])
+        self.assertNotIn("f_JT=", url)
+        self.assertNotIn("f_WT=", url)
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_linkedin_url(""))
+        self.assertIsNone(build_linkedin_url(None))
+        self.assertIsNone(build_linkedin_url("   "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        url = build_linkedin_url("Mobile Developer", [JobType.CONTRACT])
+        scraper, source = scraper_for_url(url)
+        self.assertIs(scraper, linkedin)
+        self.assertEqual(source, "linkedin")
+
+
+class BuildCrawlUrlsTests(TestCase):
+    def test_includes_indeed_jobstreet_and_linkedin(self):
+        urls = build_crawl_urls("Mobile Developer")
+        self.assertEqual(len(urls), 3)
+        hosts = [scraper_for_url(u)[1] for u in urls]
+        self.assertEqual(hosts, ["indeed", "jobstreet", "linkedin"])
+
+    def test_empty_title_returns_empty(self):
+        self.assertEqual(build_crawl_urls(""), [])

@@ -17,3 +17,4 @@ staticfiles/
 .env.docker
 db.sqlite3-*
 pgdata/
+.playwright-mcp

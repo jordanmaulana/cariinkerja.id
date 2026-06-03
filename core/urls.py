@@ -18,6 +18,7 @@ from core.views import (
     PreferenceCrawlNowView,
     PreferenceDetailView,
     PreferenceListView,
+    PreferenceRegenerateAllUrlsView,
     PreferenceRegenerateUrlsView,
     SmtpTestView,
     SubscriptionDetailView,
@@ -55,6 +56,11 @@ urlpatterns = [
         "preferences/",
         PreferenceListView.as_view(),
         name="preference_list",
+    ),
+    path(
+        "preferences/regenerate-all-urls/",
+        PreferenceRegenerateAllUrlsView.as_view(),
+        name="preference_regenerate_all_urls",
     ),
     path(
         "preferences/<str:pk>/",

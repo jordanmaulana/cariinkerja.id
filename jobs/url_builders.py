@@ -14,7 +14,23 @@ from urllib.parse import quote_plus, urlencode
 from jobs.consts import JobType, RemoteOption
 
 JOBSTREET_BASE = "https://id.jobstreet.com"
+LINKEDIN_BASE = "https://www.linkedin.com/jobs/search/"
+LINKEDIN_GEOID_SEA = "91000014"
 SLUG_MAX_LEN = 80
+
+# LinkedIn search filter codes.
+LINKEDIN_JT_CODE: dict[str, str] = {
+    JobType.FULL_TIME.value: "F",
+    JobType.PART_TIME.value: "P",
+    JobType.CONTRACT.value: "C",
+    JobType.INTERNSHIP.value: "I",
+}
+
+LINKEDIN_WT_CODE: dict[str, str] = {
+    RemoteOption.ON_SITE.value: "1",
+    RemoteOption.REMOTE.value: "2",
+    RemoteOption.HYBRID.value: "3",
+}
 
 JOBSTREET_JT_SLUG: dict[str, str] = {
     JobType.FULL_TIME.value: "full-time",
@@ -109,16 +125,45 @@ def build_jobstreet_url(
     return url
 
 
+def build_linkedin_url(
+    title: str | None,
+    job_types: list[str] | None = None,
+    remote_options: list[str] | None = None,
+) -> str | None:
+    """LinkedIn (Southeast Asia) guest-searchable jobs URL for a Preference title.
+
+    Job type / workplace filters slot in as comma-joined ``f_JT`` / ``f_WT``
+    query params (LinkedIn's convention). The scraper later strips this down to
+    the guest endpoint, but these params survive the translation.
+    """
+    if not title or not title.strip():
+        return None
+    query: list[tuple[str, str]] = [
+        ("keywords", title.strip()),
+        ("geoId", LINKEDIN_GEOID_SEA),
+    ]
+    jts = _dedupe_known(job_types, LINKEDIN_JT_CODE)
+    if jts:
+        query.append(("f_JT", ",".join(LINKEDIN_JT_CODE[v] for v in jts)))
+    ros = _dedupe_known(remote_options, LINKEDIN_WT_CODE)
+    if ros:
+        query.append(("f_WT", ",".join(LINKEDIN_WT_CODE[v] for v in ros)))
+    return f"{LINKEDIN_BASE}?{urlencode(query, quote_via=quote_plus)}"
+
+
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet listing URLs for a Preference."""
+    """Standard Indeed + JobStreet + LinkedIn listing URLs for a Preference."""
     if not title or not title.strip():
         return []
     urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
     js = build_jobstreet_url(title, job_types, remote_options)
     if js:
         urls.append(js)
+    li = build_linkedin_url(title, job_types, remote_options)
+    if li:
+        urls.append(li)
     return urls

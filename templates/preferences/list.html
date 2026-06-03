@@ -5,6 +5,17 @@
   <div class="space-y-6">
     {% include "_partials/page_header.html" with eyebrow="Operations" title="Preferences" count=total_count %}
 
+    <div class="flex justify-end">
+      <form method="post" action="{% url 'preference_regenerate_all_urls' %}"
+            onsubmit="return confirm('Regenerate crawl URLs for ALL preferences? This overwrites any manually-edited URLs.');">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 rounded-md bg-slate-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-700 transition">
+          Regenerate all URLs
+        </button>
+      </form>
+    </div>
+
     {% include "_partials/tab_filter.html" with base_url=request.path selected=selected_status total_count=total_count tabs=status_tabs param="status" %}
 
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm">

@@ -227,12 +227,14 @@ class MaybeStartFreeCrawlTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 2)
+        self.assertEqual(len(pref.crawl_urls), 3)
         self.assertIn("id.indeed.com/jobs?q=Mobile+Developer", pref.crawl_urls[0])
         self.assertEqual(
             pref.crawl_urls[1],
             "https://id.jobstreet.com/mobile-developer-jobs/full-time/on-site",
         )
+        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
+        self.assertIn("keywords=Mobile+Developer", pref.crawl_urls[2])
 
     @patch("assessment.tasks.run_free_crawl")
     def test_no_filters_yields_base_jobstreet_url(self, run_free_crawl):
@@ -243,8 +245,9 @@ class MaybeStartFreeCrawlTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 2)
+        self.assertEqual(len(pref.crawl_urls), 3)
         self.assertEqual(pref.crawl_urls[1], "https://id.jobstreet.com/developer-jobs")
+        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
 
 
 class PreferenceDetailAPITests(TestCase):
