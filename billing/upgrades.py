@@ -17,7 +17,11 @@ class UpgradeNotAllowed(Exception):
 
 def get_active_subscription(profile):
     return (
-        Subscription.objects.filter(profile=profile, status=SubscriptionStatus.ACTIVE)
+        Subscription.objects.filter(
+            profile=profile,
+            status=SubscriptionStatus.ACTIVE,
+            expires_at__gt=timezone.now(),
+        )
         .select_related("plan")
         .order_by("-created_on")
         .first()

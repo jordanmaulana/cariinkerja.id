@@ -4,6 +4,7 @@ from django.conf import settings as dj_settings
 from django.db import transaction
 from django.http import HttpResponseForbidden, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -99,7 +100,9 @@ def detail(request):
         )
     base = Subscription.objects.filter(profile=profile).select_related("plan")
     sub = (
-        base.filter(status=SubscriptionStatus.ACTIVE).order_by("-created_on").first()
+        base.filter(status=SubscriptionStatus.ACTIVE, expires_at__gt=timezone.now())
+        .order_by("-created_on")
+        .first()
         or base.filter(status=SubscriptionStatus.PENDING)
         .order_by("-created_on")
         .first()

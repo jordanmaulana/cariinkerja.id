@@ -58,6 +58,46 @@ def poll_pending_subscriptions():
     return {"activated": activated, "cancelled": cancelled, "errors": errors}
 
 
+@shared_task
+def expire_subscriptions():
+    """Flip ACTIVE subscriptions past their expires_at to EXPIRED.
+
+    Cascades to preferences: a profile whose only-or-last live sub just
+    expired has its RUNNING preferences flipped to EXPIRED too. Profiles
+    still covered by another ACTIVE+unexpired sub are left untouched.
+    Idempotent — safe to run on any interval via beat.
+    """
+    from profiles.consts import Status as PreferenceStatus
+    from profiles.models import Preference
+
+    now = timezone.now()
+    expiring = Subscription.objects.filter(
+        status=SubscriptionStatus.ACTIVE, expires_at__lte=now
+    )
+    profile_ids = list(expiring.values_list("profile_id", flat=True).distinct())
+    expired = expiring.update(status=SubscriptionStatus.EXPIRED, updated_on=now)
+
+    prefs_expired = 0
+    if profile_ids:
+        still_covered = set(
+            Subscription.objects.filter(
+                profile_id__in=profile_ids,
+                status=SubscriptionStatus.ACTIVE,
+                expires_at__gt=now,
+            ).values_list("profile_id", flat=True)
+        )
+        uncovered = [pid for pid in profile_ids if pid not in still_covered]
+        if uncovered:
+            prefs_expired = Preference.objects.filter(
+                profile_id__in=uncovered, status=PreferenceStatus.RUNNING
+            ).update(status=PreferenceStatus.EXPIRED, updated_on=now)
+
+    logger.info(
+        "expire_subscriptions: expired=%d prefs_expired=%d", expired, prefs_expired
+    )
+    return {"expired": expired, "prefs_expired": prefs_expired}
+
+
 @shared_task(bind=True)
 def poll_subscription_after_checkout(self, subscription_id: str):
     """Aggressively poll Mayar for a single subscription post-checkout.

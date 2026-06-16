@@ -138,7 +138,10 @@ class MySubscriptionTests(TestCase):
 
     def test_active_preferred_over_newer_cancelled(self):
         active = Subscription.objects.create(
-            profile=self.profile, plan=self.plan, status=SubscriptionStatus.ACTIVE
+            profile=self.profile,
+            plan=self.plan,
+            status=SubscriptionStatus.ACTIVE,
+            expires_at=timezone.now() + timedelta(days=30),
         )
         Subscription.objects.create(
             profile=self.profile, plan=self.plan, status=SubscriptionStatus.CANCELLED
@@ -171,7 +174,10 @@ class MySubscriptionTests(TestCase):
             profile=self.profile, plan=self.plan, status=SubscriptionStatus.EXPIRED
         )
         active = Subscription.objects.create(
-            profile=self.profile, plan=self.plan, status=SubscriptionStatus.ACTIVE
+            profile=self.profile,
+            plan=self.plan,
+            status=SubscriptionStatus.ACTIVE,
+            expires_at=timezone.now() + timedelta(days=30),
         )
         resp = self.api.get(self.url)
         self.assertEqual(resp.status_code, 200)
@@ -517,3 +523,65 @@ class ActivateUpgradeTests(TestCase):
         elapsed = (sub.expires_at - timezone.now()).total_seconds()
         self.assertAlmostEqual(elapsed, 30 * 86400, delta=5)
         crawl.delay.assert_called_once()
+
+
+class ExpireSubscriptionsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("e", "e@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="E")
+        self.plan = Plan.objects.create(name="P", price=10000, preference_limit=2)
+
+    def _sub(self, status, expires_at):
+        return Subscription.objects.create(
+            profile=self.profile,
+            plan=self.plan,
+            status=status,
+            expires_at=expires_at,
+        )
+
+    def test_past_expiry_active_flips_to_expired(self):
+        from core.tasks import expire_subscriptions
+
+        sub = self._sub(SubscriptionStatus.ACTIVE, timezone.now() - timedelta(days=1))
+        result = expire_subscriptions()
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, SubscriptionStatus.EXPIRED)
+        self.assertEqual(result["expired"], 1)
+
+    def test_future_expiry_stays_active(self):
+        from core.tasks import expire_subscriptions
+
+        sub = self._sub(SubscriptionStatus.ACTIVE, timezone.now() + timedelta(days=10))
+        expire_subscriptions()
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, SubscriptionStatus.ACTIVE)
+
+    def test_running_prefs_expired_when_sub_dies(self):
+        from core.tasks import expire_subscriptions
+
+        self._sub(SubscriptionStatus.ACTIVE, timezone.now() - timedelta(days=1))
+        pref = Preference.objects.create(
+            profile=self.profile, title="x", status=PreferenceStatus.RUNNING
+        )
+        result = expire_subscriptions()
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, PreferenceStatus.EXPIRED)
+        self.assertEqual(result["prefs_expired"], 1)
+
+    def test_running_prefs_kept_when_other_live_sub(self):
+        from core.tasks import expire_subscriptions
+
+        self._sub(SubscriptionStatus.ACTIVE, timezone.now() - timedelta(days=1))
+        self._sub(SubscriptionStatus.ACTIVE, timezone.now() + timedelta(days=10))
+        pref = Preference.objects.create(
+            profile=self.profile, title="x", status=PreferenceStatus.RUNNING
+        )
+        expire_subscriptions()
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, PreferenceStatus.RUNNING)
+
+    def test_get_active_subscription_ignores_expired_in_time(self):
+        from billing.upgrades import get_active_subscription
+
+        self._sub(SubscriptionStatus.ACTIVE, timezone.now() - timedelta(days=1))
+        self.assertIsNone(get_active_subscription(self.profile))
