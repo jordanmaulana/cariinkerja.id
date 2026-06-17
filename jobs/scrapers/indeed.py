@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 from curl_cffi import requests as cffi_requests
 
 from jobs.consts import JobType, RemoteOption
+from jobs.scrapers.filters import is_blocked_company
 
 logger = logging.getLogger(__name__)
 
@@ -375,6 +376,8 @@ def crawl(
                     continue
                 parsed = parse_detail(detail_html, detail_url)
                 if parsed is None:
+                    continue
+                if is_blocked_company(parsed.get("company")):
                     continue
                 yielded += 1
                 yield parsed

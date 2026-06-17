@@ -17,6 +17,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from jobs.consts import JobType, RemoteOption
+from jobs.scrapers.filters import is_blocked_company
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +243,8 @@ def crawl(
                     continue
                 parsed = parse_detail(detail_html, detail_url)
                 if parsed is None:
+                    continue
+                if is_blocked_company(parsed.get("company")):
                     continue
                 yielded += 1
                 yield parsed
