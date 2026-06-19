@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-cariinkerja}
       POSTGRES_USER: ${POSTGRES_USER:-cariinkerja}
@@ -20,11 +21,13 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    restart: unless-stopped
     env_file: .env.docker
     environment:
       ROLE: web
@@ -54,6 +57,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    restart: unless-stopped
     env_file: .env.docker
     environment:
       ROLE: worker
@@ -84,6 +88,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    restart: unless-stopped
     env_file: .env.docker
     environment:
       ROLE: beat
@@ -113,6 +118,7 @@ services:
           memory: 192M
 
   frontend:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: frontend/Dockerfile
