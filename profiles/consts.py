@@ -12,3 +12,4 @@ class Source(models.TextChoices):
     JOBSTREET = "jobstreet", "JobStreet"
     INDEED = "indeed", "Indeed"
     LINKEDIN = "linkedin", "LinkedIn"
+    DEALLS = "dealls", "Dealls"

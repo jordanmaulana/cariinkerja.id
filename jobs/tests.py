@@ -9,7 +9,7 @@ from django.test import TestCase
 
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
-from jobs.scrapers import indeed, jobstreet, linkedin, scraper_for_url
+from jobs.scrapers import dealls, indeed, jobstreet, linkedin, scraper_for_url
 from jobs.url_builders import build_crawl_urls, build_jobstreet_url, build_linkedin_url
 
 FIXTURES = Path(__file__).parent / "fixtures_html"
@@ -304,12 +304,121 @@ class ScraperForUrlTests(TestCase):
             self.assertIs(scraper, linkedin)
             self.assertEqual(source, "linkedin")
 
+    def test_dealls_host(self):
+        for url in (
+            "https://dealls.com/?location=remote&employment=partTime",
+            "https://www.dealls.com/loker/brand-officer-5~kunkwan-mandarin",
+        ):
+            scraper, source = scraper_for_url(url)
+            self.assertIs(scraper, dealls)
+            self.assertEqual(source, "dealls")
+
     def test_unknown_host(self):
         self.assertEqual(scraper_for_url("https://example.com/jobs"), (None, None))
 
     def test_malformed_url(self):
         self.assertEqual(scraper_for_url(""), (None, None))
         self.assertEqual(scraper_for_url("not a url"), (None, None))
+
+
+# --- Dealls (JSON API) -------------------------------------------------------
+
+DEALLS_URL = (
+    "https://dealls.com/?location=remote&employment=partTime&employment=freelance"
+)
+
+# Trimmed shape of a real ``data.result`` object from
+# api.sejutacita.id/v1/job-portal/job/slug/<slug>?guest=true
+DEALLS_RESULT = {
+    "slug": "brand-officer-5",
+    "role": "Brand Officer",
+    "description": None,
+    "responsibilities": "<p><strong>Tanggung Jawab</strong></p><ul><li>Promosi produk.</li></ul>",
+    "requirements": "<ul><li>Komunikatif dan ramah.</li></ul>",
+    "employmentTypes": ["freelance"],
+    "workplaceType": "remote",
+    "location": None,
+    "company": {
+        "name": "PT. KUNKWAN MANDARIN INDONESIA",
+        "slug": "kunkwan-mandarin",
+        "location": {"city": {"id": 158, "name": "Jakarta Selatan"}},
+    },
+}
+
+
+class DeallsListApiUrlTests(TestCase):
+    def test_translates_location_and_employment(self):
+        url = dealls._list_api_url(DEALLS_URL, page=2)
+        self.assertTrue(url.startswith(dealls.LIST_API + "?"))
+        query = url.split("?", 1)[1]
+        self.assertIn("page=2", query)
+        self.assertIn(f"limit={dealls.PAGE_LIMIT}", query)
+        self.assertIn("published=true", query)
+        self.assertIn("status=active", query)
+        # employment -> employmentTypes[i] (order preserved); [ ] are url-encoded
+        self.assertIn("employmentTypes%5B0%5D=partTime", query)
+        self.assertIn("employmentTypes%5B1%5D=freelance", query)
+        # location -> workplaceTypes[i]
+        self.assertIn("workplaceTypes%5B0%5D=remote", query)
+
+    def test_no_filters_still_valid(self):
+        url = dealls._list_api_url("https://dealls.com/", page=1)
+        query = url.split("?", 1)[1]
+        self.assertIn("page=1", query)
+        self.assertNotIn("employmentTypes", query)
+        self.assertNotIn("workplaceTypes", query)
+
+
+class DeallsParseListingTests(TestCase):
+    def test_extracts_unique_slugs(self):
+        payload = {"data": {"docs": [{"slug": "a"}, {"slug": "b"}, {"slug": "a"}, {}]}}
+        self.assertEqual(dealls.parse_listing(payload), ["a", "b"])
+
+    def test_empty_payload(self):
+        self.assertEqual(dealls.parse_listing({}), [])
+
+
+class DeallsParseDetailTests(TestCase):
+    def test_returns_expected_fields(self):
+        result = dealls.parse_detail(DEALLS_RESULT)
+        self.assertEqual(
+            result["url"], "https://dealls.com/loker/brand-officer-5~kunkwan-mandarin"
+        )
+        self.assertEqual(result["title"], "Brand Officer")
+        self.assertEqual(result["company"], "PT. KUNKWAN MANDARIN INDONESIA")
+        # HTML stripped, both sections concatenated
+        self.assertIn("Promosi produk.", result["description"])
+        self.assertIn("Komunikatif dan ramah.", result["description"])
+        self.assertNotIn("<li>", result["description"])
+        # freelance -> PART_TIME (product decision), remote -> REMOTE
+        self.assertEqual(result["job_type"], JobType.PART_TIME)
+        self.assertEqual(result["remote_option"], RemoteOption.REMOTE)
+        # location falls back to company city when job location is null
+        self.assertEqual(result["location"], "Jakarta Selatan")
+
+    def test_prefers_job_location_over_company(self):
+        result = dealls.parse_detail(
+            {**DEALLS_RESULT, "location": {"city": {"name": "Surabaya"}}}
+        )
+        self.assertEqual(result["location"], "Surabaya")
+
+    def test_onsite_maps_to_on_site(self):
+        result = dealls.parse_detail({**DEALLS_RESULT, "workplaceType": "onSite"})
+        self.assertEqual(result["remote_option"], RemoteOption.ON_SITE)
+
+    def test_url_without_company_slug(self):
+        company = {**DEALLS_RESULT["company"], "slug": None}
+        result = dealls.parse_detail({**DEALLS_RESULT, "company": company})
+        self.assertEqual(result["url"], "https://dealls.com/loker/brand-officer-5")
+
+    def test_returns_none_without_description(self):
+        barren = {
+            **DEALLS_RESULT,
+            "description": None,
+            "responsibilities": None,
+            "requirements": None,
+        }
+        self.assertIsNone(dealls.parse_detail(barren))
 
 
 class BuildJobstreetUrlTests(TestCase):

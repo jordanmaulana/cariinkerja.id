@@ -8,10 +8,12 @@ class CrawlHealthTarget(BaseModel):
     SOURCE_INDEED = "indeed"
     SOURCE_JOBSTREET = "jobstreet"
     SOURCE_LINKEDIN = "linkedin"
+    SOURCE_DEALLS = "dealls"
     SOURCE_CHOICES = [
         (SOURCE_INDEED, "Indeed"),
         (SOURCE_JOBSTREET, "Jobstreet"),
         (SOURCE_LINKEDIN, "LinkedIn"),
+        (SOURCE_DEALLS, "Dealls"),
     ]
 
     label = models.CharField(max_length=120)
