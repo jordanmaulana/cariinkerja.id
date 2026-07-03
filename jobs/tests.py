@@ -10,7 +10,12 @@ from django.test import TestCase
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
 from jobs.scrapers import dealls, indeed, jobstreet, linkedin, scraper_for_url
-from jobs.url_builders import build_crawl_urls, build_jobstreet_url, build_linkedin_url
+from jobs.url_builders import (
+    LINKEDIN_GEOID_EMEA,
+    build_crawl_urls,
+    build_jobstreet_url,
+    build_linkedin_url,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures_html"
 LISTING_HTML = (FIXTURES / "listing.html").read_text()
@@ -594,6 +599,11 @@ class BuildLinkedInUrlTests(TestCase):
         self.assertIs(scraper, linkedin)
         self.assertEqual(source, "linkedin")
 
+    def test_geo_id_override_emits_that_region(self):
+        url = build_linkedin_url("Mobile Developer", geo_id=LINKEDIN_GEOID_EMEA)
+        self.assertIn("geoId=91000007", url)
+        self.assertNotIn("geoId=91000014", url)
+
 
 class BuildCrawlUrlsTests(TestCase):
     def test_includes_indeed_jobstreet_and_linkedin(self):
@@ -601,6 +611,21 @@ class BuildCrawlUrlsTests(TestCase):
         self.assertEqual(len(urls), 3)
         hosts = [scraper_for_url(u)[1] for u in urls]
         self.assertEqual(hosts, ["indeed", "jobstreet", "linkedin"])
+
+    def test_non_remote_preference_omits_emea(self):
+        urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.ON_SITE])
+        self.assertEqual(len(urls), 3)
+        self.assertNotIn("geoId=91000007", " ".join(urls))
+
+    def test_remote_preference_appends_emea_linkedin(self):
+        urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.REMOTE])
+        self.assertEqual(len(urls), 4)
+        emea = urls[3]
+        self.assertIn("geoId=91000007", emea)
+        self.assertIn("f_WT=2", emea)
+        scraper, source = scraper_for_url(emea)
+        self.assertIs(scraper, linkedin)
+        self.assertEqual(source, "linkedin")
 
     def test_empty_title_returns_empty(self):
         self.assertEqual(build_crawl_urls(""), [])

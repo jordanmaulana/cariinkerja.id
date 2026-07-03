@@ -16,6 +16,7 @@ from jobs.consts import JobType, RemoteOption
 JOBSTREET_BASE = "https://id.jobstreet.com"
 LINKEDIN_BASE = "https://www.linkedin.com/jobs/search/"
 LINKEDIN_GEOID_SEA = "91000014"
+LINKEDIN_GEOID_EMEA = "91000007"
 SLUG_MAX_LEN = 80
 
 # LinkedIn search filter codes.
@@ -129,18 +130,21 @@ def build_linkedin_url(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
+    geo_id: str = LINKEDIN_GEOID_SEA,
 ) -> str | None:
-    """LinkedIn (Southeast Asia) guest-searchable jobs URL for a Preference title.
+    """LinkedIn guest-searchable jobs URL for a Preference title.
 
-    Job type / workplace filters slot in as comma-joined ``f_JT`` / ``f_WT``
-    query params (LinkedIn's convention). The scraper later strips this down to
-    the guest endpoint, but these params survive the translation.
+    Region is driven by ``geo_id`` (defaults to SEA ``91000014``; pass
+    ``LINKEDIN_GEOID_EMEA`` for EMEA). Job type / workplace filters slot in as
+    comma-joined ``f_JT`` / ``f_WT`` query params (LinkedIn's convention). The
+    scraper later strips this down to the guest endpoint, but these params
+    survive the translation.
     """
     if not title or not title.strip():
         return None
     query: list[tuple[str, str]] = [
         ("keywords", title.strip()),
-        ("geoId", LINKEDIN_GEOID_SEA),
+        ("geoId", geo_id),
     ]
     jts = _dedupe_known(job_types, LINKEDIN_JT_CODE)
     if jts:
@@ -166,4 +170,12 @@ def build_crawl_urls(
     li = build_linkedin_url(title, job_types, remote_options)
     if li:
         urls.append(li)
+    # EMEA is only worth crawling for remote-seeking preferences (an on-site
+    # EMEA role is unreachable from Indonesia); force the remote filter on it.
+    if remote_options and RemoteOption.REMOTE.value in remote_options:
+        emea = build_linkedin_url(
+            title, job_types, [RemoteOption.REMOTE.value], geo_id=LINKEDIN_GEOID_EMEA
+        )
+        if emea:
+            urls.append(emea)
     return urls

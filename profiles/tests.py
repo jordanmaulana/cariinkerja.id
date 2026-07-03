@@ -238,6 +238,20 @@ class MaybeStartFreeCrawlTests(TestCase):
         self.assertIn("keywords=Mobile+Developer", pref.crawl_urls[2])
 
     @patch("assessment.tasks.run_free_crawl")
+    def test_remote_preference_appends_emea_linkedin(self, run_free_crawl):
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title="Mobile Developer",
+            remote_option=[RemoteOption.REMOTE],
+            status=Status.WAITING_ADMIN,
+        )
+        pref.refresh_from_db()
+
+        self.assertEqual(len(pref.crawl_urls), 4)
+        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[3])
+        self.assertIn("geoId=91000007", pref.crawl_urls[3])
+
+    @patch("assessment.tasks.run_free_crawl")
     def test_no_filters_yields_base_jobstreet_url(self, run_free_crawl):
         pref = Preference.objects.create(
             profile=self.profile,
