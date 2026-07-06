@@ -28,16 +28,14 @@ from jobs.scrapers.filters import is_blocked_company
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://id.indeed.com"
-USER_AGENT = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) "
-    "Gecko/20100101 Firefox/133.0"
-)
 ACCEPT_LANGUAGE = "id-ID,id;q=0.9,en;q=0.8"
 TIMEOUT = 20.0
 DEFAULT_SLEEP = 2.5
 RETRY_STATUSES = {403, 429, 500, 502, 503, 504}
 MAX_RETRIES = 3
-IMPERSONATE = "firefox133"
+# Cloudflare fingerprints go stale; rotate on a CF block. Keep current-ish.
+# `crawl` tries these in order and keeps the first that isn't gated.
+IMPERSONATE_TARGETS: tuple[str, ...] = ("firefox147", "chrome146", "safari184")
 
 CF_TITLE_MARKERS: tuple[str, ...] = (
     "additional verification required",
@@ -84,11 +82,13 @@ class CloudflareChallenge(RuntimeError):
     """Indeed served a Cloudflare interstitial instead of content."""
 
 
-def build_client() -> cffi_requests.Session:
-    session = cffi_requests.Session(impersonate=IMPERSONATE, timeout=TIMEOUT)
+def build_client(target: str = IMPERSONATE_TARGETS[0]) -> cffi_requests.Session:
+    # No manual User-Agent: curl_cffi sets one matching ``target`` so the UA
+    # and TLS fingerprint stay consistent (a Firefox UA on a Chrome
+    # fingerprint is itself a bot signal).
+    session = cffi_requests.Session(impersonate=target, timeout=TIMEOUT)
     session.headers.update(
         {
-            "User-Agent": USER_AGENT,
             "Accept-Language": ACCEPT_LANGUAGE,
             "Accept": (
                 "text/html,application/xhtml+xml,application/xml;q=0.9,"
@@ -121,15 +121,19 @@ def _request(client: cffi_requests.Session, url: str) -> str:
     for attempt in range(MAX_RETRIES):
         try:
             resp = client.get(url, allow_redirects=True)
-            if resp.status_code in RETRY_STATUSES:
-                raise RuntimeError(f"retryable status {resp.status_code}")
-            resp.raise_for_status()
             text = resp.text
+            # Detect the CF gate FIRST: it often rides on a 403, and retrying
+            # the same fingerprint won't clear it — surface it so the caller
+            # rotates fingerprints instead of burning MAX_RETRIES.
             marker = _detect_cloudflare(text)
             if marker:
                 raise CloudflareChallenge(
-                    f"Cloudflare interstitial detected on {url} (marker={marker!r})"
+                    f"Cloudflare interstitial detected on {url} "
+                    f"(marker={marker!r}, status={resp.status_code})"
                 )
+            if resp.status_code in RETRY_STATUSES:
+                raise RuntimeError(f"retryable status {resp.status_code}")
+            resp.raise_for_status()
             return text
         except CloudflareChallenge:
             raise
@@ -325,6 +329,28 @@ def parse_detail(html: str, url: str) -> dict | None:
     }
 
 
+def _open_working_client(first_url: str) -> tuple[cffi_requests.Session, str]:
+    """Open a client with the first fingerprint that isn't Cloudflare-gated.
+
+    Reuses the real page-1 fetch as the probe (no extra request). Rotates
+    through ``IMPERSONATE_TARGETS`` on any fetch failure and re-raises the
+    last error if every fingerprint is blocked.
+    """
+    last_exc: Exception | None = None
+    for target in IMPERSONATE_TARGETS:
+        client = build_client(target)
+        try:
+            return client, _request(client, first_url)
+        except Exception as exc:
+            last_exc = exc
+            logger.warning(
+                "fingerprint %s failed on %s — rotating: %s", target, first_url, exc
+            )
+            client.close()
+    assert last_exc is not None
+    raise last_exc
+
+
 def crawl(
     url: str,
     *,
@@ -343,20 +369,36 @@ def crawl(
     https://id.indeed.com/jobs?q=mobile+developer
     """
     owns_client = client is None
-    client = client or build_client()
     yielded = 0
     try:
-        for listing_url in iter_listing_pages(url, max_pages):
-            try:
-                listing_html = _request(client, listing_url)
-            except CloudflareChallenge as exc:
-                logger.error(
-                    "CF gate hit on listing %s — aborting: %s", listing_url, exc
-                )
-                break
-            except Exception as exc:
-                logger.error("listing fetch failed: %s — %s", listing_url, exc)
-                break
+        for page_idx, listing_url in enumerate(iter_listing_pages(url, max_pages)):
+            if page_idx == 0 and owns_client:
+                # First fetch doubles as fingerprint selection: rotate through
+                # IMPERSONATE_TARGETS until one isn't Cloudflare-gated, then
+                # reuse that client for the rest of the crawl.
+                try:
+                    client, listing_html = _open_working_client(listing_url)
+                except CloudflareChallenge as exc:
+                    logger.error(
+                        "all fingerprints CF-blocked on %s — aborting: %s",
+                        listing_url,
+                        exc,
+                    )
+                    return
+                except Exception as exc:
+                    logger.error("listing fetch failed: %s — %s", listing_url, exc)
+                    return
+            else:
+                try:
+                    listing_html = _request(client, listing_url)
+                except CloudflareChallenge as exc:
+                    logger.error(
+                        "CF gate hit on listing %s — aborting: %s", listing_url, exc
+                    )
+                    break
+                except Exception as exc:
+                    logger.error("listing fetch failed: %s — %s", listing_url, exc)
+                    break
             detail_urls = parse_listing(listing_html)
             if not detail_urls:
                 break
@@ -383,5 +425,5 @@ def crawl(
                 yield parsed
             time.sleep(sleep + random.uniform(0, 0.3))
     finally:
-        if owns_client:
+        if owns_client and client is not None:
             client.close()
