@@ -15,6 +15,23 @@ logger = logging.getLogger(__name__)
 TEST_LIMIT = 5
 TEST_SLEEP = 0.1
 
+
+class _LogCapture(logging.Handler):
+    """Collect WARNING+ records emitted by the scrapers during a probe.
+
+    The crawlers swallow block/parse failures (log + ``break``), so a failed
+    probe otherwise reports ``error=None``. Capturing their logs lets us
+    surface the actual reason in the Discord report.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.WARNING)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
 SCRAPERS = {
     CrawlHealthTarget.SOURCE_INDEED: indeed.crawl,
     CrawlHealthTarget.SOURCE_JOBSTREET: jobstreet.crawl,
@@ -27,6 +44,9 @@ def _probe(label, scraper, url):
     start = time.perf_counter()
     error = None
     count = 0
+    capture = _LogCapture()
+    scraper_logger = logging.getLogger("jobs.scrapers")
+    scraper_logger.addHandler(capture)
     try:
         items = list(
             islice(
@@ -38,11 +58,19 @@ def _probe(label, scraper, url):
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
         logger.exception("health probe %s raised", label)
+    finally:
+        scraper_logger.removeHandler(capture)
     elapsed = time.perf_counter() - start
+    ok = error is None and count > 0
+    # The crawlers swallow blocks/parse misses and yield 0 without raising;
+    # surface the last logged reason so the report isn't a bare ❌.
+    if not ok and error is None and capture.records:
+        terminal = [r for r in capture.records if r.levelno >= logging.ERROR]
+        error = (terminal or capture.records)[-1].getMessage()[:300]
     return {
         "source": label,
         "url": url,
-        "ok": error is None and count > 0,
+        "ok": ok,
         "count": count,
         "elapsed_s": round(elapsed, 1),
         "error": error,

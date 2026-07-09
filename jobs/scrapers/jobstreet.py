@@ -231,6 +231,11 @@ def crawl(
                 break
             detail_urls = parse_listing(listing_html)
             if not detail_urls:
+                logger.warning(
+                    "no detail links parsed from listing %s "
+                    "(possible soft block or markup change)",
+                    listing_url,
+                )
                 break
             for detail_url in detail_urls:
                 if limit is not None and yielded >= limit:
