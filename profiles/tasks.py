@@ -42,7 +42,7 @@ def crawl_linkedin_for_profile(
     from profiles.consts import Status
     from profiles.methods import crawl_and_ingest_linkedin
     from profiles.models import Profile
-    from profiles.services import maybe_start_free_crawl
+    from profiles.services import prepare_preference_for_payment
 
     profile = Profile.objects.get(pk=profile_id)
     if not profile.linkedin_url:
@@ -53,5 +53,5 @@ def crawl_linkedin_for_profile(
     if profile.full_profile:
         pending = profile.preferences.filter(status=Status.WAITING_ADMIN, crawl_urls=[])
         for pref in pending:
-            maybe_start_free_crawl(pref)
+            prepare_preference_for_payment(pref)
     return "no_status_change"

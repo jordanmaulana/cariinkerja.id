@@ -153,7 +153,7 @@ function AssessmentsPage() {
           <CardHeader className="flex-row items-center justify-between gap-3">
             <div className="space-y-1">
               <CardTitle className="text-base">
-                Crawl gratis selesai
+                Menunggu pembayaran
               </CardTitle>
               <CardDescription>
                 Pilih paket untuk lanjut crawl loker selama 30 hari.

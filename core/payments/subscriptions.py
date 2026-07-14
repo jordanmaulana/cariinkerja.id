@@ -6,6 +6,7 @@ from django.utils import timezone
 from assessment.tasks import crawl_and_assess_preference
 from billing.models import Subscription, SubscriptionStatus
 from core.realtime import publish, user_channel
+from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status as PreferenceStatus
 from profiles.models import Preference
 
@@ -76,18 +77,29 @@ def activate_subscription(sub: Subscription) -> bool:
             sub.expires_at.isoformat(),
             unlocked,
         )
-        crawlable = (
-            Preference.objects.filter(id__in=pref_ids)
-            .exclude(crawl_urls=[])
-            .values_list("id", flat=True)
-        )
-        for pid in crawlable:
-            crawl_and_assess_preference.delay(pid)
-            logger.info(
-                "activate_subscription: sub=%s queued crawl preference=%s",
-                sub.id,
-                pid,
-            )
+        # The post-payment crawl is the only crawl a paid user gets, so guarantee
+        # it: backfill crawl_urls for any pref that reached WAITING_PAYMENT without
+        # them (admin manual path, whitespace title, etc.), and never skip silently.
+        for pref in Preference.objects.filter(id__in=pref_ids):
+            if not pref.crawl_urls and pref.title:
+                pref.crawl_urls = build_crawl_urls(
+                    pref.title, pref.job_type, pref.remote_option
+                )
+                pref.save(update_fields=["crawl_urls", "updated_on"])
+            if pref.crawl_urls:
+                crawl_and_assess_preference.delay(pref.id)
+                logger.info(
+                    "activate_subscription: sub=%s queued crawl preference=%s",
+                    sub.id,
+                    pref.id,
+                )
+            else:
+                logger.warning(
+                    "activate_subscription: sub=%s preference=%s has no crawl_urls "
+                    "(no usable title); crawl skipped",
+                    sub.id,
+                    pref.id,
+                )
     user_id = getattr(getattr(sub.profile, "user", None), "id", None)
     if user_id is not None:
         publish(

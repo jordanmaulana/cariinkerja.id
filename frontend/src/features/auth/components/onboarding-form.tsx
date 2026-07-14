@@ -159,6 +159,10 @@ export function OnboardingForm({
           <label htmlFor="title" className="text-sm font-medium">
             Judul pekerjaan
           </label>
+          <p className="text-xs text-muted-foreground">
+            Tulis posisi kerja kayak kamu lagi cari loker.
+            Contoh: "Sales manager", "Guru bahasa Inggris", "UI/UX designer", dsb.
+          </p>
           <input
             id="title"
             required

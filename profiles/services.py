@@ -1,7 +1,6 @@
 import logging
 
 from django.conf import settings
-from django.db import transaction
 from openai import OpenAI
 from pydantic import BaseModel
 
@@ -59,15 +58,18 @@ def ingest_linkedin(raw: str) -> LinkedInIngest:
     return resp.choices[0].message.parsed
 
 
-def maybe_start_free_crawl(preference) -> bool:
-    """Auto-fill Indeed crawl config + queue one free crawl run.
+def prepare_preference_for_payment(preference, *, require_full_profile=True) -> bool:
+    """Auto-fill crawl config + advance a new preference to WAITING_PAYMENT.
 
-    Idempotent. Returns True if crawl was queued.
-    Conditions: status=WAITING_ADMIN, profile.full_profile present, no
-    existing crawl_urls, has title.
+    Idempotent. Returns True if the preference was advanced. No crawl runs
+    here (the free crawl on registration is disabled) — the first real crawl
+    happens after payment via core.payments.subscriptions.activate_subscription.
+    Conditions: status=WAITING_ADMIN, no existing crawl_urls, has title, and
+    (unless require_full_profile=False) profile.full_profile present.
+
+    The registration path passes require_full_profile=False so a brand-new
+    preference becomes payable immediately, before LinkedIn ingest completes.
     """
-    from assessment.tasks import run_free_crawl
-
     if preference.status != Status.WAITING_ADMIN:
         return False
     if preference.crawl_urls:
@@ -75,16 +77,16 @@ def maybe_start_free_crawl(preference) -> bool:
     if not preference.title:
         return False
     profile = preference.profile
-    if not profile.full_profile:
+    if require_full_profile and not profile.full_profile:
         return False
 
     preference.crawl_urls = build_crawl_urls(
         preference.title, preference.job_type, preference.remote_option
     )
-    preference.save(update_fields=["crawl_urls", "updated_on"])
-    transaction.on_commit(lambda: run_free_crawl.delay(preference.id))
+    preference.status = Status.WAITING_PAYMENT
+    preference.save(update_fields=["crawl_urls", "status", "updated_on"])
     logger.info(
-        "free crawl queued for preference=%s profile=%s",
+        "preference=%s advanced to WAITING_PAYMENT (free crawl disabled) profile=%s",
         preference.id,
         profile.id,
     )

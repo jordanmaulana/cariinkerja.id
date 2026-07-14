@@ -50,18 +50,6 @@ def crawl_running_preferences():
     return len(ids)
 
 
-@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
-def run_free_crawl(preference_id: str):
-    """One-shot free crawl + assess. Flips status to WAITING_PAYMENT after."""
-    crawl_and_assess_preference(preference_id)
-    Preference.objects.filter(id=preference_id).update(
-        status=Status.WAITING_PAYMENT, updated_on=timezone.now()
-    )
-    logger.info(
-        "run_free_crawl: preference=%s flipped to WAITING_PAYMENT", preference_id
-    )
-
-
 @shared_task
 def crawl_and_assess_preference(preference_id: str):
     pref = Preference.objects.select_related("profile").get(id=preference_id)

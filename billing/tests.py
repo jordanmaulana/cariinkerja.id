@@ -210,7 +210,7 @@ class PaymentGateTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.data["locked"])
         self.assertEqual(resp.data["code"], "waiting_admin")
-        self.assertIn("admin", resp.data["detail"].lower())
+        self.assertIn("loker", resp.data["detail"].lower())
 
     def test_gate_locked_on_sparse_linkedin(self):
         self.profile.linkedin_ingested_at = timezone.now()
@@ -523,6 +523,28 @@ class ActivateUpgradeTests(TestCase):
         elapsed = (sub.expires_at - timezone.now()).total_seconds()
         self.assertAlmostEqual(elapsed, 30 * 86400, delta=5)
         crawl.delay.assert_called_once()
+
+    @patch("core.payments.subscriptions.crawl_and_assess_preference")
+    def test_activate_fills_missing_crawl_urls_and_queues(self, crawl):
+        # A paid pref that reached WAITING_PAYMENT with empty crawl_urls (e.g. via
+        # the admin manual path) must still be backfilled and crawled, not skipped.
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title="x",
+            status=PreferenceStatus.WAITING_PAYMENT,
+            crawl_urls=[],
+        )
+        sub = Subscription.objects.create(
+            profile=self.profile,
+            plan=self.pro,
+            status=SubscriptionStatus.PENDING,
+            amount_paid=159000,
+        )
+        activate_subscription(sub)
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, PreferenceStatus.RUNNING)
+        self.assertTrue(pref.crawl_urls)
+        crawl.delay.assert_called_once_with(pref.id)
 
 
 class ExpireSubscriptionsTests(TestCase):

@@ -29,7 +29,7 @@ export function StateNotice({ preference }: { preference: Preference }) {
       <Card className="border-primary/40 bg-primary/5">
         <CardHeader className="flex-row items-center justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="text-base">Pencarian disetujui</CardTitle>
+            <CardTitle className="text-base">Menunggu pembayaran</CardTitle>
             <CardDescription>
               Pilih paket untuk mulai mencocokkan loker.
             </CardDescription>

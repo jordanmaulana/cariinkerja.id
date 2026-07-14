@@ -105,6 +105,7 @@ class OnboardingSerializer(serializers.Serializer):
     )
 
     def save(self, **kwargs):
+        from profiles.services import prepare_preference_for_payment
         from profiles.tasks import crawl_linkedin_for_profile
 
         user = self.context["request"].user
@@ -122,6 +123,11 @@ class OnboardingSerializer(serializers.Serializer):
                 job_type=data["job_type"],
                 remote_option=data["remote_option"],
             )
+            # Free crawl disabled: make the preference payable immediately
+            # (fills crawl_urls + flips to WAITING_PAYMENT) instead of waiting
+            # in WAITING_ADMIN for LinkedIn ingest. Ingest still runs on_commit
+            # below for assessment quality + Open-to-Work discount.
+            prepare_preference_for_payment(preference, require_full_profile=False)
             transaction.on_commit(
                 lambda: crawl_linkedin_for_profile.delay(profile.id, preference.id)
             )

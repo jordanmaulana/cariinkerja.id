@@ -205,10 +205,12 @@ class PreferenceQualityGateTests(TestCase):
         self.assertEqual(self.pref.status, Status.RUNNING)
 
 
-class MaybeStartFreeCrawlTests(TestCase):
-    """The post_save signal on Preference invokes maybe_start_free_crawl, so
-    we observe its effect via .objects.create() rather than calling it again
+class PrepareForPaymentTests(TestCase):
+    """The post_save signal on Preference invokes prepare_preference_for_payment,
+    so we observe its effect via .objects.create() rather than calling it again
     (the second call returns False due to the idempotency check on crawl_urls).
+    The free crawl on registration is disabled: the preference is advanced to
+    WAITING_PAYMENT with crawl_urls filled, but NO crawl is queued.
     """
 
     def setUp(self):
@@ -217,8 +219,8 @@ class MaybeStartFreeCrawlTests(TestCase):
             full_profile="Plenty of substantive content here.",
         )
 
-    @patch("assessment.tasks.run_free_crawl")
-    def test_appends_indeed_and_jobstreet_urls(self, run_free_crawl):
+    @patch("assessment.tasks.crawl_and_assess_preference")
+    def test_appends_indeed_and_jobstreet_urls(self, crawl_and_assess_preference):
         pref = Preference.objects.create(
             profile=self.profile,
             title="Mobile Developer",
@@ -236,9 +238,11 @@ class MaybeStartFreeCrawlTests(TestCase):
         )
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
         self.assertIn("keywords=Mobile+Developer", pref.crawl_urls[2])
+        # Free crawl disabled: pref advances to WAITING_PAYMENT, no crawl queued.
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+        crawl_and_assess_preference.delay.assert_not_called()
 
-    @patch("assessment.tasks.run_free_crawl")
-    def test_remote_preference_appends_emea_linkedin(self, run_free_crawl):
+    def test_remote_preference_appends_emea_linkedin(self):
         pref = Preference.objects.create(
             profile=self.profile,
             title="Mobile Developer",
@@ -250,9 +254,9 @@ class MaybeStartFreeCrawlTests(TestCase):
         self.assertEqual(len(pref.crawl_urls), 4)
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[3])
         self.assertIn("geoId=91000007", pref.crawl_urls[3])
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
-    @patch("assessment.tasks.run_free_crawl")
-    def test_no_filters_yields_base_jobstreet_url(self, run_free_crawl):
+    def test_no_filters_yields_base_jobstreet_url(self):
         pref = Preference.objects.create(
             profile=self.profile,
             title="Developer",
@@ -263,6 +267,29 @@ class MaybeStartFreeCrawlTests(TestCase):
         self.assertEqual(len(pref.crawl_urls), 3)
         self.assertEqual(pref.crawl_urls[1], "https://id.jobstreet.com/developer-jobs")
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+
+    def test_require_full_profile_false_advances_without_full_profile(self):
+        # Registration path: pref becomes payable immediately even before
+        # LinkedIn ingest sets full_profile.
+        from profiles.services import prepare_preference_for_payment
+
+        bare = Profile.objects.create(full_name="No LinkedIn Yet")
+        pref = Preference.objects.create(
+            profile=bare,
+            title="Developer",
+            status=Status.WAITING_ADMIN,
+        )
+        # The post_save signal (require_full_profile=True) is a no-op here.
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, Status.WAITING_ADMIN)
+        self.assertEqual(pref.crawl_urls, [])
+
+        advanced = prepare_preference_for_payment(pref, require_full_profile=False)
+        self.assertTrue(advanced)
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+        self.assertTrue(pref.crawl_urls)
 
 
 class PreferenceDetailAPITests(TestCase):
@@ -389,8 +416,11 @@ class OnboardingAPITests(TestCase):
         self.assertEqual(self.profile.phone, "08123456789")
         self.assertEqual(self.profile.full_name, "Jane Doe")
         pref = Preference.objects.get(profile=self.profile)
-        # Default status; free-crawl flip to WAITING_PAYMENT runs in Celery (on_commit).
-        self.assertEqual(pref.status, Status.WAITING_ADMIN)
+        # Registration makes the preference payable immediately: crawl_urls
+        # filled + status WAITING_PAYMENT (no crawl runs). LinkedIn ingests
+        # in the background.
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+        self.assertTrue(pref.crawl_urls)
         self.assertEqual(pref.title, "Backend Engineer")
 
     def test_onboarding_missing_phone_rejected(self):

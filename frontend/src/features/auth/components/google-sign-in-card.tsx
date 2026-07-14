@@ -94,7 +94,7 @@ export function GoogleSignInCard() {
               <li key={item}>
                 <label
                   htmlFor={`pre-${i}`}
-                  className="flex gap-3 items-start cursor-pointer text-sm text-muted-foreground"
+                  className="flex gap-3 items-start cursor-pointer text-sm"
                 >
                   <Checkbox
                     id={`pre-${i}`}
@@ -104,7 +104,7 @@ export function GoogleSignInCard() {
                         prev.map((c, idx) => (idx === i ? state === true : c)),
                       )
                     }
-                    className="mt-0.5"
+                    className="mt-0.5 cursor-pointer"
                   />
                   <span>{item}</span>
                 </label>
