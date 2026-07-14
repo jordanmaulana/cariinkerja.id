@@ -26,5 +26,6 @@ export const LOGIN_FEATURES: { icon: LucideIcon; title: string; body: string }[]
 export const BEFORE_YOU_BUY: string[] = [
   "Pastiin LinkedIn-mu nggak kopong. Jangan cuma nulis education / job experience cuma title doang.",
   "Lengkapi apapun yang bisa dilengkapi di LinkedIn-mu. Tulis semua skills, tulis About yang jujur.",
-  "Jangan beli kalo kamu masih financially struggling. Pastiin energimu buat kamu cari kerja dulu sendiri sampe kamu bisa nafas lega.",
+  "Jangan daftar kalo kamu masih financially struggling. Pastiin energimu buat kamu cari kerja dulu sendiri sampe kamu bisa nafas lega.",
+  "Ini layanan berbayar lho ga pake trial."
 ];

@@ -3,10 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LogoLockup } from "@/components/brand/logo-mark";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { GoogleSignInCard } from "@/features/auth/components/google-sign-in-card";
-import {
-  LoginMobilePrechecklist,
-  LoginSidePanel,
-} from "@/features/auth/components/login-side-panel";
+import { LoginSidePanel } from "@/features/auth/components/login-side-panel";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -25,7 +22,6 @@ function LoginPage() {
             <LogoLockup />
           </div>
           <GoogleSignInCard />
-          <LoginMobilePrechecklist />
         </div>
       </section>
     </main>

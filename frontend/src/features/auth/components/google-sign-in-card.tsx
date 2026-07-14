@@ -8,8 +8,11 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { googleSignIn } from "@/features/auth/api";
+import { BEFORE_YOU_BUY } from "@/features/auth/consts";
 import { tokenAtom, userAtom } from "@/features/auth/state";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
@@ -17,6 +20,10 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 export function GoogleSignInCard() {
   const buttonRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checked, setChecked] = useState<boolean[]>(() =>
+    BEFORE_YOU_BUY.map(() => false),
+  );
+  const allChecked = checked.every(Boolean);
   const setToken = useSetAtom(tokenAtom);
   const setUser = useSetAtom(userAtom);
   const navigate = useNavigate();
@@ -78,7 +85,47 @@ export function GoogleSignInCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 pt-2">
-        <div ref={buttonRef} className="flex justify-center min-h-[44px]" />
+        <div className="space-y-3">
+          <p className="text-sm font-semibold tracking-tight">
+            Sebelum kamu beli
+          </p>
+          <ul className="space-y-2.5">
+            {BEFORE_YOU_BUY.map((item, i) => (
+              <li key={item}>
+                <label
+                  htmlFor={`pre-${i}`}
+                  className="flex gap-3 items-start cursor-pointer text-sm text-muted-foreground"
+                >
+                  <Checkbox
+                    id={`pre-${i}`}
+                    checked={checked[i]}
+                    onCheckedChange={(state) =>
+                      setChecked((prev) =>
+                        prev.map((c, idx) => (idx === i ? state === true : c)),
+                      )
+                    }
+                    className="mt-0.5"
+                  />
+                  <span>{item}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div
+          inert={!allChecked}
+          className={cn(
+            "transition-opacity",
+            !allChecked && "opacity-50 pointer-events-none select-none",
+          )}
+        >
+          <div ref={buttonRef} className="flex justify-center min-h-[44px]" />
+        </div>
+        {!allChecked && (
+          <p className="text-xs text-muted-foreground text-center">
+            Centang semua poin di atas dulu ya biar bisa lanjut.
+          </p>
+        )}
         {error && (
           <div
             role="alert"

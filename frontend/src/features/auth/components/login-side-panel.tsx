@@ -1,5 +1,5 @@
 import { LogoLockup } from "@/components/brand/logo-mark";
-import { BEFORE_YOU_BUY, LOGIN_FEATURES } from "@/features/auth/consts";
+import { LOGIN_FEATURES } from "@/features/auth/consts";
 
 export function LoginSidePanel() {
   return (
@@ -15,16 +15,6 @@ export function LoginSidePanel() {
       />
       <div className="relative">
         <LogoLockup />
-        <div className="mt-8 rounded-md border border-border bg-card/40 p-5 max-w-md">
-          <h2 className="text-sm font-semibold tracking-tight">
-            Sebelum kamu beli
-          </h2>
-          <ol className="mt-3 space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-            {BEFORE_YOU_BUY.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ol>
-        </div>
       </div>
       <div className="relative">
         <h2 className="font-heading text-3xl xl:text-4xl font-semibold tracking-tight leading-tight">
@@ -51,18 +41,5 @@ export function LoginSidePanel() {
         Dibuat untuk pencari kerja Indonesia. © 2026 cariinkerja.id
       </p>
     </section>
-  );
-}
-
-export function LoginMobilePrechecklist() {
-  return (
-    <div className="mt-6 lg:hidden rounded-md border border-border bg-muted/30 p-5">
-      <h2 className="text-sm font-semibold tracking-tight">Sebelum kamu beli</h2>
-      <ol className="mt-3 space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-        {BEFORE_YOU_BUY.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ol>
-    </div>
   );
 }
