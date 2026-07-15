@@ -49,17 +49,34 @@
         <dt class="text-slate-500">Last ingest</dt>
         <dd>{{ profile.linkedin_ingested_at|date:"Y-m-d H:i"|default:"—" }}</dd>
       </dl>
-      <form method="post" action="{% url 'profile_reingest_linkedin' pk=profile.pk %}" class="pt-2">
-        {% csrf_token %}
-        <button type="submit"
-                {% if not profile.linkedin_url %}disabled{% endif %}
-                class="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
-          Re-ingest from LinkedIn (Apify)
-        </button>
-        {% if not profile.linkedin_url %}
-          <span class="text-xs text-slate-500 ml-2">Set a LinkedIn URL first.</span>
-        {% endif %}
-      </form>
+      <div class="pt-2 flex flex-wrap items-center gap-2">
+        <form method="post" action="{% url 'profile_reingest_linkedin' pk=profile.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  {% if not profile.linkedin_url %}disabled{% endif %}
+                  class="px-3 py-1.5 rounded bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed">
+            Re-ingest from LinkedIn (Apify)
+          </button>
+          {% if not profile.linkedin_url %}
+            <span class="text-xs text-slate-500 ml-2">Set a LinkedIn URL first.</span>
+          {% endif %}
+        </form>
+        <form method="post" action="{% url 'profile_regenerate_full_profile' pk=profile.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  {% if not profile.linkedin_raw %}disabled{% endif %}
+                  class="px-3 py-1.5 rounded bg-slate-700 text-white text-sm hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed">
+            Regenerate full profile (LLM only)
+          </button>
+          {% if not profile.linkedin_raw %}
+            <span class="text-xs text-slate-500 ml-2">Paste LinkedIn raw content first.</span>
+          {% endif %}
+        </form>
+      </div>
+      <p class="text-xs text-slate-500">
+        <strong>Apify</strong> re-crawls LinkedIn and <em>overwrites</em> the raw paste below (costs money).
+        <strong>Regenerate</strong> re-runs the LLM on the stored raw paste and leaves it untouched.
+      </p>
     </section>
 
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6">
@@ -94,7 +111,7 @@
         </div>
         <div>
           <label for="linkedin_raw" class="block text-sm font-medium text-slate-700">LinkedIn raw paste</label>
-          <p class="text-xs text-slate-500 mb-1">Paste full LinkedIn page content. LLM cleans on save and updates the fields below.</p>
+          <p class="text-xs text-slate-500 mb-1">Paste full LinkedIn page content. The LLM cleans on save and updates the fields below — but only when the paste has <em>changed</em>. To re-run it on the paste already stored here, use <strong>Regenerate full profile</strong> above.</p>
           <textarea id="linkedin_raw" name="linkedin_raw" rows="14"
                     class="mt-1 w-full rounded border-slate-300 border p-2 text-sm font-mono">{{ profile.linkedin_raw|default_if_none:"" }}</textarea>
         </div>

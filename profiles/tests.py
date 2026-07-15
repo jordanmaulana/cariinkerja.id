@@ -158,6 +158,117 @@ class ProfileDetailViewTests(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.full_profile, "manual content")
 
+    @patch("profiles.views.ingest_linkedin")
+    def test_resubmitting_identical_raw_skips_ingest(self, ingest):
+        # The Save gate only runs the LLM on *changed* raw. Documented here
+        # because it is the reason ProfileRegenerateFullProfileView exists.
+        self.profile.linkedin_raw = "unchanged raw"
+        self.profile.save()
+
+        url = reverse("profile_detail", args=[self.profile.id])
+        resp = self.client.post(
+            url,
+            {
+                "full_name": "Jane",
+                "linkedin_url": "",
+                "bio": "",
+                "linkedin_raw": "unchanged raw",
+                "full_profile": "",
+            },
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        ingest.assert_not_called()
+
+
+@override_settings(STORAGES=_TEST_STORAGES)
+class ProfileRegenerateFullProfileViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            "owner", "owner@example.com", "secret"
+        )
+        self.client.force_login(self.user)
+        self.profile = Profile.objects.create(
+            full_name="Jane",
+            linkedin_raw="stored raw",
+            full_profile="stale content",
+        )
+        self.url = reverse("profile_regenerate_full_profile", args=[self.profile.id])
+
+    @patch("profiles.views.ingest_linkedin")
+    def test_regenerate_reruns_llm_on_stored_raw(self, ingest):
+        ingest.return_value = LinkedInIngest(
+            cleaned_full_profile="Cleaned content",
+            is_sparse=False,
+            sparse_reason="",
+            open_to_work=True,
+            quality_notes="Strong profile",
+        )
+
+        resp = self.client.post(self.url)
+
+        self.assertEqual(resp.status_code, 302)
+        ingest.assert_called_once_with("stored raw")
+
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.full_profile, "Cleaned content")
+        # The source paste must survive a regenerate untouched.
+        self.assertEqual(self.profile.linkedin_raw, "stored raw")
+        self.assertTrue(self.profile.open_to_work)
+        self.assertTrue(self.profile.linkedin_quality_ok)
+        self.assertEqual(self.profile.linkedin_quality_reason, "Strong profile")
+        self.assertIsNotNone(self.profile.linkedin_ingested_at)
+
+    @patch("profiles.views.ingest_linkedin")
+    def test_regenerate_marks_sparse_profile(self, ingest):
+        ingest.return_value = LinkedInIngest(
+            cleaned_full_profile="Engineer at Foo.",
+            is_sparse=True,
+            sparse_reason="no descriptions",
+            open_to_work=False,
+            quality_notes="thin",
+        )
+
+        self.client.post(self.url)
+
+        self.profile.refresh_from_db()
+        self.assertFalse(self.profile.linkedin_quality_ok)
+        self.assertEqual(self.profile.linkedin_quality_reason, "no descriptions")
+
+    @patch("profiles.views.ingest_linkedin")
+    def test_regenerate_without_raw_is_noop(self, ingest):
+        bare = Profile.objects.create(full_name="No Raw")
+        url = reverse("profile_regenerate_full_profile", args=[bare.id])
+
+        resp = self.client.post(url)
+
+        self.assertEqual(resp.status_code, 302)
+        ingest.assert_not_called()
+
+    @patch("profiles.views.ingest_linkedin")
+    def test_regenerate_llm_failure_preserves_existing(self, ingest):
+        ingest.side_effect = Exception("boom")
+
+        resp = self.client.post(self.url)
+
+        self.assertEqual(resp.status_code, 302)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.full_profile, "stale content")
+        self.assertIsNone(self.profile.linkedin_ingested_at)
+
+    @patch("profiles.views.ingest_linkedin")
+    def test_regenerate_requires_superuser(self, ingest):
+        # SuperuserRequiredMixin bounces non-superusers to the login page.
+        self.client.force_login(
+            User.objects.create_user("plain", "plain@example.com", "secret")
+        )
+        resp = self.client.post(self.url)
+
+        self.assertIn("/login/", resp.url)
+        ingest.assert_not_called()
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.full_profile, "stale content")
+
 
 @override_settings(STORAGES=_TEST_STORAGES)
 class PreferenceQualityGateTests(TestCase):

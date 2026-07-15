@@ -132,3 +132,46 @@ class ProfileReingestLinkedinView(SuperuserRequiredMixin, View):
             crawl_linkedin_for_profile.delay(profile.id)
             messages.success(request, "LinkedIn re-ingest queued.")
         return redirect("profile_detail", pk=profile.pk)
+
+
+class ProfileRegenerateFullProfileView(SuperuserRequiredMixin, View):
+    """Re-run the LLM against the stored linkedin_raw. No Apify, no crawl.
+
+    ProfileDetailView.post only runs the ingest when the pasted raw *differs*
+    from what is stored, so re-submitting the same paste is a no-op. This is
+    the escape hatch for that. linkedin_raw is read-only here.
+    """
+
+    def post(self, request, pk):
+        profile = get_object_or_404(Profile, pk=pk)
+        if not profile.linkedin_raw:
+            messages.error(request, "No LinkedIn raw paste to regenerate from.")
+            return redirect("profile_detail", pk=profile.pk)
+
+        try:
+            result = ingest_linkedin(profile.linkedin_raw)
+        except Exception as exc:
+            messages.error(request, f"Regenerate failed: {exc}")
+            return redirect("profile_detail", pk=profile.pk)
+
+        profile.full_profile = result.cleaned_full_profile or None
+        profile.open_to_work = result.open_to_work
+        profile.linkedin_quality_ok = not result.is_sparse
+        profile.linkedin_quality_reason = (
+            result.sparse_reason or result.quality_notes or ""
+        )
+        profile.linkedin_ingested_at = timezone.now()
+        with transaction.atomic():
+            profile.save(
+                update_fields=[
+                    "full_profile",
+                    "open_to_work",
+                    "linkedin_quality_ok",
+                    "linkedin_quality_reason",
+                    "linkedin_ingested_at",
+                    "updated_on",
+                ]
+            )
+
+        messages.success(request, "Full profile regenerated from stored raw.")
+        return redirect("profile_detail", pk=profile.pk)

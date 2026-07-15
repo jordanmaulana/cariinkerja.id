@@ -51,7 +51,15 @@ def crawl_running_preferences():
 
 
 @shared_task
-def crawl_and_assess_preference(preference_id: str):
+def crawl_and_assess_preference(preference_id: str, reassess_existing: bool = False):
+    """Crawl every crawl_url and queue an assessment per posting.
+
+    With reassess_existing, a crawled job that already has an Assessment for
+    this preference is re-scored in place instead of skipped — the job row was
+    just refreshed by update_or_create, so its old score may be stale. Off by
+    default: the beat fan-out and the on-payment crawl would otherwise re-run
+    two LLM calls per already-seen job on every pass.
+    """
     pref = Preference.objects.select_related("profile").get(id=preference_id)
     count = 0
     for url in pref.crawl_urls or []:
@@ -80,7 +88,17 @@ def crawl_and_assess_preference(preference_id: str):
                     continue
                 if not job.hard_skills and not job.soft_skills:
                     extract_job_skills.delay(job.id)
-                assess_job.delay(job.id, pref.id)
+                existing_id = None
+                if reassess_existing:
+                    existing_id = (
+                        Assessment.objects.filter(job=job, preference=pref)
+                        .values_list("id", flat=True)
+                        .first()
+                    )
+                if existing_id:
+                    reassess_assessment.delay(existing_id)
+                else:
+                    assess_job.delay(job.id, pref.id)
                 count += 1
         except Exception:
             logger.exception("crawl failed for preference=%s url=%s", pref.id, url)

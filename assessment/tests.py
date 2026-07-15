@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
@@ -11,6 +11,7 @@ from django.utils import timezone
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
 from assessment.tasks import (
+    crawl_and_assess_preference,
     crawl_running_preferences,
     email_morning_high_score_summary,
 )
@@ -145,3 +146,82 @@ class CrawlWhitelistTests(TestCase):
             n = crawl_running_preferences()
         self.assertEqual(n, 0)
         m.assert_not_called()
+
+
+POSTING = {
+    "url": "https://job.test/reassess-me",
+    "title": "Senior Dev",
+    "company": "Acme",
+    "description": "fresh description",
+    "location": "Jakarta",
+    "job_type": None,
+    "remote_option": None,
+}
+
+
+class CrawlReassessExistingTests(TestCase):
+    def setUp(self):
+        u = User.objects.create_user(username="c", email="c@x.com", password="x")
+        self.profile = Profile.objects.create(user=u)
+        self.pref = Preference.objects.create(
+            profile=self.profile,
+            title="Senior Dev",
+            status=PrefStatus.RUNNING,
+            crawl_urls=["https://listing.test/q=dev"],
+        )
+
+    def _crawl(self, **kwargs):
+        """Run the task against a single fake posting, LLM paths mocked out."""
+        scraper = MagicMock()
+        scraper.crawl.return_value = [POSTING]
+        with (
+            patch(
+                "assessment.tasks.scraper_for_url", return_value=(scraper, "jobstreet")
+            ),
+            patch("assessment.tasks.extract_job_skills.delay"),
+            patch("assessment.tasks.assess_job.delay") as assess_mock,
+            patch("assessment.tasks.reassess_assessment.delay") as reassess_mock,
+        ):
+            count = crawl_and_assess_preference(self.pref.id, **kwargs)
+        return count, assess_mock, reassess_mock
+
+    def _existing_assessment(self) -> Assessment:
+        job = Job.objects.create(
+            url=POSTING["url"],
+            title="Stale title",
+            description="stale description",
+            location="Jakarta",
+            source="jobstreet",
+        )
+        return Assessment.objects.create(
+            job=job, preference=self.pref, score=50, verdict="stale"
+        )
+
+    def test_existing_assessment_is_reassessed_when_opted_in(self):
+        existing = self._existing_assessment()
+        count, assess_mock, reassess_mock = self._crawl(reassess_existing=True)
+        self.assertEqual(count, 1)
+        reassess_mock.assert_called_once_with(existing.id)
+        assess_mock.assert_not_called()
+
+    def test_new_job_is_assessed_normally_when_opted_in(self):
+        count, assess_mock, reassess_mock = self._crawl(reassess_existing=True)
+        self.assertEqual(count, 1)
+        job = Job.objects.get(url=POSTING["url"])
+        assess_mock.assert_called_once_with(job.id, self.pref.id)
+        reassess_mock.assert_not_called()
+
+    def test_default_does_not_reassess_existing(self):
+        """Guards the beat and on-payment paths against re-billing the LLM."""
+        self._existing_assessment()
+        count, assess_mock, reassess_mock = self._crawl()
+        self.assertEqual(count, 1)
+        reassess_mock.assert_not_called()
+        job = Job.objects.get(url=POSTING["url"])
+        assess_mock.assert_called_once_with(job.id, self.pref.id)
+
+    def test_reassess_scores_against_the_refreshed_job(self):
+        existing = self._existing_assessment()
+        self._crawl(reassess_existing=True)
+        existing.job.refresh_from_db()
+        self.assertEqual(existing.job.description, POSTING["description"])

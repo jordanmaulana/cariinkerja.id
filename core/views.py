@@ -385,8 +385,12 @@ class PreferenceCrawlNowView(SuperuserRequiredMixin, View):
                 "Preference has no crawl_urls — fill them first.",
             )
         else:
-            crawl_and_assess_preference.delay(pref.id)
-            messages.success(request, f"Queued crawl + assessment for {pref}.")
+            crawl_and_assess_preference.delay(pref.id, reassess_existing=True)
+            messages.success(
+                request,
+                f"Queued crawl + assessment for {pref}. "
+                "Jobs already assessed for this preference will be re-assessed.",
+            )
         return redirect("preference_detail", pk=pref.pk)
 
 

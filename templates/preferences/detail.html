@@ -26,7 +26,7 @@
           {% csrf_token %}
           <button type="submit"
                   class="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
-                  {% if not preference.crawl_urls %}disabled title="Set crawl_urls first"{% endif %}>
+                  {% if not preference.crawl_urls %}disabled title="Set crawl_urls first"{% else %}title="Crawls every crawl_url. Jobs already assessed for this preference are re-assessed against the freshly crawled posting — this spends LLM calls."{% endif %}>
             Crawl &amp; Assess Now
           </button>
         </form>
