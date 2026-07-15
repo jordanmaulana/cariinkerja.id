@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from core.models import BaseModel
@@ -26,6 +27,11 @@ class Plan(BaseModel):
     name = models.CharField(max_length=80)
     price = models.PositiveIntegerField(help_text="IDR, no decimals")
     preference_limit = models.PositiveSmallIntegerField(default=1)
+    duration_days = models.PositiveSmallIntegerField(
+        default=30,
+        validators=[MinValueValidator(1)],
+        help_text="Subscription length in days.",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:

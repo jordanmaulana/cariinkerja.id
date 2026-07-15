@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { OPEN_TO_WORK_HINT } from "@/features/billing/consts";
 import type { Plan, UpgradeQuote } from "@/features/billing/types";
-import { formatRupiah } from "@/features/billing/utils";
+import { durationLabel, formatRupiah } from "@/features/billing/utils";
 import type { PlanMode } from "@/features/billing/types";
 
 export type { PlanMode };
@@ -88,7 +88,9 @@ export function PlanCard({
               {formatRupiah(plan.price)}
             </span>
           )}
-          <span className="ml-1 text-sm text-muted-foreground">/ bulan</span>
+          <span className="ml-1 text-sm text-muted-foreground">
+            / {durationLabel(plan.duration_days)}
+          </span>
           {discounted && (
             <Badge
               variant="secondary"
@@ -138,7 +140,7 @@ export function PlanCard({
           </li>
           <li className="flex items-center gap-2">
             <Check className="size-4 text-primary" />
-            Akses 30 hari
+            Akses {plan.duration_days} hari
             {showUpgradeBreakdown &&
               ` + ~${upgradeQuote.bonus_days.toFixed(1)} hari bonus`}
           </li>

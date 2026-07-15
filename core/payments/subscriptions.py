@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from assessment.tasks import crawl_and_assess_preference
 from billing.models import Subscription, SubscriptionStatus
+from billing.upgrades import prorate_upgrade
 from core.realtime import publish, user_channel
 from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status as PreferenceStatus
@@ -12,18 +13,14 @@ from profiles.models import Preference
 
 logger = logging.getLogger(__name__)
 
-ACTIVATION_DAYS = 30
-
-
-TOTAL_SECONDS = ACTIVATION_DAYS * 86400
-
 
 def activate_subscription(sub: Subscription) -> bool:
     """Flip Subscription PENDING→ACTIVE and unlock Preferences. Idempotent.
 
-    For upgrade subs (`replaces` set): grants bonus_seconds derived from the
-    old sub's unused value, marks the old sub REPLACED, and skips preference
-    unlock (preferences already RUNNING under the old plan).
+    Runs for `sub.plan.duration_days`. For upgrade subs (`replaces` set):
+    grants bonus_seconds derived from the old sub's unused value, marks the
+    old sub REPLACED, and skips preference unlock (preferences already RUNNING
+    under the old plan).
 
     Returns True if a transition happened, False if already ACTIVE.
     """
@@ -42,10 +39,8 @@ def activate_subscription(sub: Subscription) -> bool:
     replaces_id = sub.replaces_id
     if replaces_id:
         old = Subscription.objects.select_related("plan").filter(pk=replaces_id).first()
-        if old is not None and old.expires_at and sub.plan.price:
-            seconds_remaining = max(0.0, (old.expires_at - now).total_seconds())
-            credit_value = old.amount_paid * seconds_remaining / TOTAL_SECONDS
-            bonus_seconds = int(credit_value * TOTAL_SECONDS / sub.plan.price)
+        _, _, raw_bonus = prorate_upgrade(old, sub.plan, now)
+        bonus_seconds = int(raw_bonus)
         Subscription.objects.filter(
             pk=replaces_id, status=SubscriptionStatus.ACTIVE
         ).update(
@@ -55,7 +50,7 @@ def activate_subscription(sub: Subscription) -> bool:
         )
     sub.status = SubscriptionStatus.ACTIVE
     sub.started_at = now
-    sub.expires_at = now + timedelta(days=ACTIVATION_DAYS, seconds=bonus_seconds)
+    sub.expires_at = now + timedelta(days=sub.plan.duration_days, seconds=bonus_seconds)
     sub.save(update_fields=["status", "started_at", "expires_at", "updated_on"])
     if replaces_id:
         logger.info(

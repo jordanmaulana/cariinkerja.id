@@ -2,14 +2,19 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.exceptions import ValidationError
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from billing.models import Plan, Subscription, SubscriptionStatus
-from billing.upgrades import UpgradeNotAllowed, compute_upgrade_quote
+from billing.upgrades import (
+    UpgradeNotAllowed,
+    compute_upgrade_quote,
+    prorate_upgrade,
+)
 from core.payments.subscriptions import activate_subscription
 from profiles.consts import Status as PreferenceStatus
 from profiles.models import Preference, Profile
@@ -607,3 +612,235 @@ class ExpireSubscriptionsTests(TestCase):
 
         self._sub(SubscriptionStatus.ACTIVE, timezone.now() - timedelta(days=1))
         self.assertIsNone(get_active_subscription(self.profile))
+
+
+class PlanDurationTests(TestCase):
+    def test_duration_days_defaults_to_30(self):
+        plan = Plan.objects.create(name="Basic", price=99000)
+        self.assertEqual(plan.duration_days, 30)
+
+    def test_duration_days_zero_rejected(self):
+        # Load-bearing: 0 would divide by zero in prorate_upgrade's credit rate.
+        plan = Plan(name="Bad", price=99000, duration_days=0)
+        with self.assertRaises(ValidationError):
+            plan.full_clean()
+
+    def test_duration_days_one_allowed(self):
+        plan = Plan(name="Daily", price=5000, duration_days=1)
+        plan.full_clean()
+
+
+class ProrateUpgradeTests(TestCase):
+    """The old plan sets the rate credit was bought at, the new plan the rate
+    it is spent at. While every plan was 30d these cancelled out; these tests
+    pin them apart."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("u", "u@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="U")
+        self.monthly = Plan.objects.create(
+            name="Monthly", price=99000, preference_limit=1, duration_days=30
+        )
+        self.annual = Plan.objects.create(
+            name="Annual", price=500000, preference_limit=3, duration_days=365
+        )
+
+    def _sub(self, plan, *, amount_paid, days_remaining):
+        now = timezone.now()
+        return Subscription.objects.create(
+            profile=self.profile,
+            plan=plan,
+            status=SubscriptionStatus.ACTIVE,
+            started_at=now - timedelta(days=plan.duration_days - days_remaining),
+            expires_at=now + timedelta(days=days_remaining),
+            amount_paid=amount_paid,
+        )
+
+    def test_cross_duration_uses_each_plans_own_rate(self):
+        # 15 of 30 days left on a 99k monthly => 49500 credit.
+        # Spent at the annual rate (500k buys 365d) => ~36 days, NOT ~3 days
+        # (which is what the collapsed single-constant formula returned).
+        sub = self._sub(self.monthly, amount_paid=99000, days_remaining=15)
+        secs, credit, bonus = prorate_upgrade(sub, self.annual, timezone.now())
+        self.assertAlmostEqual(secs, 15 * 86400, delta=5)
+        self.assertAlmostEqual(credit, 49500, delta=50)
+        expected_bonus = 49500 * 365 * 86400 / 500000
+        self.assertAlmostEqual(bonus, expected_bonus, delta=5000)
+        self.assertGreater(bonus / 86400, 35.0)
+        self.assertLess(bonus / 86400, 37.0)
+
+    def test_long_plan_credit_burns_at_its_own_slower_rate(self):
+        # 365d annual @500k with 100d left: credit = 500k * 100/365 = ~136986,
+        # not 500k * 100/30. Pins the OLD plan's duration in the denominator.
+        sub = self._sub(self.annual, amount_paid=500000, days_remaining=100)
+        _, credit, _ = prorate_upgrade(sub, self.monthly, timezone.now())
+        self.assertAlmostEqual(credit, 500000 * 100 / 365, delta=200)
+
+    def test_equal_durations_match_legacy_formula(self):
+        # Regression guard: at 30d both durations cancel, so the result must
+        # equal the pre-refactor expression amount_paid * secs / new_price.
+        pro = Plan.objects.create(
+            name="Pro", price=159000, preference_limit=3, duration_days=30
+        )
+        sub = self._sub(self.monthly, amount_paid=99000, days_remaining=20)
+        _, _, bonus = prorate_upgrade(sub, pro, timezone.now())
+        legacy = 99000 * (20 * 86400) / 159000
+        self.assertAlmostEqual(bonus, legacy, delta=5000)
+
+    def test_no_old_sub_is_zero(self):
+        self.assertEqual(
+            prorate_upgrade(None, self.annual, timezone.now()), (0.0, 0.0, 0.0)
+        )
+
+    def test_free_new_plan_is_zero(self):
+        free = Plan.objects.create(name="Free", price=0, duration_days=30)
+        sub = self._sub(self.monthly, amount_paid=99000, days_remaining=15)
+        self.assertEqual(prorate_upgrade(sub, free, timezone.now()), (0.0, 0.0, 0.0))
+
+    def test_quote_and_activation_agree_across_durations(self):
+        # The quote path and the money path must not drift: what the SPA
+        # previews is what activate_subscription actually writes.
+        sub = self._sub(self.monthly, amount_paid=99000, days_remaining=15)
+        quote = compute_upgrade_quote(self.profile, self.annual, current_sub=sub)
+        new = Subscription.objects.create(
+            profile=self.profile,
+            plan=self.annual,
+            status=SubscriptionStatus.PENDING,
+            replaces=sub,
+            amount_paid=quote["charge"],
+        )
+        with patch("core.payments.subscriptions.crawl_and_assess_preference"):
+            activate_subscription(new)
+        new.refresh_from_db()
+        actual = (new.expires_at - timezone.now()).total_seconds()
+        expected = 365 * 86400 + quote["bonus_seconds"]
+        self.assertAlmostEqual(actual, expected, delta=5)
+
+    def test_activation_honors_plan_duration_on_fresh_sub(self):
+        Preference.objects.create(
+            profile=self.profile,
+            title="x",
+            status=PreferenceStatus.WAITING_PAYMENT,
+            crawl_urls=["https://id.indeed.com/jobs?q=x"],
+        )
+        sub = Subscription.objects.create(
+            profile=self.profile,
+            plan=self.annual,
+            status=SubscriptionStatus.PENDING,
+            amount_paid=500000,
+        )
+        with patch("core.payments.subscriptions.crawl_and_assess_preference"):
+            activate_subscription(sub)
+        sub.refresh_from_db()
+        elapsed = (sub.expires_at - timezone.now()).total_seconds()
+        self.assertAlmostEqual(elapsed, 365 * 86400, delta=5)
+
+
+class UpgradeGuardTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("u", "u@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="U")
+        self.monthly = Plan.objects.create(
+            name="Monthly", price=99000, preference_limit=1, duration_days=30
+        )
+
+    def _active(self, plan):
+        now = timezone.now()
+        return Subscription.objects.create(
+            profile=self.profile,
+            plan=plan,
+            status=SubscriptionStatus.ACTIVE,
+            started_at=now,
+            expires_at=now + timedelta(days=plan.duration_days),
+            amount_paid=plan.price,
+        )
+
+    def test_same_limit_longer_duration_is_blocked(self):
+        # Costs more up front but grants no extra slots — not an upgrade.
+        # Selling this needs a renewal flow, not the upgrade path.
+        annual = Plan.objects.create(
+            name="Annual", price=500000, preference_limit=1, duration_days=365
+        )
+        with self.assertRaises(UpgradeNotAllowed) as ctx:
+            compute_upgrade_quote(
+                self.profile, annual, current_sub=self._active(self.monthly)
+            )
+        self.assertEqual(ctx.exception.code, "downgrade")
+
+    def test_more_slots_cheaper_is_allowed(self):
+        # Guard is slots, not price: a cheaper short plan with more slots is
+        # a legitimate upgrade and must not be rejected on price alone.
+        burst = Plan.objects.create(
+            name="Burst", price=60000, preference_limit=5, duration_days=7
+        )
+        q = compute_upgrade_quote(
+            self.profile, burst, current_sub=self._active(self.monthly)
+        )
+        self.assertEqual(q["charge"], 60000)
+
+    def test_fewer_slots_raises_downgrade(self):
+        pro = Plan.objects.create(
+            name="Pro", price=159000, preference_limit=3, duration_days=30
+        )
+        with self.assertRaises(UpgradeNotAllowed) as ctx:
+            compute_upgrade_quote(
+                self.profile, self.monthly, current_sub=self._active(pro)
+            )
+        self.assertEqual(ctx.exception.code, "downgrade")
+
+
+class PlanDurationSurfaceTests(TestCase):
+    """duration_days has to actually reach the SPA and the admin, not just the
+    model — each of these is a separate hand-maintained field list."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("u", "u@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="U")
+        self.annual = Plan.objects.create(
+            name="Annual", price=500000, preference_limit=3, duration_days=365
+        )
+
+    def test_plans_api_exposes_duration_days(self):
+        api = APIClient()
+        resp = api.get(reverse("api-v1-plan-list"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data[0]["duration_days"], 365)
+
+    # Manifest storage would demand a collected output.css to render the
+    # dashboard base template.
+    @override_settings(
+        STORAGES={
+            "default": {
+                "BACKEND": "django.core.files.storage.FileSystemStorage",
+            },
+            "staticfiles": {
+                "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            },
+        }
+    )
+    def test_admin_plan_form_renders_duration_days(self):
+        admin_user = User.objects.create_superuser("a", "a@example.com", "secret")
+        self.client.force_login(admin_user)
+        resp = self.client.get(reverse("plan_create"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "duration_days")
+
+    def test_manual_admin_activate_honors_duration_days(self):
+        # core.views activate action bypasses activate_subscription entirely,
+        # so it needs its own coverage.
+        admin_user = User.objects.create_superuser("a", "a@example.com", "secret")
+        self.client.force_login(admin_user)
+        sub = Subscription.objects.create(
+            profile=self.profile,
+            plan=self.annual,
+            status=SubscriptionStatus.PENDING,
+            amount_paid=500000,
+        )
+        resp = self.client.post(
+            reverse("subscription_detail", args=[sub.id]), {"action": "activate"}
+        )
+        self.assertIn(resp.status_code, (200, 302))
+        sub.refresh_from_db()
+        self.assertEqual(sub.status, SubscriptionStatus.ACTIVE)
+        elapsed = (sub.expires_at - timezone.now()).total_seconds()
+        self.assertAlmostEqual(elapsed, 365 * 86400, delta=10)

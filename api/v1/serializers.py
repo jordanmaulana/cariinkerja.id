@@ -219,7 +219,14 @@ class PlanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Plan
-        fields = ["id", "name", "price", "effective_price", "preference_limit"]
+        fields = [
+            "id",
+            "name",
+            "price",
+            "effective_price",
+            "preference_limit",
+            "duration_days",
+        ]
 
     def get_effective_price(self, plan):
         request = self.context.get("request")

@@ -546,7 +546,7 @@ class SubscriptionDetailView(SuperuserRequiredMixin, View):
         if action == "activate":
             sub.status = SubscriptionStatus.ACTIVE
             sub.started_at = sub.started_at or now
-            sub.expires_at = now + timedelta(days=30)
+            sub.expires_at = now + timedelta(days=sub.plan.duration_days)
             sub.payment_provider = sub.payment_provider or "manual"
             sub.save(
                 update_fields=[

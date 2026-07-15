@@ -22,6 +22,7 @@
               <th class="px-6 py-3 text-left font-medium">Name</th>
               <th class="px-6 py-3 text-right font-medium">Price (Rp)</th>
               <th class="px-6 py-3 text-right font-medium">Preference limit</th>
+              <th class="px-6 py-3 text-right font-medium">Duration</th>
               <th class="px-6 py-3 text-left font-medium">Active</th>
               <th class="px-6 py-3 text-left font-medium">Created</th>
               <th class="px-6 py-3 text-right font-medium">Actions</th>
@@ -33,6 +34,7 @@
                 <td class="px-6 py-3 font-medium text-slate-900">{{ p.name }}</td>
                 <td class="px-6 py-3 text-right tabular-nums">{{ p.price|intdot }}</td>
                 <td class="px-6 py-3 text-right tabular-nums">{{ p.preference_limit }}</td>
+                <td class="px-6 py-3 text-right tabular-nums whitespace-nowrap">{{ p.duration_days }} hari</td>
                 <td class="px-6 py-3">
                   {% if p.is_active %}
                     {% include "_partials/status_pill.html" with value="ACTIVE" label="Active" %}
@@ -51,7 +53,7 @@
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="py-8 text-slate-400 text-center">No plans yet. Create one.</td></tr>
+              <tr><td colspan="7" class="py-8 text-slate-400 text-center">No plans yet. Create one.</td></tr>
             {% endfor %}
           </tbody>
         </table>

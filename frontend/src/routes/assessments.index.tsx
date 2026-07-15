@@ -156,7 +156,7 @@ function AssessmentsPage() {
                 Menunggu pembayaran
               </CardTitle>
               <CardDescription>
-                Pilih paket untuk lanjut crawl loker selama 30 hari.
+                Pilih paket untuk lanjut crawl loker.
               </CardDescription>
             </div>
             <Button asChild size="sm">

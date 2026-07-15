@@ -32,6 +32,13 @@
         {% if form.preference_limit.errors %}<p class="text-xs text-red-600">{{ form.preference_limit.errors.0 }}</p>{% endif %}
       </div>
 
+      <div class="space-y-1">
+        <label class="block text-sm font-medium" for="{{ form.duration_days.id_for_label }}">Duration (days)</label>
+        {{ form.duration_days }}
+        <p class="text-xs text-slate-500">How long the subscription runs after payment. 30 = monthly.</p>
+        {% if form.duration_days.errors %}<p class="text-xs text-red-600">{{ form.duration_days.errors.0 }}</p>{% endif %}
+      </div>
+
       <label class="flex items-center gap-2 text-sm">
         {{ form.is_active }}
         <span>Active (visible to users)</span>

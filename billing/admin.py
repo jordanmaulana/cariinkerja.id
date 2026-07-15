@@ -5,7 +5,14 @@ from billing.models import Plan, Subscription
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ("name", "price", "preference_limit", "is_active", "created_on")
+    list_display = (
+        "name",
+        "price",
+        "preference_limit",
+        "duration_days",
+        "is_active",
+        "created_on",
+    )
     list_filter = ("is_active",)
     search_fields = ("name",)
 

@@ -4,6 +4,7 @@ export type Plan = {
   price: number;
   effective_price: number;
   preference_limit: number;
+  duration_days: number;
 };
 
 export type SubscriptionStatus =

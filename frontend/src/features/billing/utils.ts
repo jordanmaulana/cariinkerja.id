@@ -8,6 +8,10 @@ export function formatRupiah(amount: number): string {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 }
 
+export function durationLabel(days: number): string {
+  return days === 30 ? "bulan" : `${days} hari`;
+}
+
 export function getActivePlan(
   sub: Subscription | null | undefined,
 ): Plan | null {
@@ -26,7 +30,11 @@ export function getUpgradeablePlanIds(
 ): string[] {
   if (!activePlan || !plans) return [];
   return plans
-    .filter((p) => p.price > activePlan.price && p.id !== activePlan.id)
+    .filter(
+      (p) =>
+        p.preference_limit > activePlan.preference_limit &&
+        p.id !== activePlan.id,
+    )
     .map((p) => p.id);
 }
 
@@ -42,8 +50,10 @@ export function getPlanMode(args: {
   if (activePlan && plan.id === activePlan.id) return "current";
   if (hasPendingSub && plan.id !== pendingPlanId) return "pending-other";
   if (activePlan) {
-    if (plan.price > activePlan.price) return "upgrade";
-    if (plan.price < activePlan.price) return "downgrade-blocked";
+    // Mirrors the backend guard in billing/upgrades.py: more preference slots
+    // is the only upgrade. Same-slot moves across durations are not offered.
+    if (plan.preference_limit > activePlan.preference_limit) return "upgrade";
+    return "downgrade-blocked";
   }
   return "buy";
 }

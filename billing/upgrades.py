@@ -4,8 +4,28 @@ from django.utils import timezone
 
 from billing.models import Subscription, SubscriptionStatus, effective_price
 
-ACTIVATION_DAYS = 30
-TOTAL_SECONDS = ACTIVATION_DAYS * 86400
+
+def prorate_upgrade(old_sub, new_plan, now):
+    """Convert an old sub's unused value into bonus seconds on the new plan.
+
+    Returns (seconds_remaining, credit_value, bonus_seconds).
+
+    The two durations are distinct and must not be collapsed into one constant:
+    the old plan sets the rate the credit was bought at, the new plan sets the
+    rate it is spent at. They only cancel out while every plan is 30 days.
+
+    `seconds_remaining` can exceed the old plan's own duration when that sub
+    carried bonus seconds from a prior upgrade, so `credit_value` can exceed
+    `amount_paid`. That is existing, intended behaviour.
+    """
+    if old_sub is None or not old_sub.expires_at or not new_plan.price:
+        return 0.0, 0.0, 0.0
+    seconds_remaining = max(0.0, (old_sub.expires_at - now).total_seconds())
+    credit_value = (
+        old_sub.amount_paid * seconds_remaining / (old_sub.plan.duration_days * 86400)
+    )
+    bonus_seconds = credit_value * (new_plan.duration_days * 86400) / new_plan.price
+    return seconds_remaining, credit_value, bonus_seconds
 
 
 class UpgradeNotAllowed(Exception):
@@ -30,7 +50,7 @@ def get_active_subscription(profile):
 
 def compute_upgrade_quote(profile, new_plan, *, current_sub=None, at=None):
     """Compute upgrade pricing. Charge full new-plan list price; old credit
-    converts into bonus seconds appended to the new 30d window.
+    converts into bonus seconds appended to the new plan's window.
 
     Raises UpgradeNotAllowed for downgrade / same-plan / no-active-sub.
     """
@@ -43,19 +63,15 @@ def compute_upgrade_quote(profile, new_plan, *, current_sub=None, at=None):
         )
     if new_plan.id == current_sub.plan_id:
         raise UpgradeNotAllowed("same_plan", "Already on this plan.")
-    if new_plan.price <= current_sub.plan.price:
+    if new_plan.preference_limit <= current_sub.plan.preference_limit:
         raise UpgradeNotAllowed("downgrade", "Downgrade is not available.")
 
-    seconds_remaining = 0.0
-    if current_sub.expires_at:
-        seconds_remaining = max(0.0, (current_sub.expires_at - now).total_seconds())
-    credit_value = current_sub.amount_paid * seconds_remaining / TOTAL_SECONDS
-    bonus_seconds = (
-        credit_value * TOTAL_SECONDS / new_plan.price if new_plan.price else 0.0
+    seconds_remaining, credit_value, bonus_seconds = prorate_upgrade(
+        current_sub, new_plan, now
     )
     charge = effective_price(new_plan, profile)
     new_expires_at_estimate = now + timedelta(
-        days=ACTIVATION_DAYS, seconds=int(bonus_seconds)
+        days=new_plan.duration_days, seconds=int(bonus_seconds)
     )
     return {
         "current_plan_id": current_sub.plan_id,
