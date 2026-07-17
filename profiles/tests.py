@@ -9,8 +9,14 @@ from rest_framework.test import APIClient
 from jobs.consts import JobType, RemoteOption
 from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status
+from profiles.methods import _flatten_apify_item, crawl_and_ingest_linkedin
 from profiles.models import Preference, Profile
-from profiles.services import LinkedInIngest, ingest_linkedin
+from profiles.services import (
+    LinkedInIngest,
+    _truncate_for_llm,
+    ingest_linkedin,
+    render_full_profile,
+)
 
 _TEST_STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
@@ -74,6 +80,142 @@ class IngestLinkedInTests(TestCase):
         result = ingest_linkedin("Header includes #OPEN_TO_WORK")
 
         self.assertTrue(result.open_to_work)
+
+    @patch("profiles.services.OpenAI")
+    def test_ingest_renders_skills_from_endorsement_noise(self, openai_cls):
+        # The raw-paste path: skills arrive glued to endorsement rows and there is
+        # no "Skills:" line to copy. The LLM extracts them into `skills` and we
+        # render the canonical block ourselves.
+        parsed = LinkedInIngest(
+            cleaned_full_profile="About:\nBackend engineer.",
+            skills=["Python", "Django"],
+            is_sparse=False,
+            sparse_reason="",
+            open_to_work=False,
+            quality_notes="OK",
+        )
+        openai_cls.return_value = _mock_openai(parsed)
+
+        result = ingest_linkedin("Skills\nPython\nEndorsed by 12 people\nDjango")
+
+        self.assertEqual(
+            result.cleaned_full_profile,
+            "About:\nBackend engineer.\n\nSkills\nPython, Django",
+        )
+
+    @patch("profiles.services.OpenAI")
+    def test_ingest_does_not_duplicate_when_llm_keeps_skills_section(self, openai_cls):
+        # The prompt tells the model to leave skills out of cleaned_full_profile.
+        # Models disobey; the render must still emit exactly one Skills block.
+        parsed = LinkedInIngest(
+            cleaned_full_profile="About:\nEngineer.\n\nSkills: Stale, Junk",
+            skills=["Python"],
+            is_sparse=False,
+            sparse_reason="",
+            open_to_work=False,
+            quality_notes="OK",
+        )
+        openai_cls.return_value = _mock_openai(parsed)
+
+        result = ingest_linkedin("raw blob")
+
+        self.assertEqual(
+            result.cleaned_full_profile, "About:\nEngineer.\n\nSkills\nPython"
+        )
+
+    @patch("profiles.services.OpenAI")
+    def test_ingest_truncation_preserves_tail(self, openai_cls):
+        parsed = LinkedInIngest(
+            cleaned_full_profile="x",
+            is_sparse=False,
+            sparse_reason="",
+            open_to_work=False,
+            quality_notes="OK",
+        )
+        client = _mock_openai(parsed)
+        openai_cls.return_value = client
+
+        ingest_linkedin("HEAD" + ("x" * 80_000) + "Skills: Python, Django")
+
+        sent = client.chat.completions.parse.call_args.kwargs["messages"][1]["content"]
+        self.assertTrue(sent.startswith("HEAD"))
+        # Skills live at the bottom of a LinkedIn page — head-only truncation
+        # would decapitate exactly what we are trying to keep.
+        self.assertTrue(sent.endswith("Skills: Python, Django"))
+
+
+class RenderFullProfileTests(TestCase):
+    def test_appends_canonical_block_as_last_section(self):
+        self.assertEqual(
+            render_full_profile("About:\nEngineer.", ["Python", "Django"]),
+            "About:\nEngineer.\n\nSkills\nPython, Django",
+        )
+
+    def test_no_skills_leaves_text_untouched(self):
+        self.assertEqual(
+            render_full_profile("About:\nEngineer.", []), "About:\nEngineer."
+        )
+
+    def test_no_skills_emits_no_stray_header(self):
+        self.assertNotIn("Skills", render_full_profile("About:\nEngineer.", []))
+
+    def test_existing_skills_block_is_replaced_not_duplicated(self):
+        out = render_full_profile(
+            "About:\nEngineer.\n\nSkills: Stale, Junk\n\nEducation:\nITS", ["Python"]
+        )
+        self.assertEqual(out.count("Skills"), 1)
+        self.assertNotIn("Stale", out)
+        self.assertEqual(out, "About:\nEngineer.\n\nEducation:\nITS\n\nSkills\nPython")
+
+    def test_bare_header_block_is_replaced(self):
+        out = render_full_profile("About:\nEngineer.\n\nSkills\nOld\nJunk", ["Python"])
+        self.assertEqual(out, "About:\nEngineer.\n\nSkills\nPython")
+
+    def test_skills_and_endorsements_heading_is_replaced(self):
+        out = render_full_profile(
+            "About:\nEngineer.\n\nSkills & Endorsements\nOld", ["Python"]
+        )
+        self.assertEqual(out, "About:\nEngineer.\n\nSkills\nPython")
+
+    def test_prose_mentioning_skills_survives(self):
+        out = render_full_profile(
+            "About:\nSkills and Tools I use daily:\nlots of them", ["Python"]
+        )
+        self.assertIn("Skills and Tools I use daily:", out)
+        self.assertTrue(out.endswith("\n\nSkills\nPython"))
+
+    def test_dedupes_case_insensitively_keeping_first_casing(self):
+        self.assertEqual(
+            render_full_profile("About:\nX", [" Python ", "python", "Django"]),
+            "About:\nX\n\nSkills\nPython, Django",
+        )
+
+    def test_drops_empty_names(self):
+        self.assertEqual(
+            render_full_profile("About:\nX", ["", "   ", "Go"]),
+            "About:\nX\n\nSkills\nGo",
+        )
+
+    def test_empty_text_with_skills_yields_skills_only(self):
+        self.assertEqual(render_full_profile("", ["Python"]), "Skills\nPython")
+
+
+class TruncateForLlmTests(TestCase):
+    def test_short_input_is_returned_verbatim(self):
+        self.assertEqual(_truncate_for_llm("short"), "short")
+
+    def test_input_at_limit_is_returned_verbatim(self):
+        raw = "x" * 60_000
+        self.assertEqual(_truncate_for_llm(raw), raw)
+
+    def test_long_input_keeps_head_and_tail(self):
+        raw = "HEAD" + ("x" * 80_000) + "TAILSKILLS"
+        out = _truncate_for_llm(raw)
+
+        self.assertEqual(len(out), 60_000)
+        self.assertTrue(out.startswith("HEAD"))
+        self.assertTrue(out.endswith("TAILSKILLS"))
+        self.assertIn("TRUNCATED", out)
 
 
 @override_settings(STORAGES=_TEST_STORAGES)
@@ -550,3 +692,142 @@ class OnboardingAPITests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("phone", resp.data)
         self.assertFalse(Preference.objects.filter(profile=self.profile).exists())
+
+
+class FlattenApifyItemTests(TestCase):
+    def test_skills_accepts_str_and_dict_entries(self):
+        raw = _flatten_apify_item(
+            {"fullName": "Jane", "skills": [{"name": "Python"}, "Go", {"title": "SQL"}]}
+        )
+        self.assertIn("Skills: Python, Go, SQL", raw)
+
+    def test_missing_skills_key_warns(self):
+        with self.assertLogs("profiles.methods", level="WARNING") as logs:
+            _flatten_apify_item({"fullName": "Jane"})
+        self.assertIn("no skills", logs.output[0])
+
+    def test_present_but_empty_skills_warns(self):
+        with self.assertLogs("profiles.methods", level="WARNING"):
+            _flatten_apify_item({"fullName": "Jane", "skills": []})
+
+
+@override_settings(STORAGES=_TEST_STORAGES, APIFY_TOKEN="test-token")
+class SkillsParityTests(TestCase):
+    """A browser paste and an Apify scrape of the same person must yield the
+    same canonical Skills block. This is the whole point of the change."""
+
+    # Skills glued to endorsement noise, exactly as a browser copy delivers them.
+    PASTE = (
+        "Jane Doe\nSoftware Engineer\n\nAbout\nEngineer.\n\n"
+        "Skills\nPython\nEndorsed by 12 people\nDjango\nEndorsed by 5 people"
+    )
+    APIFY_ITEM = {
+        "fullName": "Jane Doe",
+        "about": "Engineer.",
+        "skills": ["Python", "Django"],
+    }
+
+    def setUp(self):
+        self.user = User.objects.create_superuser("own2", "own2@example.com", "secret")
+        self.client.force_login(self.user)
+
+    def _parsed(self):
+        # The LLM extracts the same skills from either input shape; what differs
+        # is only what reaches it. Patch at services level so the real render runs.
+        return LinkedInIngest(
+            cleaned_full_profile="About:\nEngineer.",
+            skills=["Python", "Django"],
+            is_sparse=False,
+            sparse_reason="",
+            open_to_work=False,
+            quality_notes="OK",
+        )
+
+    @patch("profiles.services.OpenAI")
+    def test_paste_path_renders_canonical_block(self, openai_cls):
+        openai_cls.return_value = _mock_openai(self._parsed())
+        profile = Profile.objects.create(full_name="Jane Doe")
+
+        self.client.post(
+            reverse("profile_detail", args=[profile.id]),
+            {
+                "full_name": "Jane Doe",
+                "linkedin_url": "",
+                "bio": "",
+                "linkedin_raw": self.PASTE,
+                "full_profile": "",
+            },
+        )
+
+        profile.refresh_from_db()
+        self.assertTrue(profile.full_profile.endswith("Skills\nPython, Django"))
+
+    @patch("profiles.methods.ApifyClient")
+    @patch("profiles.services.OpenAI")
+    def test_apify_path_renders_canonical_block(self, openai_cls, apify_cls):
+        openai_cls.return_value = _mock_openai(self._parsed())
+        apify = MagicMock()
+        apify.actor.return_value.call.return_value = {"defaultDatasetId": "ds"}
+        apify.dataset.return_value.iterate_items.return_value = iter([self.APIFY_ITEM])
+        apify_cls.return_value = apify
+
+        profile = Profile.objects.create(
+            full_name="Jane Doe", linkedin_url="https://linkedin.com/in/jane"
+        )
+        crawl_and_ingest_linkedin(profile)
+
+        profile.refresh_from_db()
+        self.assertTrue(profile.full_profile.endswith("Skills\nPython, Django"))
+
+    @patch("profiles.methods.ApifyClient")
+    @patch("profiles.services.OpenAI")
+    def test_both_paths_agree_byte_for_byte(self, openai_cls, apify_cls):
+        openai_cls.return_value = _mock_openai(self._parsed())
+        apify = MagicMock()
+        apify.actor.return_value.call.return_value = {"defaultDatasetId": "ds"}
+        apify.dataset.return_value.iterate_items.return_value = iter([self.APIFY_ITEM])
+        apify_cls.return_value = apify
+
+        pasted = Profile.objects.create(full_name="Jane Doe")
+        self.client.post(
+            reverse("profile_detail", args=[pasted.id]),
+            {
+                "full_name": "Jane Doe",
+                "linkedin_url": "",
+                "bio": "",
+                "linkedin_raw": self.PASTE,
+                "full_profile": "",
+            },
+        )
+        scraped = Profile.objects.create(
+            full_name="Jane Doe", linkedin_url="https://linkedin.com/in/jane"
+        )
+        crawl_and_ingest_linkedin(scraped)
+
+        pasted.refresh_from_db()
+        scraped.refresh_from_db()
+        self.assertEqual(pasted.full_profile, scraped.full_profile)
+
+
+class RealDataRegressionTests(TestCase):
+    """The Apify path already worked. Re-rendering the shape stored in the live
+    DB must reproduce it byte-for-byte, so this change is shape-preserving."""
+
+    STORED_TAIL = (
+        "Skills\nLaravel, n8n, Workflow Analysis, Workflow Management, "
+        "Collaborative Leadership, Generative AI Tools"
+    )
+
+    def test_render_reproduces_stored_skills_block(self):
+        out = render_full_profile(
+            "Education:\nInstitut Teknologi Sepuluh Nopember Surabaya",
+            [
+                "Laravel",
+                "n8n",
+                "Workflow Analysis",
+                "Workflow Management",
+                "Collaborative Leadership",
+                "Generative AI Tools",
+            ],
+        )
+        self.assertTrue(out.endswith(self.STORED_TAIL))

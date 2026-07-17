@@ -1,8 +1,9 @@
 import logging
+import re
 
 from django.conf import settings
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status
@@ -11,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class LinkedInIngest(BaseModel):
+    # Declared first on purpose: structured-output field order is generation
+    # order, so the model reads skills straight off the raw input before it
+    # rewrites the profile text it must leave them out of.
+    skills: list[str] = Field(default_factory=list)
     cleaned_full_profile: str
     is_sparse: bool
     sparse_reason: str = ""
@@ -23,25 +28,101 @@ SYSTEM_PROMPT = (
     "The input is messy: HTML cruft, repeated nav strings, the candidate's own copy, "
     "and possibly fragments of OTHER people's profiles (sidebars, "
     '"People you may know", endorsement rows). Your job:\n\n'
-    "1. Return ONLY the candidate's own profile content as cleaned_full_profile. "
-    'Strip nav, sidebars, endorsement rows, "show more" tokens, emoji-only lines. '
-    "Preserve section structure (About / Experience / Education / Skills) as plain "
-    "text with blank-line separators.\n\n"
-    "2. Score sparseness: is_sparse=True ONLY if the profile is unusable for job "
+    "1. skills: every skill the CANDIDATE lists or clearly demonstrates, as short "
+    "names (English technical terms OK). LinkedIn glues each skill to endorsement "
+    'noise — e.g. "Python\\nEndorsed by 12 people", "React · 8 endorsements", '
+    '"Kubernetes\\nEndorsed by Jane Doe and 4 others". Keep the SKILL NAME and drop '
+    "the endorsement text around it — never drop the row itself. Also include skills "
+    'named in the About/Experience text, and every entry of a "Skills: a, b, c" line '
+    "if the input already has one. Do not invent skills. Do not include other "
+    "people's skills from sidebars. Deduplicate. Return an empty list only if the "
+    "profile truly names no skills.\n\n"
+    "2. Return ONLY the candidate's own profile content as cleaned_full_profile. "
+    'Strip nav, sidebars, endorser names, "show more" tokens, emoji-only lines. '
+    "Preserve section structure (About / Experience / Education) as plain text with "
+    "blank-line separators. Do NOT include a Skills section in cleaned_full_profile "
+    "— skills belong in the `skills` field ONLY (see 1); they are appended "
+    "separately.\n\n"
+    "3. Score sparseness: is_sparse=True ONLY if the profile is unusable for job "
     "matching — e.g., job titles with no descriptions, no About section, fewer than "
     "~150 words of substantive content. A short but substantive profile is NOT "
     'sparse. Put a concrete reason in sparse_reason (e.g., "5 roles listed but zero '
     'have descriptions; no About section"). Leave sparse_reason empty when '
-    "is_sparse=False.\n\n"
-    "3. Detect Open to Work ONLY for the candidate themselves. Set open_to_work=True "
+    "is_sparse=False. Judge the profile as a whole, including the skills you "
+    "extracted in 1, not only the text you placed in cleaned_full_profile.\n\n"
+    "4. Detect Open to Work ONLY for the candidate themselves. Set open_to_work=True "
     'only if you see (a) the literal "#OPEN_TO_WORK" hashtag, (b) the phrase '
     '"Open to Work" attached to the candidate\'s own headline/photo section, or '
     '(c) a "Looking for [role]" banner clearly attributed to the candidate. Do NOT '
     "set True from stray mentions in someone else's recommendation, endorsement, or "
     "sidebar content. When unsure, set False.\n\n"
-    '4. quality_notes: 1-2 sentences for the recruiter (e.g., "Strong tech stack '
+    '5. quality_notes: 1-2 sentences for the recruiter (e.g., "Strong tech stack '
     'detail, but no quantified outcomes").'
 )
+
+# Matches a block heading like "Skills", "Skills:", "Skills & Endorsements" —
+# but not prose such as "Skills and Tools I use daily:".
+_SKILLS_HEADING_RE = re.compile(
+    r"^skills(?:\s*(?:&|and)\s*endorsements)?\s*:.*$"
+    r"|^skills(?:\s*(?:&|and)\s*endorsements)?\s*$",
+    re.IGNORECASE,
+)
+
+_MAX_RAW_CHARS = 60_000
+_TAIL_CHARS = 20_000
+_TRUNCATION_MARKER = "\n\n[...TRUNCATED MIDDLE...]\n\n"
+
+
+def _normalize_skills(names: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for name in names or []:
+        cleaned = (name or "").strip()
+        if not cleaned or cleaned.casefold() in seen:
+            continue
+        seen.add(cleaned.casefold())
+        out.append(cleaned)
+    return out
+
+
+def render_skills_block(names: list[str]) -> str:
+    normalized = _normalize_skills(names)
+    return "Skills\n" + ", ".join(normalized) if normalized else ""
+
+
+def _strip_skills_blocks(text: str) -> str:
+    kept = []
+    for block in re.split(r"\n\s*\n", text):
+        lines = block.strip().splitlines()
+        if not lines or _SKILLS_HEADING_RE.match(lines[0].strip()):
+            continue
+        kept.append(block.strip())
+    return "\n\n".join(kept)
+
+
+def render_full_profile(cleaned: str, skills: list[str]) -> str:
+    """Canonical shape: profile text, then one Skills block as the last section.
+
+    The Skills block is rendered here rather than left to the model. The Apify
+    path only ever worked because _flatten_apify_item builds the same line in
+    Python; a browser paste has no such line, so the model dropped skills along
+    with the endorsement noise they are glued to.
+    """
+    body = _strip_skills_blocks((cleaned or "").strip())
+    block = render_skills_block(skills)
+    if not block:
+        return body
+    return f"{body}\n\n{block}" if body else block
+
+
+def _truncate_for_llm(
+    raw: str, limit: int = _MAX_RAW_CHARS, tail: int = _TAIL_CHARS
+) -> str:
+    """Keep the head AND the tail — LinkedIn puts Skills at the bottom of a page."""
+    if len(raw) <= limit:
+        return raw
+    head = limit - tail - len(_TRUNCATION_MARKER)
+    return raw[:head] + _TRUNCATION_MARKER + raw[-tail:]
 
 
 def ingest_linkedin(raw: str) -> LinkedInIngest:
@@ -50,12 +131,16 @@ def ingest_linkedin(raw: str) -> LinkedInIngest:
         model=settings.OPENAI_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": raw[:60_000]},
+            {"role": "user", "content": _truncate_for_llm(raw)},
         ],
         response_format=LinkedInIngest,
         timeout=30,
     )
-    return resp.choices[0].message.parsed
+    result = resp.choices[0].message.parsed
+    result.cleaned_full_profile = render_full_profile(
+        result.cleaned_full_profile, result.skills
+    )
+    return result
 
 
 def prepare_preference_for_payment(preference, *, require_full_profile=True) -> bool:

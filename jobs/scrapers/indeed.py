@@ -33,6 +33,10 @@ TIMEOUT = 20.0
 DEFAULT_SLEEP = 2.5
 RETRY_STATUSES = {403, 429, 500, 502, 503, 504}
 MAX_RETRIES = 3
+# Detail pages are CF-gated harder than the SERP. A single gated detail must
+# not kill the crawl; abort only after this many *consecutive* gated details
+# (fingerprint rotation already exhausted on each) — the session/IP is burned.
+CF_ABORT_THRESHOLD = 3
 # Cloudflare fingerprints go stale; rotate on a CF block. Keep current-ish.
 # `crawl` tries these in order and keeps the first that isn't gated.
 IMPERSONATE_TARGETS: tuple[str, ...] = ("firefox147", "chrome146", "safari184")
@@ -116,11 +120,15 @@ def _detect_cloudflare(html: str) -> str | None:
     return None
 
 
-def _request(client: cffi_requests.Session, url: str) -> str:
+def _request(
+    client: cffi_requests.Session,
+    url: str,
+    headers: dict[str, str] | None = None,
+) -> str:
     last_exc: Exception | None = None
     for attempt in range(MAX_RETRIES):
         try:
-            resp = client.get(url, allow_redirects=True)
+            resp = client.get(url, allow_redirects=True, headers=headers)
             text = resp.text
             # Detect the CF gate FIRST: it often rides on a 403, and retrying
             # the same fingerprint won't clear it — surface it so the caller
@@ -329,18 +337,34 @@ def parse_detail(html: str, url: str) -> dict | None:
     }
 
 
-def _open_working_client(first_url: str) -> tuple[cffi_requests.Session, str]:
+def _warm_up(client: cffi_requests.Session) -> None:
+    """Best-effort homepage GET to seed Cloudflare clearance cookies.
+
+    Mimics a real session entering via the homepage before the SERP. Failures
+    are swallowed — warm-up must never abort fingerprint selection.
+    """
+    try:
+        client.get(BASE_URL, allow_redirects=True)
+    except Exception as exc:
+        logger.debug("warm-up GET failed (non-fatal): %s", exc)
+
+
+def _open_working_client(first_url: str) -> tuple[cffi_requests.Session, str, str]:
     """Open a client with the first fingerprint that isn't Cloudflare-gated.
 
-    Reuses the real page-1 fetch as the probe (no extra request). Rotates
-    through ``IMPERSONATE_TARGETS`` on any fetch failure and re-raises the
-    last error if every fingerprint is blocked.
+    Reuses the real page-1 fetch as the probe (no extra request beyond a light
+    homepage warm-up). Rotates through ``IMPERSONATE_TARGETS`` on any fetch
+    failure and re-raises the last error if every fingerprint is blocked.
+    Returns ``(client, target, html)`` so the detail loop knows which
+    fingerprint won and where to resume rotating.
     """
     last_exc: Exception | None = None
     for target in IMPERSONATE_TARGETS:
         client = build_client(target)
         try:
-            return client, _request(client, first_url)
+            _warm_up(client)
+            html = _request(client, first_url, headers={"Referer": BASE_URL})
+            return client, target, html
         except Exception as exc:
             last_exc = exc
             logger.warning(
@@ -349,6 +373,43 @@ def _open_working_client(first_url: str) -> tuple[cffi_requests.Session, str]:
             client.close()
     assert last_exc is not None
     raise last_exc
+
+
+def _fetch_detail_rotating(
+    client: cffi_requests.Session,
+    current_target: str,
+    url: str,
+    referer: str,
+) -> tuple[cffi_requests.Session, str, str]:
+    """Fetch a detail page; on a CF gate, rotate through the other fingerprints.
+
+    Returns ``(client, target, html)`` — the client may be a fresh one if a
+    rotation cleared the gate (the retired client is closed). Raises
+    ``CloudflareChallenge`` only if every fingerprint is gated. Never closes the
+    caller's original client except when swapping it for a working replacement.
+    """
+    headers = {"Referer": referer}
+    try:
+        return client, current_target, _request(client, url, headers=headers)
+    except CloudflareChallenge as first_cf:
+        cf_exc: CloudflareChallenge = first_cf
+    idx = IMPERSONATE_TARGETS.index(current_target)
+    rotation = IMPERSONATE_TARGETS[idx + 1 :] + IMPERSONATE_TARGETS[:idx]
+    for target in rotation:
+        new_client = build_client(target)
+        try:
+            html = _request(new_client, url, headers=headers)
+        except CloudflareChallenge as exc:
+            cf_exc = exc
+            new_client.close()
+            continue
+        except Exception:
+            new_client.close()
+            raise
+        logger.info("detail CF cleared by rotating to %s: %s", target, url)
+        client.close()
+        return new_client, target, html
+    raise cf_exc
 
 
 def crawl(
@@ -361,14 +422,19 @@ def crawl(
 ) -> Iterator[dict]:
     """Yield parsed job posting dicts for the given Indeed listing URL.
 
-    Stops early when a listing page returns no postings, ``limit`` is hit,
-    or a Cloudflare interstitial is detected (retrying without a fingerprint
-    change won't help — abort and surface clearly).
+    Stops early when a listing page returns no postings, ``limit`` is hit, or
+    the whole listing page is Cloudflare-gated. A gated *detail* page is not
+    fatal: the fingerprint is rotated and, if still gated, the detail is
+    skipped — the crawl only aborts after ``CF_ABORT_THRESHOLD`` consecutive
+    gated details (the session/IP is burned).
 
     Example usage:
     https://id.indeed.com/jobs?q=mobile+developer
     """
     owns_client = client is None
+    original_client = client
+    current_target = IMPERSONATE_TARGETS[0]
+    consecutive_cf = 0
     yielded = 0
     try:
         for page_idx, listing_url in enumerate(iter_listing_pages(url, max_pages)):
@@ -377,7 +443,9 @@ def crawl(
                 # IMPERSONATE_TARGETS until one isn't Cloudflare-gated, then
                 # reuse that client for the rest of the crawl.
                 try:
-                    client, listing_html = _open_working_client(listing_url)
+                    client, current_target, listing_html = _open_working_client(
+                        listing_url
+                    )
                 except CloudflareChallenge as exc:
                     logger.error(
                         "all fingerprints CF-blocked on %s — aborting: %s",
@@ -412,12 +480,27 @@ def crawl(
                     return
                 time.sleep(sleep + random.uniform(0, 0.3))
                 try:
-                    detail_html = _request(client, detail_url)
-                except CloudflareChallenge as exc:
-                    logger.error(
-                        "CF gate hit on detail %s — aborting: %s", detail_url, exc
+                    client, current_target, detail_html = _fetch_detail_rotating(
+                        client, current_target, detail_url, referer=listing_url
                     )
-                    return
+                    consecutive_cf = 0
+                except CloudflareChallenge as exc:
+                    consecutive_cf += 1
+                    if consecutive_cf >= CF_ABORT_THRESHOLD:
+                        logger.error(
+                            "CF gate persists on %d consecutive details — aborting: %s",
+                            consecutive_cf,
+                            exc,
+                        )
+                        return
+                    logger.warning(
+                        "detail CF-gated on all fingerprints, skipping %s (%d/%d): %s",
+                        detail_url,
+                        consecutive_cf,
+                        CF_ABORT_THRESHOLD,
+                        exc,
+                    )
+                    continue
                 except Exception as exc:
                     logger.error("detail fetch failed: %s — %s", detail_url, exc)
                     continue
@@ -430,5 +513,5 @@ def crawl(
                 yield parsed
             time.sleep(sleep + random.uniform(0, 0.3))
     finally:
-        if owns_client and client is not None:
+        if client is not None and (owns_client or client is not original_client):
             client.close()

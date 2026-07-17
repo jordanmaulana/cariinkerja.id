@@ -166,5 +166,12 @@ def _flatten_apify_item(item: dict) -> str:
                 skill_names.append(n)
     if skill_names:
         parts.append("Skills: " + ", ".join(skill_names))
+    else:
+        # Sorted keys distinguish "actor tier omits skills" from "profile has none".
+        logger.warning(
+            "apify item has no skills for %s; keys=%s",
+            item.get("publicIdentifier") or item.get("linkedinUrl"),
+            sorted(item),
+        )
 
     return "\n\n".join(parts).strip()

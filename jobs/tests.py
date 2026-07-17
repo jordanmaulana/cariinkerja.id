@@ -670,3 +670,121 @@ class ExtractJobSkillsTaskTests(TestCase):
 
         self.assertEqual(result, "skipped")
         mock_extract.assert_not_called()
+
+
+# --- Indeed Cloudflare resilience -------------------------------------------
+
+INDEED_URL = "https://id.indeed.com/jobs?q=mobile+developer"
+
+# CF interstitial: detection is <title>-based, so the marker is all that matters.
+CF_HTML = "<html><head><title>Security check</title></head><body>blocked</body></html>"
+# Minimal parseable detail page (JSON-LD JobPosting → title + description).
+GOOD_DETAIL_HTML = (
+    '<html><head><script type="application/ld+json">'
+    '{"@type":"JobPosting","title":"Mobile Developer",'
+    '"description":"<p>Build great apps</p>",'
+    '"hiringOrganization":{"name":"Acme"}}'
+    "</script></head><body></body></html>"
+)
+
+
+def _indeed_listing(*jks: str) -> str:
+    cards = "".join(f'<a data-jk="{jk}"></a>' for jk in jks)
+    return f"<html><body>{cards}</body></html>"
+
+
+class _IndeedResp:
+    def __init__(self, text):
+        self.text = text
+        self.status_code = 200
+
+    def raise_for_status(self):
+        pass
+
+
+def _make_indeed_stub(listing_html, detail_plan, calls):
+    """Build a curl_cffi Session.get replacement for Indeed crawl tests.
+
+    ``detail_plan(url) -> "cf" | "ok"`` decides each /viewjob response (may be
+    stateful). Non-detail URLs return the homepage warm-up or listing page.
+    Every call appends ``(url, headers)`` to ``calls`` for assertions.
+    """
+
+    def _get(self, url, *args, **kwargs):
+        calls.append((url, kwargs.get("headers") or {}))
+        if "/viewjob" in url:
+            return _IndeedResp(
+                CF_HTML if detail_plan(url) == "cf" else GOOD_DETAIL_HTML
+            )
+        if url == indeed.BASE_URL:
+            return _IndeedResp("<html><head><title>Indeed</title></head></html>")
+        return _IndeedResp(listing_html)
+
+    return _get
+
+
+class IndeedCloudflareResilienceTests(TestCase):
+    def _crawl(self, listing_html, detail_plan):
+        calls: list[tuple[str, dict]] = []
+        stub = _make_indeed_stub(listing_html, detail_plan, calls)
+        with (
+            patch("curl_cffi.requests.Session.get", new=stub),
+            patch("jobs.scrapers.indeed.time.sleep", lambda *_: None),
+        ):
+            jobs = list(indeed.crawl(INDEED_URL, max_pages=1, sleep=0, limit=5))
+        return jobs, calls
+
+    @staticmethod
+    def _detail_calls(calls):
+        return [url for url, _ in calls if "/viewjob" in url]
+
+    def test_detail_cf_then_recovers_on_rotation(self):
+        # First GET of the detail is gated; the rotated fingerprint clears it.
+        counts: dict[str, int] = {}
+
+        def plan(url):
+            n = counts.get(url, 0)
+            counts[url] = n + 1
+            return "cf" if n == 0 else "ok"
+
+        jobs, calls = self._crawl(_indeed_listing("AAA"), plan)
+
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["title"], "Mobile Developer")
+        # The same detail URL was retried under a second fingerprint.
+        self.assertGreaterEqual(len(self._detail_calls(calls)), 2)
+
+    def test_one_gated_detail_does_not_abort_crawl(self):
+        # Detail AAA is permanently gated; BBB is fine. The crawl must skip AAA
+        # and still yield BBB instead of returning 0.
+        def plan(url):
+            return "cf" if "jk=AAA" in url else "ok"
+
+        jobs, calls = self._crawl(_indeed_listing("AAA", "BBB"), plan)
+
+        self.assertEqual(len(jobs), 1)
+        detail_calls = self._detail_calls(calls)
+        self.assertTrue(any("jk=AAA" in u for u in detail_calls))
+        self.assertTrue(any("jk=BBB" in u for u in detail_calls))
+
+    def test_aborts_after_consecutive_cf_threshold(self):
+        # Every detail is gated: abort after CF_ABORT_THRESHOLD consecutive
+        # gated details, not after exhausting all cards.
+        listing = _indeed_listing("AAA", "BBB", "CCC", "DDD", "EEE")
+        with self.assertLogs("jobs.scrapers.indeed", level="ERROR"):
+            jobs, calls = self._crawl(listing, lambda url: "cf")
+
+        self.assertEqual(len(jobs), 0)
+        attempted = {u.split("jk=")[1].split("&")[0] for u in self._detail_calls(calls)}
+        self.assertEqual(attempted, {"AAA", "BBB", "CCC"})
+        self.assertNotIn("DDD", attempted)
+        self.assertNotIn("EEE", attempted)
+
+    def test_referer_chain_is_set(self):
+        jobs, calls = self._crawl(_indeed_listing("AAA"), lambda url: "ok")
+
+        self.assertEqual(len(jobs), 1)
+        serp = next(h for u, h in calls if u == INDEED_URL)
+        self.assertEqual(serp.get("Referer"), indeed.BASE_URL)
+        detail = next(h for u, h in calls if "/viewjob" in u)
+        self.assertEqual(detail.get("Referer"), INDEED_URL)
