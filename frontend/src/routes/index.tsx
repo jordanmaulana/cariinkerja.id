@@ -6,6 +6,8 @@ import { Hero } from "@/features/landing/components/hero";
 import { LandingStats } from "@/features/landing/components/landing-stats";
 import { SiteFooter } from "@/features/landing/components/site-footer";
 import { SiteHeader } from "@/features/landing/components/site-header";
+import { SourceStrip } from "@/features/landing/components/source-strip";
+import { Testimonials } from "@/features/landing/components/testimonials";
 
 export const Route = createFileRoute("/")({
   component: WelcomePage,
@@ -16,7 +18,9 @@ function WelcomePage() {
     <main className="relative min-h-svh w-full bg-background text-foreground">
       <SiteHeader />
       <Hero />
+      <SourceStrip />
       <LandingStats />
+      <Testimonials />
       <FeatureList />
       <BottomCta />
       <SiteFooter />
