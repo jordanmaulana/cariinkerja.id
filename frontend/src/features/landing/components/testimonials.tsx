@@ -1,6 +1,7 @@
 import { Quote } from "lucide-react";
 
 import nurliantoAldiAvatar from "@/assets/testimonial-nurlianto-aldi.jpg";
+import ramaWidiAvatar from "@/assets/testimonial-rama-widi.jpg";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useInView } from "@/features/landing/hooks";
@@ -19,11 +20,23 @@ const TESTIMONIALS: Testimonial[] = [
     quote:
       "Secara overall, cariinkerja.id cukup ngebantu, Mas. Terutama dalam hal mempersingkat waktu dalam pencarian kerja yang cocok. Apalagi udah ada feedback kecocokan antara loker dan CV yang kita punya. Fitur filter nya juga ngebantu, saya biasa pake filter yang dimana skor CV saya berada di atas 75.",
   },
+  {
+    name: "Rama Widi",
+    avatar: ramaWidiAvatar,
+    quote:
+      "Iyo sangat membantu jo. Cmn oleh interview2 iki sek syedih. Cmn balasan email tok maksimal. Terus wes gak ono lanjutan e wkwkwkwk",
+  },
 ];
+
+// Narrow the grid when there aren't enough cards to fill the 3-col track,
+// so a short list stays centered instead of leaving an orphan column.
+const GRID_BY_COUNT: Record<number, string> = {
+  1: "mx-auto max-w-2xl md:grid-cols-1 lg:grid-cols-1",
+  2: "mx-auto max-w-4xl lg:grid-cols-2",
+};
 
 export function Testimonials() {
   const { ref, show } = useInView<HTMLDivElement>();
-  const single = TESTIMONIALS.length === 1;
 
   return (
     <section id="testimonials" className="border-y border-border/60 bg-muted/20">
@@ -41,17 +54,16 @@ export function Testimonials() {
             Kata mereka
           </Badge>
           <h2 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
-            Yang udah nyoba, ngomong apa?
+            Review Jujur
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Kata pengguna yang beneran nyari kerja
-            pake cariinkerja.id.
+            Kata pengguna beneran.
           </p>
         </div>
         <div
           className={cn(
             "mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3",
-            single && "mx-auto max-w-2xl md:grid-cols-1 lg:grid-cols-1",
+            GRID_BY_COUNT[TESTIMONIALS.length],
           )}
         >
           {TESTIMONIALS.map((t, i) => (
