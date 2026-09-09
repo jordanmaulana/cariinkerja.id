@@ -94,7 +94,7 @@ Seven scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`, `kalibr
 
 `jobs/scrapers/filters.py` drops postings from staffing/crowdwork brands (`BLOCKED_COMPANY_SUBSTRINGS = ("mindrift", "toloka")`) at each scraper's yield point.
 
-`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia, and finally keyword-only URLs for Kalibrr, Kitalulus and Karirhub (those three expose no job-type/remote filter we can drive). Six URLs normally, seven for a remote-seeking preference.
+`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): **always three keyword-only URLs** — Kalibrr, Kitalulus and Karirhub. None of the three expose a job-type/remote filter we can drive from the URL, so `job_types`/`remote_options` are accepted for caller compatibility and **ignored**. Indeed, JobStreet and LinkedIn were dropped from the generated set on 2026-09-09 (`_docs/scraping-policy.md` §3 exit condition); `build_jobstreet_url`/`build_linkedin_url`, their scrapers, the `crawl_*` commands and the `scraper_for_url` hostname branches all stay, so an admin-pasted URL for those boards still crawls — nothing generates one.
 
 ### LinkedIn profile ingestion
 

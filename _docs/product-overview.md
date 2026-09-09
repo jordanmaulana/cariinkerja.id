@@ -108,11 +108,12 @@ Searches can only be deleted while unpaid.
 
 ### Sources
 
-Five integrations: **Indeed Indonesia**, **JobStreet Indonesia**, **LinkedIn Southeast
-Asia**, **LinkedIn EMEA**, and **Dealls**.
+Three integrations, all Indonesian: **Kalibrr**, **Kitalulus**, and **Karirhub**
+(Kemnaker, the Ministry of Manpower's own job board).
 
-LinkedIn EMEA is only searched for *remote* roles — an on-site European or Middle Eastern
-job is unreachable for an Indonesian candidate, so including it would be noise.
+Indeed, JobStreet and LinkedIn were dropped on 2026-09-09 — all three disallow crawling on
+the paths we used, and two of them had stopped working anyway. Their scrapers still exist
+for an admin to point at a single URL by hand, but no search generates one.
 
 Certain staffing and crowdwork brands are filtered out of results entirely as low-quality
 listings.
@@ -264,8 +265,9 @@ Recorded as fact, not as a task list. Verify against the code before repeating a
   page's stats sub-copy still advertise roughly 20 free assessments after registration. The
   product is now paid-only and the first crawl is triggered by payment. The sign-in
   checklist already tells users the truth.
-- **Source count.** Marketing docs name Indeed and JobStreet only. Five sources are
-  integrated (§5), and the landing page's source strip lists four of them.
+- **Source count.** Marketing docs (`README.md`, `about.md`, `producthunt.md`, the pitch
+  deck) still name Indeed and JobStreet. Neither is searched any more — three sources are
+  integrated (§5) and the landing page's source strip now lists exactly those three.
 - **Pricing is not on the landing page.** There is no pricing section and no FAQ; plans are
   only visible after signing in.
 

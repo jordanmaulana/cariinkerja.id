@@ -653,43 +653,39 @@ class BuildLinkedInUrlTests(TestCase):
 class BuildCrawlUrlsTests(TestCase):
     def test_includes_every_source(self):
         urls = build_crawl_urls("Mobile Developer")
-        self.assertEqual(len(urls), 6)
+        self.assertEqual(len(urls), 3)
         hosts = [scraper_for_url(u)[1] for u in urls]
-        self.assertEqual(
-            hosts,
-            ["indeed", "jobstreet", "linkedin", "kalibrr", "kitalulus", "karirhub"],
-        )
+        self.assertEqual(hosts, ["kalibrr", "kitalulus", "karirhub"])
 
     def test_kitalulus_and_karirhub_carry_the_title_as_keyword(self):
         # Both boards filter on `keyword` only — Kitalulus server-side, Karirhub
         # through the vacancy API the scraper reads the param for.
         urls = build_crawl_urls("Mobile Developer")
         self.assertEqual(
-            urls[4], "https://www.kitalulus.com/lowongan?keyword=Mobile+Developer"
+            urls[1], "https://www.kitalulus.com/lowongan?keyword=Mobile+Developer"
         )
         self.assertEqual(
-            urls[5],
+            urls[2],
             "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
             "?keyword=Mobile+Developer",
         )
 
-    def test_non_remote_preference_omits_emea(self):
-        urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.ON_SITE])
-        self.assertEqual(len(urls), 6)
-        self.assertNotIn("geoId=91000007", " ".join(urls))
-
-    def test_remote_preference_appends_emea_linkedin(self):
-        urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.REMOTE])
-        self.assertEqual(len(urls), 7)
-        emea = urls[3]
-        self.assertIn("geoId=91000007", emea)
-        self.assertIn("f_WT=2", emea)
-        scraper, source = scraper_for_url(emea)
-        self.assertIs(scraper, linkedin)
-        self.assertEqual(source, "linkedin")
+    def test_omits_legacy_boards(self):
+        # Indeed/JobStreet/LinkedIn are no longer generated for any filter
+        # combination — their scrapers only run on hand-pasted URLs now.
+        for remote_options in (None, [RemoteOption.ON_SITE], [RemoteOption.REMOTE]):
+            with self.subTest(remote_options=remote_options):
+                urls = build_crawl_urls(
+                    "Mobile Developer", [JobType.FULL_TIME], remote_options
+                )
+                self.assertEqual(len(urls), 3)
+                hosts = {scraper_for_url(u)[1] for u in urls}
+                self.assertFalse(hosts & {"indeed", "jobstreet", "linkedin"})
 
     def test_empty_title_returns_empty(self):
         self.assertEqual(build_crawl_urls(""), [])
+        self.assertEqual(build_crawl_urls(None), [])
+        self.assertEqual(build_crawl_urls("   "), [])
 
 
 class ExtractJobSkillsTaskTests(TestCase):

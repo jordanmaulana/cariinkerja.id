@@ -206,25 +206,17 @@ def build_crawl_urls(
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet + LinkedIn + Kalibrr + Kitalulus + Karirhub
-    URLs for a Preference."""
-    if not title or not title.strip():
-        return []
-    urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
-    js = build_jobstreet_url(title, job_types, remote_options)
-    if js:
-        urls.append(js)
-    li = build_linkedin_url(title, job_types, remote_options)
-    if li:
-        urls.append(li)
-    # EMEA is only worth crawling for remote-seeking preferences (an on-site
-    # EMEA role is unreachable from Indonesia); force the remote filter on it.
-    if remote_options and RemoteOption.REMOTE.value in remote_options:
-        emea = build_linkedin_url(
-            title, job_types, [RemoteOption.REMOTE.value], geo_id=LINKEDIN_GEOID_EMEA
-        )
-        if emea:
-            urls.append(emea)
+    """Kalibrr + Kitalulus + Karirhub keyword URLs for a Preference.
+
+    Indeed, JobStreet and LinkedIn were dropped from the generated set on
+    2026-09-09 (see ``_docs/scraping-policy.md`` §3 exit condition). Their
+    builders and scrapers stay so an admin can still paste such a URL by hand.
+
+    ``job_types`` / ``remote_options`` are accepted for caller compatibility but
+    ignored — none of these three boards expose a filter we can drive from the
+    URL.
+    """
+    urls: list[str] = []
     for builder in (build_kalibrr_url, build_kitalulus_url, build_karirhub_url):
         url = builder(title)
         if url:

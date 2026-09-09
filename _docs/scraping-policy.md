@@ -23,9 +23,9 @@ impersonation.
 | **Kitalulus** | Allowed. `Disallow: /auth/`, `/my/` only | No anti-scraping clause found in the S&K (searched `scrap`/`robot`/`crawl`/`otomatis`/`mengekstrak`) | none | **Clean** |
 | **Karirhub** (Kemnaker) | Allowed. File has **zero directives** — all comments. We read its public JSON API on `api.kemnaker.go.id`, which serves no robots.txt at all (404) — everything permitted by default under RFC 9309 | No terms page located | none | **Clean** |
 | **Dealls** | Allowed. `User-agent: *` / `Allow: /` | Bars *redistributing* content without written consent. Does not prohibit crawling | none | **OK, worth a partnership email** |
-| **Indeed** | **Disallowed.** `/jobs/ID/`, `/job/`, `/viewjob?`, `/*&start=` — the exact paths we crawl | Automation clause found is scoped to applying; general clause unverified | **403 challenge** | **Deviation — see §3** |
-| **JobStreet** (SEEK) | **Disallowed.** `*/job/` and `*?` (kills every query URL) | §7(d) bans "data mining, robots, screen scraping … for reproducing information contained on our websites … on your own website" | **403 challenge** | **Deviation — see §3** |
-| **LinkedIn** | **Disallowed.** No `User-agent: *` group exists; file header reads "The use of robots or other automated means to access LinkedIn without the express permission of LinkedIn is strictly prohibited" | User Agreement §8.2 bans scraping *and* circumventing access controls | authwall / HTTP 999 | **Deviation — see §3** |
+| **Indeed** | **Disallowed.** `/jobs/ID/`, `/job/`, `/viewjob?`, `/*&start=` — the exact paths we crawl | Automation clause found is scoped to applying; general clause unverified | **403 challenge** | **Retired from the generated set 2026-09-09 — see §3** |
+| **JobStreet** (SEEK) | **Disallowed.** `*/job/` and `*?` (kills every query URL) | §7(d) bans "data mining, robots, screen scraping … for reproducing information contained on our websites … on your own website" | **403 challenge** | **Retired from the generated set 2026-09-09 — see §3** |
+| **LinkedIn** | **Disallowed.** No `User-agent: *` group exists; file header reads "The use of robots or other automated means to access LinkedIn without the express permission of LinkedIn is strictly prohibited" | User Agreement §8.2 bans scraping *and* circumventing access controls | authwall / HTTP 999 | **Retired from the generated set 2026-09-09 — see §3** |
 
 ### Checked and rejected
 
@@ -64,29 +64,41 @@ impersonation.
 
 ## 3. Known deviations
 
-**Indeed, JobStreet and LinkedIn are crawled against an explicit `Disallow`,
-and the Indeed scraper deliberately evades a Cloudflare challenge.**
+**Resolved 2026-09-09: Indeed, JobStreet and LinkedIn are no longer crawled
+automatically.** `build_crawl_urls` now emits only the three clean sources
+(Kalibrr, Kitalulus, Karirhub), so no Preference is generated with a URL for a
+board that disallows us. Their `CrawlHealthTarget` rows were deactivated in the
+same change (`jobs/migrations/0017_deactivate_legacy_crawl_health.py`), so the
+daily health probe no longer touches them either.
 
-`jobs/scrapers/indeed.py` rotates three TLS fingerprints (`IMPERSONATE_TARGETS`),
-performs a homepage warm-up to seed Cloudflare clearance cookies, and keeps its
-User-Agent consistent with the spoofed fingerprint *specifically so the
-mismatch does not read as a bot signal*. That is rule 2 above, broken on
-purpose.
+**What remains:** `jobs/scrapers/{indeed,jobstreet,linkedin}.py`, the
+`scraper_for_url` hostname branches, the `crawl_indeed`/`crawl_jobstreet`/
+`crawl_linkedin` commands, and the `build_jobstreet_url`/`build_linkedin_url`
+builders are all still checked in. They fire only for a URL a superuser pastes
+by hand into a Preference or runs as a one-shot command, and for
+`Preference.crawl_urls` rows stored before this change that nobody has
+regenerated yet (those were deliberately left alone — they age out as
+preferences are edited or regenerated).
 
-**Why it is still running:** these three are the highest-volume sources and
-dropping them today would gut coverage. The decision on 2026-09-09 was to add
-defensible sources first, measure how much coverage they actually replace, and
-then revisit each incumbent — not to break the product in one step.
+`jobs/scrapers/indeed.py` still rotates three TLS fingerprints
+(`IMPERSONATE_TARGETS`), performs a homepage warm-up to seed Cloudflare
+clearance cookies, and keeps its User-Agent consistent with the spoofed
+fingerprint *specifically so the mismatch does not read as a bot signal*. That
+is rule 2 above, broken on purpose — now only on an explicit human action, not
+on a schedule.
 
-**Exit condition:** once the clean sources plus a licensed aggregator API cover
-enough of the market, retire the incumbents in risk order — LinkedIn first
-(they sued Proxycurl, a ~$10M-ARR company, into shutdown in July 2025), then
-Indeed, then JobStreet. SEEK is the one most likely to send a letter: its ToS
-clause describes this product category almost exactly, and some SEEK terms are
-governed by Indonesian law, so a contract claim could be brought here.
+**Prior reasoning, kept for the record:** before 2026-09-09 these three were the
+highest-volume sources and dropping them was judged to gut coverage; the plan
+was to add defensible sources first, then retire the incumbents in risk order —
+LinkedIn first (they sued Proxycurl, a ~$10M-ARR company, into shutdown in July
+2025), then Indeed, then JobStreet. In the event all three were dropped at once,
+helped by Indeed and JobStreet both failing the health check anyway. SEEK was
+the one most likely to send a letter: its ToS clause describes this product
+category almost exactly, and some SEEK terms are governed by Indonesian law, so
+a contract claim could be brought here.
 
-This section exists so the exposure is a priced business decision rather than
-an accident. It was previously recorded nowhere.
+**Remaining exposure to decide on:** whether to delete the three scrapers
+outright, which would also close the hand-pasted path.
 
 ---
 
@@ -166,7 +178,8 @@ work.
   nothing. Compliance is currently a human check recorded in this file, not an
   enforced runtime behaviour. The four legacy scrapers (Indeed, JobStreet,
   LinkedIn, Dealls) still send browser User-Agents and honor no `Crawl-delay`.
-  Worth building when the incumbent phase-out starts.
+  Three of those four now run only on a hand-pasted URL (§3), so Dealls is the
+  only one left on a schedule — it is `Allow: /` anyway.
 - **No published takedown route.** Rule 7 is a stated intent, not a working
   process. A `/bot` page explaining what the crawler does plus a named contact
   and a persistent suppression list is cheap insurance and the strongest

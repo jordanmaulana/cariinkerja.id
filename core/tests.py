@@ -66,3 +66,59 @@ class PreferenceCrawlNowViewTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn("/login/", resp["Location"])
         m.assert_not_called()
+
+
+@NO_MANIFEST_STATICFILES
+class PreferenceRegenerateUrlsViewTests(TestCase):
+    """The two admin regenerate flows must emit the clean-source set only.
+
+    Both views call `build_crawl_urls`, so this is the end-to-end guard that a
+    legacy board cannot come back through an admin action.
+    """
+
+    LEGACY_HOSTS = ("indeed.com", "jobstreet.com", "linkedin.com")
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="admin", email="admin@x.com", password="x"
+        )
+        self.profile = Profile.objects.create(full_name="Cody")
+        # Seeded with the pre-2026-09-09 set, as a legacy row would be.
+        self.pref = Preference.objects.create(
+            profile=self.profile,
+            title="Mobile Developer",
+            status=PrefStatus.RUNNING,
+            crawl_urls=[
+                "https://id.indeed.com/jobs?q=Mobile+Developer",
+                "https://id.jobstreet.com/mobile-developer-jobs",
+            ],
+        )
+        self.client.force_login(self.admin)
+
+    def _assert_clean(self, pref):
+        pref.refresh_from_db()
+        self.assertEqual(len(pref.crawl_urls), 3)
+        joined = " ".join(pref.crawl_urls)
+        for host in self.LEGACY_HOSTS:
+            self.assertNotIn(host, joined)
+
+    def test_single_regenerate_drops_legacy_urls(self):
+        resp = self.client.post(
+            reverse("preference_regenerate_urls", kwargs={"pk": self.pref.pk})
+        )
+        self.assertRedirects(
+            resp, reverse("preference_detail", kwargs={"pk": self.pref.pk})
+        )
+        self._assert_clean(self.pref)
+
+    def test_regenerate_all_drops_legacy_urls(self):
+        other = Preference.objects.create(
+            profile=self.profile,
+            title="Backend Engineer",
+            status=PrefStatus.RUNNING,
+            crawl_urls=["https://www.linkedin.com/jobs/search/?keywords=Backend"],
+        )
+        resp = self.client.post(reverse("preference_regenerate_all_urls"))
+        self.assertRedirects(resp, reverse("preference_list"))
+        self._assert_clean(self.pref)
+        self._assert_clean(other)

@@ -1,22 +1,17 @@
-import {
-  IndeedMark,
-  JobStreetMark,
-  LinkedinMark,
-} from "@/features/landing/components/brand-marks";
+import { MonogramMark } from "@/features/landing/components/brand-marks";
 import { useInView } from "@/features/landing/hooks";
 import { cn } from "@/lib/utils";
 
 type Source = {
   name: string;
-  Mark: (props: { className?: string }) => React.ReactNode;
+  letter: string;
   note?: string;
 };
 
 const SOURCES: Source[] = [
-  { name: "LinkedIn SEA", Mark: LinkedinMark, note: "Southeast Asia" },
-  { name: "LinkedIn EMEA", Mark: LinkedinMark, note: "Europe Middle East Africa" },
-  { name: "Indeed", Mark: IndeedMark },
-  { name: "JobStreet", Mark: JobStreetMark },
+  { name: "Kalibrr", letter: "K" },
+  { name: "Kitalulus", letter: "KL" },
+  { name: "Karirhub", letter: "KH", note: "Kemnaker" },
 ];
 
 export function SourceStrip() {
@@ -42,7 +37,7 @@ export function SourceStrip() {
               className="flex flex-col items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
             >
               <span className="inline-flex items-center gap-2">
-                <source.Mark className="size-5" />
+                <MonogramMark letter={source.letter} className="size-5" />
                 <span className="text-sm font-medium">{source.name}</span>
               </span>
               {source.note ? (
