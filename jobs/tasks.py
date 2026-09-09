@@ -7,7 +7,15 @@ from django.utils import timezone
 
 from core.notifications.discord import send_discord_message
 from jobs.models import CrawlHealthTarget, Job
-from jobs.scrapers import dealls, indeed, jobstreet, linkedin
+from jobs.scrapers import (
+    dealls,
+    indeed,
+    jobstreet,
+    kalibrr,
+    karirhub,
+    kitalulus,
+    linkedin,
+)
 from jobs.services import extract_skills
 
 logger = logging.getLogger(__name__)
@@ -37,6 +45,9 @@ SCRAPERS = {
     CrawlHealthTarget.SOURCE_JOBSTREET: jobstreet.crawl,
     CrawlHealthTarget.SOURCE_LINKEDIN: linkedin.crawl,
     CrawlHealthTarget.SOURCE_DEALLS: dealls.crawl,
+    CrawlHealthTarget.SOURCE_KALIBRR: kalibrr.crawl,
+    CrawlHealthTarget.SOURCE_KITALULUS: kitalulus.crawl,
+    CrawlHealthTarget.SOURCE_KARIRHUB: karirhub.crawl,
 }
 
 

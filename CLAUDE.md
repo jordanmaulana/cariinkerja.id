@@ -88,13 +88,13 @@ Directional flow: **Profile + LinkedIn → Apify ingest → Preference (auto-fil
 
 ### Crawl-source routing — `jobs/scrapers/`
 
-Four scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts.
+Seven scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`, `kalibrr.py`, `kitalulus.py`, `karirhub.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts. The last three are the "clean" sources (see `_docs/scraping-policy.md`): they identify themselves with `jobs.consts.BOT_USER_AGENT` and use `httpx`, no fingerprint impersonation. Kalibrr and Karirhub read public JSON APIs; Kitalulus parses schema.org JSON-LD.
 
 `jobs/scrapers/__init__.py:scraper_for_url(url)` resolves `(module, Source value)` **by hostname** and returns `(None, None)` for unknown URLs. A Preference therefore never names its source — the URL does. Adding a board = one hostname branch here + a `profiles.consts.Source` member + a `CrawlHealthTarget.SOURCE_*` entry.
 
 `jobs/scrapers/filters.py` drops postings from staffing/crowdwork brands (`BLOCKED_COMPANY_SUBSTRINGS = ("mindrift", "toloka")`) at each scraper's yield point.
 
-`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), and — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia.
+`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia, and finally keyword-only URLs for Kalibrr, Kitalulus and Karirhub (those three expose no job-type/remote filter we can drive). Six URLs normally, seven for a remote-seeking preference.
 
 ### LinkedIn profile ingestion
 

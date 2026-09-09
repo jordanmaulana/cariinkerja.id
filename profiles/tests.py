@@ -483,7 +483,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 3)
+        self.assertEqual(len(pref.crawl_urls), 6)
         self.assertIn("id.indeed.com/jobs?q=Mobile+Developer", pref.crawl_urls[0])
         self.assertEqual(
             pref.crawl_urls[1],
@@ -491,6 +491,19 @@ class PrepareForPaymentTests(TestCase):
         )
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
         self.assertIn("keywords=Mobile+Developer", pref.crawl_urls[2])
+        self.assertEqual(
+            pref.crawl_urls[3],
+            "https://www.kalibrr.com/job-board/te/mobile-developer/co/Indonesia",
+        )
+        self.assertEqual(
+            pref.crawl_urls[4],
+            "https://www.kitalulus.com/lowongan?keyword=Mobile+Developer",
+        )
+        self.assertEqual(
+            pref.crawl_urls[5],
+            "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
+            "?keyword=Mobile+Developer",
+        )
         # Free crawl disabled: pref advances to WAITING_PAYMENT, no crawl queued.
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
         crawl_and_assess_preference.delay.assert_not_called()
@@ -504,9 +517,12 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 4)
+        self.assertEqual(len(pref.crawl_urls), 7)
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[3])
         self.assertIn("geoId=91000007", pref.crawl_urls[3])
+        self.assertIn("kalibrr.com/job-board/", pref.crawl_urls[4])
+        self.assertIn("kitalulus.com/lowongan?keyword=", pref.crawl_urls[5])
+        self.assertIn("karirhub.kemnaker.go.id/", pref.crawl_urls[6])
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
     def test_no_filters_yields_base_jobstreet_url(self):
@@ -517,9 +533,13 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 3)
+        self.assertEqual(len(pref.crawl_urls), 6)
         self.assertEqual(pref.crawl_urls[1], "https://id.jobstreet.com/developer-jobs")
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
+        self.assertEqual(
+            pref.crawl_urls[3],
+            "https://www.kalibrr.com/job-board/te/developer/co/Indonesia",
+        )
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
     def test_require_full_profile_false_advances_without_full_profile(self):

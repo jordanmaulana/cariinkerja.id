@@ -14,6 +14,10 @@ from urllib.parse import quote_plus, urlencode
 from jobs.consts import JobType, RemoteOption
 
 JOBSTREET_BASE = "https://id.jobstreet.com"
+KALIBRR_BASE = "https://www.kalibrr.com/job-board"
+KALIBRR_COUNTRY = "Indonesia"
+KITALULUS_SEARCH = "https://www.kitalulus.com/lowongan"
+KARIRHUB_SEARCH = "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
 LINKEDIN_BASE = "https://www.linkedin.com/jobs/search/"
 LINKEDIN_GEOID_SEA = "91000014"
 LINKEDIN_GEOID_EMEA = "91000007"
@@ -60,7 +64,7 @@ JOBSTREET_RO_ID: dict[str, int] = {
 }
 
 
-def _slugify_title(title: str) -> str:
+def slugify_title(title: str) -> str:
     ascii_title = (
         unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
     )
@@ -89,7 +93,7 @@ def build_jobstreet_url(
 ) -> str | None:
     if not title or not title.strip():
         return None
-    slug = _slugify_title(title)
+    slug = slugify_title(title)
     if not slug:
         return None
 
@@ -155,12 +159,55 @@ def build_linkedin_url(
     return f"{LINKEDIN_BASE}?{urlencode(query, quote_via=quote_plus)}"
 
 
+def build_kalibrr_url(title: str | None) -> str | None:
+    """Kalibrr keyword search URL for a Preference title.
+
+    Kalibrr has no job-type or remote filter in its public search path, so
+    only the keyword is encoded; the scraper drops the rest.
+    """
+    if not title or not title.strip():
+        return None
+    slug = slugify_title(title)
+    if not slug:
+        return None
+    return f"{KALIBRR_BASE}/te/{slug}/co/{KALIBRR_COUNTRY}"
+
+
+def _keyword_url(base: str, title: str | None) -> str | None:
+    """``<base>?keyword=<title>`` — the search shape Kitalulus and Karirhub share."""
+    if not title or not title.strip():
+        return None
+    return f"{base}?{urlencode({'keyword': title.strip()})}"
+
+
+def build_kitalulus_url(title: str | None) -> str | None:
+    """Kitalulus keyword search URL for a Preference title.
+
+    Kitalulus filters this server-side, so the scraper needs nothing else; its
+    job-type / remote filters are not reachable from the URL.
+    """
+    return _keyword_url(KITALULUS_SEARCH, title)
+
+
+def build_karirhub_url(title: str | None) -> str | None:
+    """Karirhub keyword search URL for a Preference title.
+
+    ``?keyword=`` is our own convention — Karirhub's UI searches through Algolia,
+    not a URL param, so a human opening this lands on the unfiltered list. The
+    scraper reads the param and passes it to Karirhub's public vacancy API. The
+    host has to stay ``karirhub.kemnaker.go.id`` because ``scraper_for_url``
+    routes on hostname.
+    """
+    return _keyword_url(KARIRHUB_SEARCH, title)
+
+
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet + LinkedIn listing URLs for a Preference."""
+    """Standard Indeed + JobStreet + LinkedIn + Kalibrr + Kitalulus + Karirhub
+    URLs for a Preference."""
     if not title or not title.strip():
         return []
     urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
@@ -178,4 +225,8 @@ def build_crawl_urls(
         )
         if emea:
             urls.append(emea)
+    for builder in (build_kalibrr_url, build_kitalulus_url, build_karirhub_url):
+        url = builder(title)
+        if url:
+            urls.append(url)
     return urls

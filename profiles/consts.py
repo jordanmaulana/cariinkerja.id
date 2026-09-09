@@ -13,3 +13,6 @@ class Source(models.TextChoices):
     INDEED = "indeed", "Indeed"
     LINKEDIN = "linkedin", "LinkedIn"
     DEALLS = "dealls", "Dealls"
+    KALIBRR = "kalibrr", "Kalibrr"
+    KITALULUS = "kitalulus", "Kitalulus"
+    KARIRHUB = "karirhub", "Karirhub"
