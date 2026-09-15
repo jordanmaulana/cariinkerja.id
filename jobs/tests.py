@@ -14,7 +14,6 @@ from jobs.scrapers import (
     indeed,
     jobstreet,
     kalibrr,
-    karirhub,
     kitalulus,
     linkedin,
     scraper_for_url,
@@ -349,18 +348,11 @@ class ScraperForUrlTests(TestCase):
             self.assertIs(scraper, kitalulus)
             self.assertEqual(source, "kitalulus")
 
-    def test_karirhub_host(self):
-        scraper, source = scraper_for_url(
-            "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
-        )
-        self.assertIs(scraper, karirhub)
-        self.assertEqual(source, "karirhub")
-
-    def test_sibling_kemnaker_host_is_not_karirhub(self):
-        # Only the karirhub subdomain is ours; siblings (siapkerja, the CMS)
-        # are different apps and must not route here.
+    def test_karirhub_host_no_longer_routes(self):
+        # Karirhub was removed outright on 2026-09-09 — no scraper to route to.
         self.assertEqual(
-            scraper_for_url("https://siapkerja.kemnaker.go.id/lowongan"), (None, None)
+            scraper_for_url("https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"),
+            (None, None),
         )
 
     def test_unknown_host(self):
@@ -653,34 +645,79 @@ class BuildLinkedInUrlTests(TestCase):
 class BuildCrawlUrlsTests(TestCase):
     def test_includes_every_source(self):
         urls = build_crawl_urls("Mobile Developer")
-        self.assertEqual(len(urls), 3)
+        self.assertEqual(len(urls), 2)
         hosts = [scraper_for_url(u)[1] for u in urls]
-        self.assertEqual(hosts, ["kalibrr", "kitalulus", "karirhub"])
+        self.assertEqual(hosts, ["kalibrr", "kitalulus"])
 
-    def test_kitalulus_and_karirhub_carry_the_title_as_keyword(self):
-        # Both boards filter on `keyword` only — Kitalulus server-side, Karirhub
-        # through the vacancy API the scraper reads the param for.
+    def test_kitalulus_carries_the_title_as_keyword(self):
+        # Kitalulus searches on `keyword` server-side, and always gets the
+        # freshest-first sort.
         urls = build_crawl_urls("Mobile Developer")
         self.assertEqual(
-            urls[1], "https://www.kitalulus.com/lowongan?keyword=Mobile+Developer"
+            urls[1],
+            "https://www.kitalulus.com/lowongan"
+            "?keyword=Mobile+Developer&sortBy=updatedAt",
         )
+
+    def test_kitalulus_always_sorts_by_updated(self):
+        # The default `isHighlighted` sort is promoted-first and barely moves
+        # day to day, so CRAWL_ITEM_LIMIT would be spent on postings we already
+        # assessed. Present regardless of filters.
+        for job_types in (None, [], [JobType.CONTRACT], list(JobType.values)):
+            with self.subTest(job_types=job_types):
+                urls = build_crawl_urls("Mobile Developer", job_types)
+                self.assertIn("sortBy=updatedAt", urls[1])
+
+    def test_kitalulus_carries_job_types(self):
+        urls = build_crawl_urls(
+            "Mobile Developer", [JobType.CONTRACT, JobType.FULL_TIME]
+        )
+        # Emitted in KITALULUS_TYPES order, not the caller's, so the same
+        # preference always regenerates a byte-identical URL.
         self.assertEqual(
-            urls[2],
-            "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
-            "?keyword=Mobile+Developer",
+            urls[1],
+            "https://www.kitalulus.com/lowongan?keyword=Mobile+Developer"
+            "&sortBy=updatedAt&types=FULL_TIME&types=CONTRACT",
         )
+
+    def test_kitalulus_omits_types_when_every_type_is_wanted(self):
+        # Filtering to all four is a no-op — leave it off rather than lie.
+        urls = build_crawl_urls("Mobile Developer", list(JobType.values))
+        self.assertNotIn("types=", urls[1])
+
+    def test_kitalulus_drops_unknown_job_types(self):
+        # Kitalulus renders an empty page for an unknown `types` value, so a
+        # stale JSON value must never reach the URL.
+        urls = build_crawl_urls("Mobile Developer", ["volunteer", JobType.PART_TIME])
+        self.assertNotIn("volunteer", urls[1])
+        self.assertIn("types=PART_TIME", urls[1])
+
+    def test_kitalulus_ignores_remote_options(self):
+        # `locationSites` only accepts REMOTE/ON_SITE (no hybrid) and REMOTE
+        # matches too few postings to narrow to — the assessor handles it.
+        base = build_crawl_urls("Mobile Developer", [JobType.FULL_TIME])
+        for remote_options in ([RemoteOption.REMOTE], [RemoteOption.ON_SITE], None):
+            with self.subTest(remote_options=remote_options):
+                urls = build_crawl_urls(
+                    "Mobile Developer", [JobType.FULL_TIME], remote_options
+                )
+                self.assertEqual(urls[1], base[1])
 
     def test_omits_legacy_boards(self):
         # Indeed/JobStreet/LinkedIn are no longer generated for any filter
         # combination — their scrapers only run on hand-pasted URLs now.
+        # Karirhub went further on 2026-09-09: removed outright, scraper and all.
         for remote_options in (None, [RemoteOption.ON_SITE], [RemoteOption.REMOTE]):
             with self.subTest(remote_options=remote_options):
                 urls = build_crawl_urls(
                     "Mobile Developer", [JobType.FULL_TIME], remote_options
                 )
-                self.assertEqual(len(urls), 3)
+                self.assertEqual(len(urls), 2)
                 hosts = {scraper_for_url(u)[1] for u in urls}
-                self.assertFalse(hosts & {"indeed", "jobstreet", "linkedin"})
+                self.assertFalse(
+                    hosts & {"indeed", "jobstreet", "linkedin", "karirhub"}
+                )
+                self.assertNotIn("karirhub", " ".join(urls))
 
     def test_empty_title_returns_empty(self):
         self.assertEqual(build_crawl_urls(""), [])
@@ -902,6 +939,31 @@ class KalibrrListApiUrlTests(TestCase):
         )
         self.assertIn("text=data+analyst", url)
 
+    def test_tenure_segments_become_repeated_params(self):
+        # The API matches `tenure` case-sensitively — "full time" and
+        # "full-time" both return zero results — so assert the exact labels.
+        url = kalibrr._list_api_url(
+            KALIBRR_URL + "/t/full-time/t/contractual", offset=0
+        )
+        self.assertIn("tenure=Full+time", url)
+        self.assertIn("tenure=Contractual", url)
+
+    def test_unknown_tenure_slug_is_dropped(self):
+        # Sending it through would return zero jobs and read as a dead board.
+        url = kalibrr._list_api_url(KALIBRR_URL + "/t/bogus/t/contractual", offset=0)
+        self.assertIn("tenure=Contractual", url)
+        self.assertNotIn("bogus", url)
+
+    def test_work_from_home_segment_becomes_true(self):
+        url = kalibrr._list_api_url(KALIBRR_URL + "/work_from_home/y", offset=0)
+        self.assertIn("is_work_from_home=true", url)
+
+    def test_no_filter_segments_leaves_url_untouched(self):
+        # Back-compat guard for `crawl_urls` already stored in the database.
+        url = kalibrr._list_api_url(KALIBRR_URL, offset=0)
+        self.assertNotIn("tenure=", url)
+        self.assertNotIn("is_work_from_home", url)
+
 
 class KalibrrParseListingTests(TestCase):
     def test_dedupes_by_id(self):
@@ -1094,186 +1156,6 @@ class KitalulusParseDetailTests(TestCase):
         self.assertIsNone(kitalulus._map_remote_option({}))
 
 
-# --- Karirhub (vacancy search + detail API) ----------------------------------
-
-KARIRHUB_LISTING_URL = "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
-KARIRHUB_VACANCY_ID = "01a08264-4f02-7063-ba03-22ae1e32c2c8"
-KARIRHUB_DETAIL_URL = (
-    f"{KARIRHUB_LISTING_URL}/lowongan/tax-associate-{KARIRHUB_VACANCY_ID}"
-)
-# Search results carry no slug and no description, so the page URL is rebuilt
-# from these two fields and the vacancy is then fetched from the detail API.
-KARIRHUB_API_RECORD = {"id": KARIRHUB_VACANCY_ID, "title": "Tax Associate"}
-KARIRHUB_VACANCY = {
-    "id": KARIRHUB_VACANCY_ID,
-    "title": "Tax Associate",
-    "description": "Prepare monthly VAT filings.",
-    "qualification": "Bachelor\u2019s degree in accounting",
-    "confidential": False,
-    "employer": {"name": "Batavia Business Solutions"},
-    "region": {"name": "Kota Adm. Jakarta Selatan, DKI Jakarta"},
-    "job_type": {"name": "Full time"},
-    "vacancyable": {"work_arrangement": None},
-}
-
-
-class KarirhubListApiTests(TestCase):
-    def test_keyword_carries_over(self):
-        url = karirhub._list_api_url(f"{KARIRHUB_LISTING_URL}?keyword=perawat", 1, 10)
-        self.assertTrue(url.startswith(karirhub.LIST_API + "?"))
-        self.assertIn("keyword=perawat", url)
-        self.assertIn("limit=10", url)
-        self.assertIn("page=1", url)
-
-    def test_no_keyword_lists_everything(self):
-        # The seeded crawl-health target carries no keyword and must stay a
-        # valid probe.
-        url = karirhub._list_api_url(KARIRHUB_LISTING_URL, 3)
-        self.assertNotIn("keyword", url)
-        self.assertIn("page=3", url)
-        self.assertIn(f"limit={karirhub.PAGE_LIMIT}", url)
-
-
-class KarirhubParseListingTests(TestCase):
-    def test_builds_page_url_from_title_and_id(self):
-        entries = karirhub.parse_listing({"data": [KARIRHUB_API_RECORD]})
-        self.assertEqual(
-            entries, [{"id": KARIRHUB_VACANCY_ID, "url": KARIRHUB_DETAIL_URL}]
-        )
-
-    def test_dedupes_and_skips_records_without_an_id(self):
-        payload = {
-            "data": [KARIRHUB_API_RECORD, KARIRHUB_API_RECORD, {"title": "No id"}]
-        }
-        self.assertEqual(len(karirhub.parse_listing(payload)), 1)
-
-    def test_untitled_vacancy_falls_back_to_the_bare_uuid(self):
-        # The site resolves a vacancy by its trailing UUID, so a slugless URL
-        # still renders the right posting.
-        entries = karirhub.parse_listing({"data": [{"id": KARIRHUB_VACANCY_ID}]})
-        self.assertEqual(
-            entries[0]["url"],
-            f"{karirhub.BASE_URL}{karirhub.DETAIL_PATH}{KARIRHUB_VACANCY_ID}",
-        )
-
-    def test_empty_payload(self):
-        self.assertEqual(karirhub.parse_listing({}), [])
-
-
-class KarirhubParseDetailTests(TestCase):
-    def test_parses_vacancy_object(self):
-        result = karirhub.parse_detail(KARIRHUB_VACANCY, KARIRHUB_DETAIL_URL)
-        self.assertEqual(result["url"], KARIRHUB_DETAIL_URL)
-        self.assertEqual(result["title"], "Tax Associate")
-        self.assertEqual(result["company"], "Batavia Business Solutions")
-        self.assertEqual(result["location"], "Kota Adm. Jakarta Selatan, DKI Jakarta")
-        self.assertEqual(result["job_type"], JobType.FULL_TIME)
-        self.assertIn("VAT", result["description"])
-        # description and qualification are joined into one body.
-        self.assertIn("Bachelor\u2019s degree", result["description"])
-
-    def test_confidential_vacancy_hides_employer(self):
-        vacancy = {**KARIRHUB_VACANCY, "confidential": True}
-        self.assertIsNone(
-            karirhub.parse_detail(vacancy, KARIRHUB_DETAIL_URL)["company"]
-        )
-
-    def test_missing_description_returns_none(self):
-        vacancy = {**KARIRHUB_VACANCY, "description": None, "qualification": None}
-        with self.assertLogs("jobs.scrapers.karirhub", level="WARNING"):
-            self.assertIsNone(karirhub.parse_detail(vacancy, KARIRHUB_DETAIL_URL))
-
-    def test_empty_object_returns_none(self):
-        with self.assertLogs("jobs.scrapers.karirhub", level="WARNING"):
-            self.assertIsNone(karirhub.parse_detail({}, KARIRHUB_DETAIL_URL))
-
-    def test_job_type_and_arrangement_mapping(self):
-        self.assertEqual(
-            karirhub._map_job_type({"name": "Internship"}), JobType.INTERNSHIP
-        )
-        self.assertEqual(karirhub._map_job_type({"name": "Kontrak"}), JobType.CONTRACT)
-        self.assertIsNone(karirhub._map_job_type(None))
-        self.assertEqual(
-            karirhub._map_remote_option({"work_arrangement": "WFH"}),
-            RemoteOption.REMOTE,
-        )
-        self.assertIsNone(karirhub._map_remote_option({"work_arrangement": None}))
-
-
-class KarirhubCrawlTests(TestCase):
-    def _client(self, listing_payload):
-        calls = []
-
-        class FakeClient:
-            def get(self, url):
-                calls.append(url)
-                payload = (
-                    {"data": KARIRHUB_VACANCY}
-                    if url.startswith(f"{karirhub.LIST_API}/")
-                    else listing_payload
-                )
-
-                class Resp:
-                    status_code = 200
-
-                    def raise_for_status(self):
-                        pass
-
-                    def json(self):
-                        return payload
-
-                return Resp()
-
-            def close(self):
-                pass
-
-        return FakeClient(), calls
-
-    def test_searches_then_fetches_each_vacancy(self):
-        client, calls = self._client(
-            {"data": [KARIRHUB_API_RECORD], "meta": {"last_page": 1}}
-        )
-        jobs = list(
-            karirhub.crawl(
-                f"{KARIRHUB_LISTING_URL}?keyword=tax", sleep=0, client=client
-            )
-        )
-        self.assertEqual([j["title"] for j in jobs], ["Tax Associate"])
-        # The stored URL is the human page, not the API endpoint it came from.
-        self.assertEqual(jobs[0]["url"], KARIRHUB_DETAIL_URL)
-        self.assertIn("keyword=tax", calls[0])
-        self.assertEqual(calls[1], f"{karirhub.LIST_API}/{KARIRHUB_VACANCY_ID}")
-
-    def test_stops_at_last_page(self):
-        client, calls = self._client(
-            {"data": [KARIRHUB_API_RECORD], "meta": {"last_page": 1}}
-        )
-        list(karirhub.crawl(KARIRHUB_LISTING_URL, max_pages=5, sleep=0, client=client))
-        listing_calls = [c for c in calls if c.startswith(karirhub.LIST_API + "?")]
-        self.assertEqual(len(listing_calls), 1)
-
-    def test_empty_page_logs_the_reason(self):
-        # crawl_health_check reads these log records to explain a zero-yield probe.
-        client, _ = self._client({"data": []})
-        with self.assertLogs("jobs.scrapers.karirhub", level="WARNING"):
-            self.assertEqual(
-                list(karirhub.crawl(KARIRHUB_LISTING_URL, sleep=0, client=client)), []
-            )
-
-    def test_blocked_company_is_dropped(self):
-        client, _ = self._client(
-            {"data": [KARIRHUB_API_RECORD], "meta": {"last_page": 1}}
-        )
-        with patch.object(
-            karirhub,
-            "parse_detail",
-            return_value={**KARIRHUB_VACANCY, "company": "Toloka AI"},
-        ):
-            self.assertEqual(
-                list(karirhub.crawl(KARIRHUB_LISTING_URL, sleep=0, client=client)), []
-            )
-
-
 # --- Kalibrr crawl-URL builder + company filter ------------------------------
 
 
@@ -1296,10 +1178,55 @@ class BuildKalibrrUrlTests(TestCase):
         self.assertIsNone(build_kalibrr_url(None))
         self.assertIsNone(build_kalibrr_url("   "))
 
+    def test_job_types_become_repeated_tenure_segments(self):
+        # `t` is repeatable and OR-ed by Kalibrr, so every requested type fits
+        # in one URL. Segment order follows KALIBRR_TENURE_SLUG, not the
+        # caller's list, so regenerating a preference is byte-stable.
+        self.assertEqual(
+            build_kalibrr_url("Software Engineer", ["contract", "full-time"]),
+            "https://www.kalibrr.com/job-board/te/software-engineer/co/Indonesia"
+            "/t/full-time/t/contractual",
+        )
+
+    def test_part_time_covers_freelance_too(self):
+        # kalibrr.TENURE_TO_JOBTYPE folds "Freelance" into PART_TIME, so the
+        # filter has to ask for both or we would drop postings the parser
+        # would have accepted.
+        self.assertEqual(
+            build_kalibrr_url("Software Engineer", ["part-time"]),
+            "https://www.kalibrr.com/job-board/te/software-engineer/co/Indonesia"
+            "/t/part-time/t/freelance",
+        )
+
+    def test_unknown_job_type_ignored(self):
+        self.assertEqual(
+            build_kalibrr_url("Software Engineer", ["bogus"]),
+            "https://www.kalibrr.com/job-board/te/software-engineer/co/Indonesia",
+        )
+
+    def test_remote_only_adds_work_from_home(self):
+        self.assertEqual(
+            build_kalibrr_url("Software Engineer", None, ["remote"]),
+            "https://www.kalibrr.com/job-board/te/software-engineer/co/Indonesia"
+            "/work_from_home/y",
+        )
+
+    def test_remote_with_other_options_stays_unfiltered(self):
+        # Kalibrr can narrow *to* work-from-home but never *away* from it, so
+        # a candidate open to hybrid or on-site must not have those hidden.
+        for remote_options in (["remote", "hybrid"], ["on-site"], ["hybrid"]):
+            with self.subTest(remote_options=remote_options):
+                self.assertEqual(
+                    build_kalibrr_url("Software Engineer", None, remote_options),
+                    "https://www.kalibrr.com/job-board/te/software-engineer"
+                    "/co/Indonesia",
+                )
+
     def test_included_in_crawl_urls(self):
         urls = build_crawl_urls("Software Engineer", ["full-time"], ["remote"])
         self.assertIn(
-            "https://www.kalibrr.com/job-board/te/software-engineer/co/Indonesia",
+            "https://www.kalibrr.com/job-board/te/software-engineer/co/Indonesia"
+            "/t/full-time/work_from_home/y",
             urls,
         )
 

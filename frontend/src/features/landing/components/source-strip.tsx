@@ -11,7 +11,6 @@ type Source = {
 const SOURCES: Source[] = [
   { name: "Kalibrr", letter: "K" },
   { name: "Kitalulus", letter: "KL" },
-  { name: "Karirhub", letter: "KH", note: "Kemnaker" },
 ];
 
 export function SourceStrip() {

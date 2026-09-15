@@ -15,4 +15,3 @@ class Source(models.TextChoices):
     DEALLS = "dealls", "Dealls"
     KALIBRR = "kalibrr", "Kalibrr"
     KITALULUS = "kitalulus", "Kitalulus"
-    KARIRHUB = "karirhub", "Karirhub"

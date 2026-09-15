@@ -14,6 +14,12 @@ site's own JS performs.
 Note ``text`` is the only keyword param the API honours: ``query``, ``q`` and
 ``keyword`` are silently ignored and return the unfiltered inventory, which
 would look like a working crawl while quietly ignoring the Preference title.
+
+The API also honours the two filters ``build_kalibrr_url`` encodes as path
+segments: ``tenure`` (repeatable, OR-ed) and ``is_work_from_home``. Verified
+2026-09-09 against the Indonesian inventory — the per-tenure counts partition
+the unfiltered total exactly. ``is_hybrid`` is *not* honoured by this endpoint
+even though the site's own HTML pages apply it, so hybrid stays unfiltered.
 """
 
 from __future__ import annotations
@@ -55,6 +61,17 @@ TENURE_TO_JOBTYPE: dict[str, str] = {
     "freelance": JobType.PART_TIME,
     "contractual": JobType.CONTRACT,
     "internship": JobType.INTERNSHIP,
+}
+
+# `/t/<slug>` path segment (written by `jobs.url_builders.build_kalibrr_url`) →
+# the exact `tenure` value the API expects. Matching is case-sensitive: "full
+# time", "Full Time" and "full-time" all return zero results.
+TENURE_SLUG_TO_LABEL: dict[str, str] = {
+    "full-time": "Full time",
+    "part-time": "Part time",
+    "freelance": "Freelance",
+    "contractual": "Contractual",
+    "internship": "Internship",
 }
 
 
@@ -104,21 +121,37 @@ def _request_json(client: httpx.Client, url: str) -> dict:
     raise last_exc
 
 
-def _path_segment(path: str, key: str) -> str | None:
-    """Return the segment following ``/<key>/`` in a Kalibrr search path."""
+def _path_segments(path: str, key: str) -> list[str]:
+    """Return every segment following a ``/<key>/`` in a Kalibrr search path.
+
+    ``t`` may repeat (``/t/full-time/t/contractual``); the rest occur once.
+    """
     parts = [p for p in path.split("/") if p]
-    for i, part in enumerate(parts):
-        if part == key and i + 1 < len(parts):
-            return unquote(parts[i + 1])
-    return None
+    return [
+        unquote(parts[i + 1])
+        for i, part in enumerate(parts)
+        if part == key and i + 1 < len(parts)
+    ]
+
+
+def _path_segment(path: str, key: str) -> str | None:
+    """Return the first segment following ``/<key>/``, or ``None``."""
+    found = _path_segments(path, key)
+    return found[0] if found else None
 
 
 def _list_api_url(input_url: str, offset: int, page_size: int = PAGE_LIMIT) -> str:
     """Translate a kalibrr.com search URL into a job_board search-API URL.
 
-    ``/te/<keyword>`` becomes ``text=<keyword>`` and ``/co/<country>`` becomes
-    ``country=<country>``, mirroring the site's own frontend. An explicit
-    ``?text=`` / ``?country=`` query param wins over the path form.
+    ``/te/<keyword>`` becomes ``text=<keyword>``, ``/co/<country>`` becomes
+    ``country=<country>``, each ``/t/<slug>`` becomes a ``tenure=`` param and
+    ``/work_from_home/y`` becomes ``is_work_from_home=true`` — mirroring the
+    site's own frontend. An explicit ``?text=`` / ``?country=`` query param wins
+    over the path form.
+
+    A URL carrying no ``/t/`` or ``/work_from_home/`` segment produces exactly
+    the API URL it always did, so ``crawl_urls`` already stored in the database
+    keep working untouched.
     """
     parsed = urlparse(input_url)
     query = dict(parse_qsl(parsed.query))
@@ -136,6 +169,22 @@ def _list_api_url(input_url: str, offset: int, page_size: int = PAGE_LIMIT) -> s
     if keyword:
         # Kalibrr slugs use hyphens; the API matches on plain text.
         params.append(("text", keyword.replace("-", " ")))
+
+    # Repeated `tenure` params are OR-ed by the API.
+    for slug in _path_segments(parsed.path, "t"):
+        label = TENURE_SLUG_TO_LABEL.get(slug.lower())
+        if label is None:
+            # An unrecognised value matches nothing, which would look like a
+            # dead board rather than a bad URL. Drop it and say so.
+            logger.warning("unknown tenure slug in %s: %r", input_url, slug)
+            continue
+        params.append(("tenure", label))
+
+    # Only ever send "true": "false" is a no-op and every other value 500s.
+    if (
+        query.get("work_from_home") or _path_segment(parsed.path, "work_from_home")
+    ) == "y":
+        params.append(("is_work_from_home", "true"))
     return f"{LIST_API}?{urlencode(params)}"
 
 

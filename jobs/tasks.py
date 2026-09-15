@@ -12,7 +12,6 @@ from jobs.scrapers import (
     indeed,
     jobstreet,
     kalibrr,
-    karirhub,
     kitalulus,
     linkedin,
 )
@@ -47,7 +46,6 @@ SCRAPERS = {
     CrawlHealthTarget.SOURCE_DEALLS: dealls.crawl,
     CrawlHealthTarget.SOURCE_KALIBRR: kalibrr.crawl,
     CrawlHealthTarget.SOURCE_KITALULUS: kitalulus.crawl,
-    CrawlHealthTarget.SOURCE_KARIRHUB: karirhub.crawl,
 }
 
 

@@ -17,11 +17,19 @@ JOBSTREET_BASE = "https://id.jobstreet.com"
 KALIBRR_BASE = "https://www.kalibrr.com/job-board"
 KALIBRR_COUNTRY = "Indonesia"
 KITALULUS_SEARCH = "https://www.kitalulus.com/lowongan"
-KARIRHUB_SEARCH = "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
 LINKEDIN_BASE = "https://www.linkedin.com/jobs/search/"
 LINKEDIN_GEOID_SEA = "91000014"
 LINKEDIN_GEOID_EMEA = "91000007"
 SLUG_MAX_LEN = 80
+
+# Kitalulus `types` search-param values, keyed by our JobType. Kitalulus also
+# has a FREELANCE bucket we have no equivalent for.
+KITALULUS_TYPES: dict[str, str] = {
+    JobType.FULL_TIME.value: "FULL_TIME",
+    JobType.PART_TIME.value: "PART_TIME",
+    JobType.CONTRACT.value: "CONTRACT",
+    JobType.INTERNSHIP.value: "INTERNSHIP",
+}
 
 # LinkedIn search filter codes.
 LINKEDIN_JT_CODE: dict[str, str] = {
@@ -61,6 +69,17 @@ JOBSTREET_RO_ID: dict[str, int] = {
     RemoteOption.HYBRID.value: 1,
     RemoteOption.ON_SITE.value: 2,
     RemoteOption.REMOTE.value: 3,
+}
+
+# Kalibrr `/t/<slug>` path filter per JobType. PART_TIME maps to two Kalibrr
+# tenures because `jobs.scrapers.kalibrr.TENURE_TO_JOBTYPE` folds "Freelance"
+# into PART_TIME — filtering has to mirror the parse mapping or we would drop
+# postings the scraper would have accepted.
+KALIBRR_TENURE_SLUG: dict[str, tuple[str, ...]] = {
+    JobType.FULL_TIME.value: ("full-time",),
+    JobType.PART_TIME.value: ("part-time", "freelance"),
+    JobType.CONTRACT.value: ("contractual",),
+    JobType.INTERNSHIP.value: ("internship",),
 }
 
 
@@ -159,46 +178,70 @@ def build_linkedin_url(
     return f"{LINKEDIN_BASE}?{urlencode(query, quote_via=quote_plus)}"
 
 
-def build_kalibrr_url(title: str | None) -> str | None:
-    """Kalibrr keyword search URL for a Preference title.
+def build_kalibrr_url(
+    title: str | None,
+    job_types: list[str] | None = None,
+    remote_options: list[str] | None = None,
+) -> str | None:
+    """Kalibrr search URL for a Preference, with its filters in the path.
 
-    Kalibrr has no job-type or remote filter in its public search path, so
-    only the keyword is encoded; the scraper drops the rest.
+    Kalibrr's search path is a sequence of ``/<key>/<value>`` segments. ``t`` is
+    repeatable and OR-ed by the backend, so every requested job type lands in one
+    URL. ``work_from_home/y`` is only appended when remote is the *sole* option
+    asked for: Kalibrr can filter *to* work-from-home but never *away* from it,
+    so adding it to a ``[remote, hybrid]`` preference would silently hide the
+    hybrid postings. On-site is not expressible on Kalibrr at all.
     """
     if not title or not title.strip():
         return None
     slug = slugify_title(title)
     if not slug:
         return None
-    return f"{KALIBRR_BASE}/te/{slug}/co/{KALIBRR_COUNTRY}"
+
+    url = f"{KALIBRR_BASE}/te/{slug}/co/{KALIBRR_COUNTRY}"
+
+    # Iterate the map, not the caller's list, so the same preference always
+    # regenerates a byte-identical URL.
+    requested = set(job_types or ())
+    for job_type, slugs in KALIBRR_TENURE_SLUG.items():
+        if job_type in requested:
+            url += "".join(f"/t/{s}" for s in slugs)
+
+    ros = [r for r in dict.fromkeys(remote_options or ()) if r in RemoteOption.values]
+    if ros == [RemoteOption.REMOTE.value]:
+        url += "/work_from_home/y"
+    return url
 
 
-def _keyword_url(base: str, title: str | None) -> str | None:
-    """``<base>?keyword=<title>`` — the search shape Kitalulus and Karirhub share."""
+def build_kitalulus_url(
+    title: str | None, job_types: list[str] | None = None
+) -> str | None:
+    """Kitalulus keyword search URL for a Preference.
+
+    Kitalulus is a Next.js page whose search params feed a server-side GraphQL
+    ``vacanciesV4`` query, so ``types`` and ``sortBy`` are already applied in
+    the SSR HTML the scraper parses (verified 2026-09-09).
+
+    ``sortBy=updatedAt`` is always sent: the default ``isHighlighted`` sort is
+    promoted-first and barely moves day to day, so ``CRAWL_ITEM_LIMIT`` would be
+    spent re-reading postings we already assessed. Only ``isHighlighted``,
+    ``updatedAt`` and ``createdAt`` are valid — an unknown value renders a page
+    with zero results, so don't make this configurable.
+
+    ``locationSites`` is deliberately not sent: it accepts only REMOTE/ON_SITE
+    (no hybrid) and REMOTE matches ~195 postings site-wide, which would starve
+    the crawl. Remote mismatch stays the assessor's job.
+    """
     if not title or not title.strip():
         return None
-    return f"{base}?{urlencode({'keyword': title.strip()})}"
-
-
-def build_kitalulus_url(title: str | None) -> str | None:
-    """Kitalulus keyword search URL for a Preference title.
-
-    Kitalulus filters this server-side, so the scraper needs nothing else; its
-    job-type / remote filters are not reachable from the URL.
-    """
-    return _keyword_url(KITALULUS_SEARCH, title)
-
-
-def build_karirhub_url(title: str | None) -> str | None:
-    """Karirhub keyword search URL for a Preference title.
-
-    ``?keyword=`` is our own convention — Karirhub's UI searches through Algolia,
-    not a URL param, so a human opening this lands on the unfiltered list. The
-    scraper reads the param and passes it to Karirhub's public vacancy API. The
-    host has to stay ``karirhub.kemnaker.go.id`` because ``scraper_for_url``
-    routes on hostname.
-    """
-    return _keyword_url(KARIRHUB_SEARCH, title)
+    params = [("keyword", title.strip()), ("sortBy", "updatedAt")]
+    wanted = set(job_types or [])
+    # Iterate the map, not the caller's list, so the URL is stable and deduped.
+    mapped = [v for k, v in KITALULUS_TYPES.items() if k in wanted]
+    # All four selected is a no-op filter — leave it off rather than lie.
+    if mapped and len(mapped) < len(KITALULUS_TYPES):
+        params += [("types", v) for v in mapped]
+    return f"{KITALULUS_SEARCH}?{urlencode(params)}"
 
 
 def build_crawl_urls(
@@ -206,19 +249,24 @@ def build_crawl_urls(
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Kalibrr + Kitalulus + Karirhub keyword URLs for a Preference.
+    """Kalibrr + Kitalulus search URLs for a Preference.
 
     Indeed, JobStreet and LinkedIn were dropped from the generated set on
     2026-09-09 (see ``_docs/scraping-policy.md`` §3 exit condition). Their
     builders and scrapers stay so an admin can still paste such a URL by hand.
+    Karirhub was removed outright on 2026-09-09 — low volume and low quality,
+    not a policy problem — scraper and all.
 
-    ``job_types`` / ``remote_options`` are accepted for caller compatibility but
-    ignored — none of these three boards expose a filter we can drive from the
-    URL.
+    ``job_types`` reaches both.
+
+    ``remote_options`` reaches Kalibrr only, and only as an all-or-nothing
+    work-from-home narrowing (see ``build_kalibrr_url``). Kitalulus'
+    ``locationSites`` cannot express hybrid and matches too few postings to be
+    worth narrowing to. Every remaining remote mismatch is handled downstream by
+    the assessor.
     """
-    urls: list[str] = []
-    for builder in (build_kalibrr_url, build_kitalulus_url, build_karirhub_url):
-        url = builder(title)
-        if url:
-            urls.append(url)
-    return urls
+    urls = [
+        build_kalibrr_url(title, job_types, remote_options),
+        build_kitalulus_url(title, job_types),
+    ]
+    return [u for u in urls if u]

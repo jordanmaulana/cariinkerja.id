@@ -11,7 +11,6 @@ class CrawlHealthTarget(BaseModel):
     SOURCE_DEALLS = "dealls"
     SOURCE_KALIBRR = "kalibrr"
     SOURCE_KITALULUS = "kitalulus"
-    SOURCE_KARIRHUB = "karirhub"
     SOURCE_CHOICES = [
         (SOURCE_INDEED, "Indeed"),
         (SOURCE_JOBSTREET, "Jobstreet"),
@@ -19,7 +18,6 @@ class CrawlHealthTarget(BaseModel):
         (SOURCE_DEALLS, "Dealls"),
         (SOURCE_KALIBRR, "Kalibrr"),
         (SOURCE_KITALULUS, "Kitalulus"),
-        (SOURCE_KARIRHUB, "Karirhub"),
     ]
 
     label = models.CharField(max_length=120)

@@ -108,12 +108,13 @@ Searches can only be deleted while unpaid.
 
 ### Sources
 
-Three integrations, all Indonesian: **Kalibrr**, **Kitalulus**, and **Karirhub**
-(Kemnaker, the Ministry of Manpower's own job board).
+Two integrations, both Indonesian: **Kalibrr** and **Kitalulus**.
 
 Indeed, JobStreet and LinkedIn were dropped on 2026-09-09 — all three disallow crawling on
 the paths we used, and two of them had stopped working anyway. Their scrapers still exist
-for an admin to point at a single URL by hand, but no search generates one.
+for an admin to point at a single URL by hand, but no search generates one. Karirhub
+(Kemnaker) was removed the same day for a different reason — it was permitted to crawl,
+just too thin to be worth the crawl budget — and was taken out entirely, scraper included.
 
 Certain staffing and crowdwork brands are filtered out of results entirely as low-quality
 listings.

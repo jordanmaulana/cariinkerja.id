@@ -76,7 +76,12 @@ class PreferenceRegenerateUrlsViewTests(TestCase):
     legacy board cannot come back through an admin action.
     """
 
-    LEGACY_HOSTS = ("indeed.com", "jobstreet.com", "linkedin.com")
+    LEGACY_HOSTS = (
+        "indeed.com",
+        "jobstreet.com",
+        "linkedin.com",
+        "karirhub.kemnaker.go.id",
+    )
 
     def setUp(self):
         self.admin = User.objects.create_superuser(
@@ -91,13 +96,15 @@ class PreferenceRegenerateUrlsViewTests(TestCase):
             crawl_urls=[
                 "https://id.indeed.com/jobs?q=Mobile+Developer",
                 "https://id.jobstreet.com/mobile-developer-jobs",
+                "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri/lowongan"
+                "?keyword=Mobile+Developer",
             ],
         )
         self.client.force_login(self.admin)
 
     def _assert_clean(self, pref):
         pref.refresh_from_db()
-        self.assertEqual(len(pref.crawl_urls), 3)
+        self.assertEqual(len(pref.crawl_urls), 2)
         joined = " ".join(pref.crawl_urls)
         for host in self.LEGACY_HOSTS:
             self.assertNotIn(host, joined)

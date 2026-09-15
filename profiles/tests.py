@@ -483,19 +483,17 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 3)
+        self.assertEqual(len(pref.crawl_urls), 2)
+        # ON_SITE is not expressible on Kalibrr, so only the job type narrows.
         self.assertEqual(
             pref.crawl_urls[0],
-            "https://www.kalibrr.com/job-board/te/mobile-developer/co/Indonesia",
+            "https://www.kalibrr.com/job-board/te/mobile-developer/co/Indonesia"
+            "/t/full-time",
         )
         self.assertEqual(
             pref.crawl_urls[1],
-            "https://www.kitalulus.com/lowongan?keyword=Mobile+Developer",
-        )
-        self.assertEqual(
-            pref.crawl_urls[2],
-            "https://karirhub.kemnaker.go.id/lowongan-dalam-negeri"
-            "?keyword=Mobile+Developer",
+            "https://www.kitalulus.com/lowongan?keyword=Mobile+Developer"
+            "&sortBy=updatedAt&types=FULL_TIME",
         )
         # Free crawl disabled: pref advances to WAITING_PAYMENT, no crawl queued.
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
@@ -510,11 +508,11 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 3)
+        self.assertEqual(len(pref.crawl_urls), 2)
         self.assertNotIn("linkedin.com", " ".join(pref.crawl_urls))
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
-    def test_no_filters_still_yields_three_urls(self):
+    def test_no_filters_still_yields_two_urls(self):
         pref = Preference.objects.create(
             profile=self.profile,
             title="Developer",
@@ -522,7 +520,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 3)
+        self.assertEqual(len(pref.crawl_urls), 2)
         self.assertEqual(
             pref.crawl_urls[0],
             "https://www.kalibrr.com/job-board/te/developer/co/Indonesia",

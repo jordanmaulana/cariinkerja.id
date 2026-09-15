@@ -8,7 +8,6 @@ from jobs.scrapers import (
     indeed,
     jobstreet,
     kalibrr,
-    karirhub,
     kitalulus,
     linkedin,
 )
@@ -40,6 +39,4 @@ def scraper_for_url(url: str) -> tuple[ModuleType | None, str | None]:
         return (kalibrr, Source.KALIBRR.value)
     if host == "kitalulus.com" or host.endswith(".kitalulus.com"):
         return (kitalulus, Source.KITALULUS.value)
-    if host == "karirhub.kemnaker.go.id":
-        return (karirhub, Source.KARIRHUB.value)
     return (None, None)
