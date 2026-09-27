@@ -24,6 +24,7 @@ import { TrendChart } from "@/features/dashboard/components/trend-chart"
 import { WaitingPaymentBanner } from "@/features/dashboard/components/waiting-payment-banner"
 
 export const Route = createFileRoute("/dashboard")({
+  head: () => ({ meta: [{ title: "Dashboard — cariinkerja.id" }] }),
   component: DashboardPage,
 })
 

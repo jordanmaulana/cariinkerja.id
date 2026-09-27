@@ -39,6 +39,7 @@ export type AssessmentsSearch = {
 }
 
 export const Route = createFileRoute("/assessments/")({
+  head: () => ({ meta: [{ title: "Loker Tersedia — cariinkerja.id" }] }),
   validateSearch: (search: Record<string, unknown>): AssessmentsSearch => {
     const raw = search.status
     const arr = Array.isArray(raw) ? raw : raw == null ? [] : [raw]

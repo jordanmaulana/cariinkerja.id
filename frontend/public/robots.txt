@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /preferences
+Disallow: /assessments
+Disallow: /plans
+Disallow: /login
+
+Sitemap: https://cariinkerja.id/sitemap.xml

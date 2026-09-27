@@ -7,6 +7,7 @@ import {
 } from "@/features/auth/hooks";
 
 export const Route = createFileRoute("/onboarding")({
+  head: () => ({ meta: [{ title: "Lengkapi Profil — cariinkerja.id" }] }),
   component: OnboardingPage,
 });
 

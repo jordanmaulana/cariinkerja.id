@@ -69,7 +69,7 @@ export function AppShell() {
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
         <div className="flex h-14 items-center gap-2 border-b px-5">
-          <LogoMark className="size-5 text-primary" />
+          <LogoMark className="size-5 text-primary" title="" />
           <span className="text-sm font-semibold tracking-tight">
             cariinkerja<span className="opacity-60">.id</span>
           </span>

@@ -15,6 +15,7 @@ import { PreferencesTable } from "@/features/preferences/components/preferences-
 import { listPreferences } from "@/features/preferences/api"
 
 export const Route = createFileRoute("/preferences/")({
+  head: () => ({ meta: [{ title: "Pencarian — cariinkerja.id" }] }),
   component: PreferencesPage,
 })
 

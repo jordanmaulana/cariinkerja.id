@@ -99,7 +99,7 @@ function TestimonialCard({
           <figcaption className="mt-6 flex items-center gap-3 border-t border-border/60 pt-4">
             <img
               src={testimonial.avatar}
-              alt=""
+              alt={`Foto ${testimonial.name}`}
               loading="lazy"
               width={44}
               height={44}

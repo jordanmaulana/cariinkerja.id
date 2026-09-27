@@ -14,6 +14,7 @@ import { STATUS_LABEL, STATUS_VARIANT } from "@/features/assessments/consts"
 import type { AssessmentsSearch } from "@/routes/assessments.index"
 
 export const Route = createFileRoute("/assessments/$id")({
+  head: () => ({ meta: [{ title: "Detail Loker — cariinkerja.id" }] }),
   component: AssessmentDetailPage,
 })
 

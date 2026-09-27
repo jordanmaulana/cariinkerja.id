@@ -25,6 +25,7 @@ import {
 import { GATE_REASON } from "@/features/billing/consts"
 
 export const Route = createFileRoute("/plans/")({
+  head: () => ({ meta: [{ title: "Paket — cariinkerja.id" }] }),
   component: PlansPage,
 })
 

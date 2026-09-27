@@ -6,6 +6,7 @@ import { GoogleSignInCard } from "@/features/auth/components/google-sign-in-card
 import { LoginSidePanel } from "@/features/auth/components/login-side-panel";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({ meta: [{ title: "Masuk — cariinkerja.id" }] }),
   component: LoginPage,
 });
 

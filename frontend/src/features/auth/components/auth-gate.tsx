@@ -17,6 +17,10 @@ export function AuthGate() {
   const [user, setUser] = useAtom(userAtom);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Unmatched URL: let the root notFoundComponent render instead of bouncing to /login.
+  const isNotFound = useRouterState({
+    select: (s) => s.matches.some((m) => m.globalNotFound),
+  });
   const sessionExpiredFiredRef = useRef(false);
   const onboardingNudgeFiredRef = useRef(false);
 
@@ -46,6 +50,7 @@ export function AuthGate() {
   }, [token, user, setToken, setUser]);
 
   useEffect(() => {
+    if (isNotFound) return;
     if (!token) {
       if (!PUBLIC_PATHS.has(pathname)) {
         navigate({ to: "/login" });
@@ -64,7 +69,7 @@ export function AuthGate() {
     if (user.onboarded && (PUBLIC_PATHS.has(pathname) || pathname === "/onboarding")) {
       navigate({ to: "/dashboard" });
     }
-  }, [token, user, pathname, navigate]);
+  }, [token, user, pathname, navigate, isNotFound]);
 
   if (!token || !user || FULL_BLEED_PATHS.has(pathname)) {
     return <Outlet />;

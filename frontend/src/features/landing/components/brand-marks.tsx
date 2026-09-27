@@ -5,7 +5,6 @@ type MarkProps = { className?: string };
 export function GithubMark({ className }: MarkProps) {
   return (
     <svg
-      role="img"
       viewBox="0 0 24 24"
       aria-hidden="true"
       fill="currentColor"
@@ -19,7 +18,6 @@ export function GithubMark({ className }: MarkProps) {
 export function LinkedinMark({ className }: MarkProps) {
   return (
     <svg
-      role="img"
       viewBox="0 0 24 24"
       aria-hidden="true"
       fill="currentColor"
@@ -33,7 +31,6 @@ export function LinkedinMark({ className }: MarkProps) {
 export function IndeedMark({ className }: MarkProps) {
   return (
     <svg
-      role="img"
       viewBox="0 0 24 24"
       aria-hidden="true"
       fill="currentColor"

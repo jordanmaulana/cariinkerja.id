@@ -13,6 +13,7 @@ import { getPreference } from "@/features/preferences/api"
 import { STATUS_LABEL, STATUS_VARIANT } from "@/features/preferences/consts"
 
 export const Route = createFileRoute("/preferences/$id")({
+  head: () => ({ meta: [{ title: "Detail Pencarian — cariinkerja.id" }] }),
   component: PreferenceDetailPage,
 })
 

@@ -29,7 +29,11 @@ export function ScoreGauge({ value }: { value: number }) {
 
   return (
     <div className="relative grid size-24 shrink-0 place-items-center">
-      <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
+      <svg
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+        className="absolute inset-0 -rotate-90"
+      >
         <circle
           cx="50"
           cy="50"

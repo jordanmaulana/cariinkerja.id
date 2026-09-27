@@ -11,8 +11,8 @@ export function LogoMark({ className, title = "cariinkerja.id" }: Props) {
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 240 240"
       fill="none"
-      role="img"
-      aria-label={title}
+      // Empty title = decorative (sits next to visible brand text).
+      {...(title ? { role: "img", "aria-label": title } : { "aria-hidden": true })}
       className={cn("size-6", className)}
     >
       <defs>
@@ -61,7 +61,7 @@ export function LogoMark({ className, title = "cariinkerja.id" }: Props) {
 export function LogoLockup({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <LogoMark className="size-7" />
+      <LogoMark className="size-7" title="" />
       <span className="font-heading text-lg font-semibold tracking-tight">
         cariinkerja<span className="opacity-60">.id</span>
       </span>
