@@ -14,6 +14,8 @@ export async function listAssessments(
     for (const s of params.statuses) search.append("status", s);
   if (params.minScore != null && !Number.isNaN(params.minScore))
     search.set("min_score", String(params.minScore));
+  if (params.q) search.set("q", params.q);
+  if (params.preference) search.set("preference", params.preference);
   if (params.page != null) search.set("page", String(params.page));
   if (params.pageSize != null)
     search.set("page_size", String(params.pageSize));

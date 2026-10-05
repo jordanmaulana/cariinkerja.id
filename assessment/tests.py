@@ -6,7 +6,9 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
@@ -22,14 +24,52 @@ from profiles.models import Preference, Profile
 User = get_user_model()
 
 
-def _make_job(slug: str) -> Job:
+def _make_job(slug: str, title: str = "Senior Dev") -> Job:
     return Job.objects.create(
         url=f"https://job.test/{slug}",
-        title="Senior Dev",
+        title=title,
         description="x",
         location="Jakarta",
         source="jobstreet",
     )
+
+
+class AssessmentListApiTests(TestCase):
+    def test_q_filters_by_job_title(self):
+        user = User.objects.create_user(username="u1", email="u1@example.com")
+        pref = Preference.objects.create(profile=Profile.objects.create(user=user))
+        for slug, title in [("a", "Python Developer"), ("b", "Sales Manager")]:
+            Assessment.objects.create(
+                job=_make_job(slug, title), preference=pref, score=80, is_relevant=True
+            )
+        client = APIClient()
+        client.force_authenticate(user)
+
+        res = client.get(reverse("api-v1-assessment-list"), {"q": " python "})
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["job"]["title"], "Python Developer")
+
+    def test_preference_filters_by_preference(self):
+        user = User.objects.create_user(username="u1", email="u1@example.com")
+        profile = Profile.objects.create(user=user)
+        pref_a = Preference.objects.create(profile=profile, title="Backend")
+        pref_b = Preference.objects.create(profile=profile, title="Data")
+        Assessment.objects.create(
+            job=_make_job("a"), preference=pref_a, score=80, is_relevant=True
+        )
+        kept = Assessment.objects.create(
+            job=_make_job("b"), preference=pref_b, score=80, is_relevant=True
+        )
+        client = APIClient()
+        client.force_authenticate(user)
+
+        res = client.get(reverse("api-v1-assessment-list"), {"preference": pref_b.id})
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["id"], kept.id)
 
 
 @override_settings(

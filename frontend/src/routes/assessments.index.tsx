@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 import { Search } from "lucide-react"
 
 import { useHasWaitingPayment } from "@/features/billing/hooks"
+import { listPreferences } from "@/features/preferences/api"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -13,6 +15,13 @@ import {
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   useAssessmentsList,
@@ -35,6 +44,8 @@ export type AssessmentsSearch = {
   status?: AssessmentStatus[]
   status_all?: boolean
   min_score?: number
+  q?: string
+  preference?: string
   page?: number
 }
 
@@ -54,6 +65,11 @@ export const Route = createFileRoute("/assessments/")({
     const min_score =
       Number.isFinite(ms) && ms >= 0 && ms <= 100 ? Math.floor(ms) : undefined
 
+    // String(): the router JSON-parses `?q=123` into a number.
+    const q = search.q != null ? String(search.q).trim() : ""
+    const preference =
+      search.preference != null ? String(search.preference) : ""
+
     const p = Number(search.page)
     const page = Number.isFinite(p) && p >= 1 ? Math.floor(p) : undefined
 
@@ -61,6 +77,8 @@ export const Route = createFileRoute("/assessments/")({
       status: status.length ? status : undefined,
       status_all: allCleared || undefined,
       min_score,
+      q: q || undefined,
+      preference: preference || undefined,
       page,
     }
   },
@@ -83,6 +101,8 @@ function AssessmentsPage() {
     search.min_score != null ? String(search.min_score) : "",
   )
 
+  const [qInput, setQInput] = useState(() => search.q ?? "")
+
   const page = search.page ?? 1
   const minScore = parseMinScoreInput(minScoreInput)
   const statuses = sortStatuses(selectedStatuses)
@@ -90,9 +110,17 @@ function AssessmentsPage() {
   const query = useAssessmentsList({
     statuses,
     minScore,
+    q: qInput.trim(),
+    preference: search.preference,
     page,
     pageSize: PAGE_SIZE,
   })
+
+  // Shares the ["preferences"] cache entry useHasWaitingPayment already fills.
+  const prefs = useQuery({
+    queryKey: ["preferences"],
+    queryFn: listPreferences,
+  }).data
 
   const rows = query.data?.results
   const count = query.data?.count ?? 0
@@ -123,6 +151,31 @@ function AssessmentsPage() {
       search: (prev) => ({
         ...prev,
         min_score: parsed,
+        page: undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  function handleQChange(value: string) {
+    setQInput(value)
+    navigate({
+      to: "/assessments",
+      search: (prev) => ({
+        ...prev,
+        q: value.trim() || undefined,
+        page: undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  function handlePreferenceChange(value: string) {
+    navigate({
+      to: "/assessments",
+      search: (prev) => ({
+        ...prev,
+        preference: value === "all" ? undefined : value,
         page: undefined,
       }),
       replace: true,
@@ -191,6 +244,38 @@ function AssessmentsPage() {
                   {STATUS_LABEL[s]}
                 </label>
               ))}
+            </div>
+            {prefs && prefs.length > 1 && (
+              <Select
+                value={search.preference ?? "all"}
+                onValueChange={handlePreferenceChange}
+              >
+                <SelectTrigger
+                  aria-label="Filter Pencarian"
+                  className="h-8 w-44 text-xs"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Pencarian</SelectItem>
+                  {prefs.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.title ?? "Tanpa judul"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Cari posisi"
+                aria-label="Cari judul posisi"
+                value={qInput}
+                onChange={(e) => handleQChange(e.target.value)}
+                className="h-8 w-44 pl-7 text-xs"
+              />
             </div>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />

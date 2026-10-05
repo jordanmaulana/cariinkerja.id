@@ -41,6 +41,12 @@ def list(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         qs = qs.filter(score__gte=min_score)
+    q = request.query_params.get("q", "").strip()
+    if q:
+        qs = qs.filter(job__title__icontains=q)
+    preference_id = request.query_params.get("preference")
+    if preference_id:
+        qs = qs.filter(preference_id=preference_id)
 
     try:
         page = int(request.query_params.get("page", 1))

@@ -39,6 +39,8 @@ export type Assessment = {
 export type AssessmentListParams = {
   statuses?: AssessmentStatus[];
   minScore?: number;
+  q?: string;
+  preference?: string;
   page?: number;
   pageSize?: number;
 };

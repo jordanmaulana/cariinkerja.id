@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   getAssessment,
@@ -17,19 +22,33 @@ export function useAssessment(id: string) {
 export function useAssessmentsList(params: {
   statuses: AssessmentStatus[];
   minScore: number | undefined;
+  q: string;
+  preference: string | undefined;
   page: number;
   pageSize: number;
 }) {
-  const { statuses, minScore, page, pageSize } = params;
+  const { statuses, minScore, q, preference, page, pageSize } = params;
   return useQuery({
-    queryKey: ["assessments", { statuses, minScore: minScore ?? null, page }],
+    queryKey: [
+      "assessments",
+      {
+        statuses,
+        minScore: minScore ?? null,
+        q,
+        preference: preference ?? null,
+        page,
+      },
+    ],
     queryFn: () =>
       listAssessments({
         statuses: statuses.length ? statuses : undefined,
         minScore,
+        q: q || undefined,
+        preference,
         page,
         pageSize,
       }),
+    placeholderData: keepPreviousData,
   });
 }
 
