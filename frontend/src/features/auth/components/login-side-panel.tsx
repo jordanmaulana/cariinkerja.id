@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 import { LogoLockup } from "@/components/brand/logo-mark";
 import { LOGIN_FEATURES } from "@/features/auth/consts";
 
@@ -14,7 +16,9 @@ export function LoginSidePanel() {
         }}
       />
       <div className="relative">
-        <LogoLockup />
+        <Link to="/" className="inline-flex">
+          <LogoLockup />
+        </Link>
       </div>
       <div className="relative">
         <h2 className="font-heading text-3xl xl:text-4xl font-semibold tracking-tight leading-tight">

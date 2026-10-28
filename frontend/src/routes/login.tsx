@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { LogoLockup } from "@/components/brand/logo-mark";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -20,7 +20,9 @@ function LoginPage() {
       <section className="flex items-center justify-center p-6 sm:p-10 relative">
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-6 flex items-center gap-2 justify-center">
-            <LogoLockup />
+            <Link to="/" className="inline-flex">
+              <LogoLockup />
+            </Link>
           </div>
           <GoogleSignInCard />
         </div>
