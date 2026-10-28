@@ -1,6 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAtom, useSetAtom } from "jotai";
 import {
+  CalendarDays,
   ClipboardCheck,
   CreditCard,
   LayoutDashboard,
@@ -20,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/features/auth/api";
+import { DiscordMark } from "@/features/landing/components/brand-marks";
 import { tokenAtom, userAtom } from "@/features/auth/state";
 import { cn } from "@/lib/utils";
 
@@ -149,17 +151,40 @@ export function AppShell() {
           </div>
         </main>
         <footer className="border-t px-4 py-4 md:px-8">
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-center gap-2 text-xs text-muted-foreground">
-            <span>Butuh bantuan? Hubungi admin via</span>
-            <a
-              href="https://wa.me/6285138530082"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
-            >
-              <MessageCircle className="size-3.5" />
-              WhatsApp
-            </a>
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Butuh bantuan? Hubungi admin via</span>
+              <a
+                href="https://wa.me/6285138530082"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
+              >
+                <MessageCircle className="size-3.5" />
+                WhatsApp
+              </a>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <a
+                href="https://discord.gg/5aCSck8b4Y"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
+              >
+                <DiscordMark className="size-3.5" />
+                Channel Komunitas
+              </a>
+              <span aria-hidden="true">·</span>
+              <a
+                href="https://calendly.com/jordanmaulana/ngobrol-yuk"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
+              >
+                <CalendarDays className="size-3.5" />
+                Curhat Karir Gratis
+              </a>
+            </div>
           </div>
         </footer>
       </div>
