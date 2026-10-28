@@ -1,8 +1,10 @@
 # Product Overview — cariinkerja.id
 
-**Read this first.** It describes *what the product is* and *why it behaves the way it
-does*. It contains no code. For architecture see `CLAUDE.md`; for billing internals see
-`payment-mechanism.md` in this folder.
+*Last verified against code: 2026-10-22 (branch `main`).*
+
+It describes *what the product is* and *why it behaves the way it does*. It contains no
+code. Start at [README.md](README.md) for the one-screen fact sheet. For architecture see
+`CLAUDE.md`; for billing internals see [`_docs/payment-mechanism.md`](../payment-mechanism.md).
 
 Where this doc and the marketing files (`about.md`, `producthunt.md`, the landing page)
 disagree, **this doc is correct** — see §8.
@@ -108,14 +110,22 @@ Searches can only be deleted while unpaid.
 
 ### Sources
 
-Five integrations: **Indeed Indonesia**, **JobStreet Indonesia**, **LinkedIn Southeast
-Asia**, **LinkedIn EMEA**, and **Dealls**.
+Every search automatically covers **Indeed Indonesia**, **JobStreet Indonesia**, **LinkedIn
+Southeast Asia**, and **LinkedIn EMEA**. **Dealls** also has a working crawler, but it is
+never added automatically — it only runs when an admin pastes a Dealls URL into a search by
+hand, so don't market it as a source.
 
 LinkedIn EMEA is only searched for *remote* roles — an on-site European or Middle Eastern
 job is unreachable for an Indonesian candidate, so including it would be noise.
 
 Certain staffing and crowdwork brands are filtered out of results entirely as low-quality
 listings.
+
+**Upcoming, not live — do not announce.** The unmerged `migrate-portal` branch replaces the
+automatic sources with **Kalibrr** and **Kitalulus** (boards whose terms allow crawling) and
+retires Indeed, JobStreet, and LinkedIn for crawl-policy reasons. Its source register lives
+at `_docs/scraping-policy.md` on that branch only. Once it merges, this section, the
+landing-page source strip, and every source mention in this folder must change together.
 
 ### Daily matching
 
@@ -189,24 +199,30 @@ A user who signs up and never subscribes gets an onboarded account and nothing e
 
 ### Plans
 
-All plans run **30 days**, priced in IDR:
+Plans live in the production database (edited in the admin), not in code. As of
+2026-10-22, confirmed by the founder:
 
-| Plan | Price | Searches |
+| Searches (job titles) | Price | Length |
 |---|---|---|
-| Basic | Rp 99,000 | 1 |
-| Walker | Rp 159,000 | 3 |
-| Runner | Rp 239,000 | 5 |
+| 1 | Rp 49.000 | 30 days |
+| 3 | Rp 99.000 | 30 days |
 
 Each plan includes daily matching and AI scoring; the tier only changes how many
-simultaneous searches you can run.
+simultaneous searches you can run. Plan *names* aren't recorded here — check the admin
+before quoting one. The older three-tier table (Rp 99k / 159k / 239k for 1 / 3 / 5 searches)
+is retired; ignore it wherever it still appears.
 
-### Open-to-Work discount
+### Open-to-Work discount — currently has no effect
 
-If your LinkedIn has "Open to Work" enabled, the **cheapest plan** drops to **Rp 49,000** —
-roughly half. The reasoning is stated plainly to the user: if you're hunting hard, you
-shouldn't be paying full price.
+The code still carries an Open-to-Work discount: if the user's LinkedIn has "Open to Work"
+on, the **cheapest active plan** is sold at **Rp 49.000**. Its stated reasoning: if you're
+hunting hard, you shouldn't be paying full price.
 
-It applies to new subscriptions only, not renewals, and only to the cheapest plan.
+It only kicks in when the cheapest plan costs *more* than Rp 49.000. The cheapest plan now
+costs exactly Rp 49.000, so **nobody gets a discount today**. Don't advertise it.
+
+(If it is ever revived: the code applies it to any non-upgrade checkout of the cheapest
+plan, including a repeat purchase — not "new subscriptions only" as earlier docs claimed.)
 
 ### Upgrades, downgrades, expiry
 
@@ -260,23 +276,35 @@ would raise signups and destroy the positioning:
 
 Recorded as fact, not as a task list. Verify against the code before repeating any of it:
 
-- **The free tier is gone.** `about.md`, `producthunt.md`, the pitch deck, and the landing
-  page's stats sub-copy still advertise roughly 20 free assessments after registration. The
-  product is now paid-only and the first crawl is triggered by payment. The sign-in
-  checklist already tells users the truth.
-- **Source count.** Marketing docs name Indeed and JobStreet only. Five sources are
-  integrated (§5), and the landing page's source strip lists four of them.
-- **Pricing is not on the landing page.** There is no pricing section and no FAQ; plans are
-  only visible after signing in.
+- **The free tier is gone.** `about.md`, `producthunt.md`, the pitch deck, and the **live
+  landing page's** stats sub-copy ("Cari & kasih skor sekitar 20 loker setelah
+  registrasi…") still advertise roughly 20 free
+  assessments after registration. The product is paid-only and the first crawl is triggered
+  by payment. The sign-in checklist already tells users the truth.
+- **Prices.** Every older doc (`about.md`, pitch deck, earlier versions of this file) shows
+  outdated prices. Only §6 is current.
+- **Source names.** `README.md`, `about.md`, and `producthunt.md` name Indeed and JobStreet
+  only. The landing page's source strip lists LinkedIn SEA, LinkedIn EMEA, Indeed, and
+  JobStreet, which matches §5.
+- **"Choose Indeed or JobStreet."** `about.md` and the pitch deck say the user picks a
+  source. They don't — one search fans out to every source automatically.
+- **Model name.** `about.md`, `producthunt.md`, and the pitch deck say "GPT-4o". The model is
+  configurable and may change; marketing should say "AI", never a model name.
+- **Pricing is not linked from the landing page.** There is no pricing section and no FAQ.
+  The plans page and its API are technically reachable without signing in, but nothing links
+  to them from the public pages.
 
 ---
 
 ## 9. Related docs
 
+- [README.md](README.md) — start here: fact sheet, file index, pre-post checklist.
+- [brand-voice.md](brand-voice.md) — visual identity, Open Graph image, founder voice, copy bank.
+- [marketing-playbook.md](marketing-playbook.md) — audiences, content pillars, proof, guardrails.
 - `CLAUDE.md` — architecture, stack, conventions, commands.
-- `docs/payment-mechanism.md` — the billing and subscription flow in full technical detail.
-- `about.md` / `README.md` / `producthunt.md` — public-facing narrative (see §8 first).
-- `beforeyoubuy.md` — the customer-facing ethos, source of the sign-in checklist.
+- [`_docs/payment-mechanism.md`](../payment-mechanism.md) — the billing and subscription flow in full technical detail.
+- `about.md` / `README.md` / `producthunt.md` (repo root) — public-facing narrative (see §8 first).
+- `beforeyoubuy.md` (repo root) — the customer-facing ethos, source of the sign-in checklist.
 
 ---
 
@@ -291,4 +319,4 @@ Recorded as fact, not as a task list. Verify against the code before repeating a
 | **Verdict** | The short Bahasa explanation attached to a score. |
 | **Skill gap** | Skills the job requires that the candidate's profile lacks. |
 | **High-fit** | A match scoring 80 or above. Drives the daily email and public stats. |
-| **Open to Work** | LinkedIn flag; unlocks the discount on the cheapest plan. |
+| **Open to Work** | LinkedIn flag; would unlock the cheapest-plan discount, which currently has no effect (§6). |
