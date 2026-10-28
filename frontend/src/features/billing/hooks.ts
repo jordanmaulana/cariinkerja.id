@@ -13,6 +13,7 @@ import {
   getPaymentGate,
   getUpgradeQuote,
   listPlans,
+  listPublicPlans,
   recheckSubscription,
 } from "@/features/billing/api";
 import type { UpgradeQuote } from "@/features/billing/types";
@@ -30,6 +31,15 @@ export function usePlans() {
   return useQuery({
     queryKey: ["plans"],
     queryFn: listPlans,
+  });
+}
+
+// Own cache key: sharing ["plans"] would leak anonymous (undiscounted)
+// prices into /plans after login.
+export function usePublicPlans() {
+  return useQuery({
+    queryKey: ["plans", "public"],
+    queryFn: listPublicPlans,
   });
 }
 

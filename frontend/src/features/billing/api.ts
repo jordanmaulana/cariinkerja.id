@@ -15,6 +15,11 @@ export async function listPlans(): Promise<Plan[]> {
   return api<Plan[]>("/plans/");
 }
 
+// skipAuth: a stale token would 401 even on this AllowAny endpoint.
+export async function listPublicPlans(): Promise<Plan[]> {
+  return api<Plan[]>("/plans/", { skipAuth: true });
+}
+
 export async function getMySubscription(): Promise<Subscription | null> {
   try {
     return await api<Subscription>("/subscriptions/me/");

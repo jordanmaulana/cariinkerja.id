@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { googleSignIn } from "@/features/auth/api";
 import { BEFORE_YOU_BUY } from "@/features/auth/consts";
 import { tokenAtom, userAtom } from "@/features/auth/state";
+import { PlanPreviewList } from "@/features/billing/components/plan-preview-list";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -112,6 +113,7 @@ export function GoogleSignInCard() {
             ))}
           </ul>
         </div>
+        <PlanPreviewList />
         <div
           inert={!allChecked}
           className={cn(
