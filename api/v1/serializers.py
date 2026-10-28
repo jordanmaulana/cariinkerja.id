@@ -6,11 +6,27 @@ from rest_framework import serializers
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
 from billing.models import Plan, Subscription, effective_price
+from core.jev import INVALID, MULTIPLE, classify_job_title
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
 from profiles.models import Preference, Profile
 
 User = get_user_model()
+
+JOB_TITLE_ERRORS = {
+    INVALID: "Tolong masukin job title yang valid dong",
+    MULTIPLE: (
+        "Pilih 1 job title aja yang paling dikuasai. Pencarian lebih dari 1 job "
+        "title tersedia di fitur pro. Tambahkan di halaman Pencarian"
+    ),
+}
+
+
+def _validate_job_title(value):
+    error = JOB_TITLE_ERRORS.get(classify_job_title(value))
+    if error:
+        raise serializers.ValidationError(error)
+    return value
 
 
 class GoogleAuthSerializer(serializers.Serializer):
@@ -104,6 +120,9 @@ class OnboardingSerializer(serializers.Serializer):
         default=list,
     )
 
+    def validate_title(self, value):
+        return _validate_job_title(value)
+
     def save(self, **kwargs):
         from profiles.services import prepare_preference_for_payment
         from profiles.tasks import crawl_linkedin_for_profile
@@ -132,6 +151,13 @@ class OnboardingSerializer(serializers.Serializer):
                 lambda: crawl_linkedin_for_profile.delay(profile.id, preference.id)
             )
         return profile
+
+
+class JobTitleCheckSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255)
+
+    def validate_title(self, value):
+        return _validate_job_title(value)
 
 
 class JobBriefSerializer(serializers.ModelSerializer):
@@ -187,6 +213,12 @@ class PreferenceSerializer(serializers.ModelSerializer):
             "created_on",
             "updated_on",
         ]
+
+    def validate_title(self, value):
+        # Unchanged title on edit skips the (paid, networked) check.
+        if not value or (self.instance and value == self.instance.title):
+            return value
+        return _validate_job_title(value)
 
 
 class AssessmentSerializer(serializers.ModelSerializer):

@@ -19,6 +19,12 @@ urlpatterns = [
     path("profile/me/", profiles_api.detail, name="api-v1-profile-me"),
     path("onboarding/", profiles_api.onboarding, name="api-v1-onboarding"),
     path("dashboard/stats/", dashboard_api.stats, name="api-v1-dashboard-stats"),
+    # Own prefix: under preferences/ it would hit preferences/<str:pk>/.
+    path(
+        "job-title/check/",
+        preferences_api.check_title,
+        name="api-v1-job-title-check",
+    ),
     path(
         "preferences/",
         preferences_api.list_or_create,

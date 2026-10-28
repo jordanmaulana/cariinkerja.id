@@ -30,8 +30,15 @@ export async function api<T>(path: string, init?: ApiInit): Promise<T> {
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
+    // DRF field errors look like {"title": ["msg"]}; show the first message.
+    const fieldMsg =
+      data && typeof data === "object"
+        ? Object.values(data)
+            .flat()
+            .find((v) => typeof v === "string")
+        : undefined;
     const message =
-      (data && (data.detail || JSON.stringify(data))) ||
+      (data && (data.detail || fieldMsg || JSON.stringify(data))) ||
       `${res.status} ${res.statusText}`;
     throw new ApiError(res.status, message, data);
   }

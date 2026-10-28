@@ -694,6 +694,137 @@ class OnboardingAPITests(TestCase):
         self.assertFalse(Preference.objects.filter(profile=self.profile).exists())
 
 
+@patch("api.v1.serializers.classify_job_title")
+class JobTitleValidationAPITests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("user", "user@example.com", "secret")
+        # whitelist skips the subscription gate on preference create.
+        self.profile = Profile.objects.create(user=self.user, whitelist=True)
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+
+    def test_onboarding_invalid_title_rejected(self, classify):
+        classify.return_value = "invalid"
+        resp = self.api.post(
+            reverse("api-v1-onboarding"),
+            {
+                "full_name": "Jane",
+                "phone": "0812",
+                "linkedin_url": "https://www.linkedin.com/in/jane",
+                "title": "asdfgh",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.data["title"], ["Tolong masukin job title yang valid dong"]
+        )
+        self.assertFalse(Preference.objects.exists())
+
+    def test_create_multiple_titles_rejected(self, classify):
+        classify.return_value = "multiple"
+        resp = self.api.post(
+            reverse("api-v1-preference-list"),
+            {"title": "Sales manager, programmer"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("fitur pro", resp.data["title"][0])
+        self.assertFalse(Preference.objects.exists())
+
+    def test_create_valid_title_accepted(self, classify):
+        classify.return_value = "valid"
+        resp = self.api.post(
+            reverse("api-v1-preference-list"), {"title": "Sales manager"}, format="json"
+        )
+        self.assertEqual(resp.status_code, 201)
+        classify.assert_called_once_with("Sales manager")
+
+    def test_patch_unchanged_title_skips_check(self, classify):
+        pref = Preference.objects.create(profile=self.profile, title="Engineer")
+        resp = self.api.patch(
+            reverse("api-v1-preference-detail", args=[pref.id]),
+            {"title": "Engineer", "job_type": [JobType.FULL_TIME]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        classify.assert_not_called()
+
+    def test_check_endpoint_rejects_invalid(self, classify):
+        classify.return_value = "invalid"
+        resp = self.api.post(
+            reverse("api-v1-job-title-check"), {"title": "asdfgh"}, format="json"
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.data["title"], ["Tolong masukin job title yang valid dong"]
+        )
+
+    def test_check_endpoint_accepts_valid(self, classify):
+        classify.return_value = "valid"
+        resp = self.api.post(
+            reverse("api-v1-job-title-check"), {"title": "Sales manager"}, format="json"
+        )
+        self.assertEqual(resp.status_code, 204)
+
+    def test_check_rejects_malformed_without_calling_jev(self, classify):
+        # Field validation must stop these before any paid Jev call.
+        for payload in [
+            {},
+            {"title": ""},
+            {"title": "   "},
+            {"title": None},
+            {"title": "x" * 256},
+            {"title": ["Sales"]},
+        ]:
+            with self.subTest(payload=payload):
+                resp = self.api.post(
+                    reverse("api-v1-job-title-check"), payload, format="json"
+                )
+                self.assertEqual(resp.status_code, 400)
+                self.assertIn("title", resp.data)
+        classify.assert_not_called()
+
+    def test_check_trims_before_classifying(self, classify):
+        classify.return_value = "valid"
+        resp = self.api.post(
+            reverse("api-v1-job-title-check"),
+            {"title": "  Sales manager  "},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 204)
+        classify.assert_called_once_with("Sales manager")
+
+    def test_onboarding_multiple_titles_rejected(self, classify):
+        classify.return_value = "multiple"
+        resp = self.api.post(
+            reverse("api-v1-onboarding"),
+            {
+                "full_name": "Jane",
+                "phone": "0812",
+                "linkedin_url": "https://www.linkedin.com/in/jane",
+                "title": "Akuntan atau admin gudang",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("fitur pro", resp.data["title"][0])
+        self.assertFalse(Preference.objects.exists())
+
+    def test_patch_changed_title_is_checked(self, classify):
+        classify.return_value = "invalid"
+        pref = Preference.objects.create(profile=self.profile, title="Engineer")
+        resp = self.api.patch(
+            reverse("api-v1-preference-detail", args=[pref.id]),
+            {"title": "asdfgh"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        classify.assert_called_once_with("asdfgh")
+        pref.refresh_from_db()
+        self.assertEqual(pref.title, "Engineer")
+
+
 class FlattenApifyItemTests(TestCase):
     def test_skills_accepts_str_and_dict_entries(self):
         raw = _flatten_apify_item(

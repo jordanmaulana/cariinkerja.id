@@ -34,3 +34,12 @@ export async function updatePreference(
 export async function deletePreference(id: string): Promise<void> {
   await api<void>(`/preferences/${id}/`, { method: "DELETE" });
 }
+
+// Resolves if Jev accepts the title; throws ApiError(400) with the user-facing
+// message otherwise.
+export async function checkJobTitle(title: string): Promise<void> {
+  await api<void>("/job-title/check/", {
+    method: "POST",
+    body: JSON.stringify({ title }),
+  });
+}

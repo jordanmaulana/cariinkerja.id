@@ -8,6 +8,8 @@ import {
   type JobType,
   type RemoteOption,
 } from "@/features/jobs/consts";
+import { checkJobTitle } from "@/features/preferences/api";
+import { ApiError } from "@/lib/api";
 
 export type OnboardingPayload = {
   full_name: string;
@@ -41,6 +43,28 @@ export function OnboardingForm({
   const [title, setTitle] = useState("");
   const [jobType, setJobType] = useState<JobType[]>([]);
   const [remoteOption, setRemoteOption] = useState<RemoteOption[]>([]);
+  // Last checked title + its error. The error only shows while the input still
+  // matches, so editing hides it and a late response can't tag newer text.
+  const [titleCheck, setTitleCheck] = useState<{
+    title: string;
+    error: string | null;
+  } | null>(null);
+  const titleError =
+    titleCheck?.title === title.trim() ? titleCheck.error : null;
+
+  async function checkTitle() {
+    const value = title.trim();
+    if (!value || titleCheck?.title === value) return;
+    try {
+      await checkJobTitle(value);
+      setTitleCheck({ title: value, error: null });
+    } catch (err) {
+      // Anything but a 400 verdict fails open; submit re-checks server-side.
+      if (err instanceof ApiError && err.status === 400) {
+        setTitleCheck({ title: value, error: err.message });
+      }
+    }
+  }
 
   // Sync prefill values from props (loaded async via getProfile).
   useEffect(() => {
@@ -168,8 +192,16 @@ export function OnboardingForm({
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onBlur={checkTitle}
+            aria-invalid={!!titleError}
+            aria-describedby={titleError ? "title-error" : undefined}
             className="w-full rounded border px-3 py-2"
           />
+          {titleError && (
+            <p id="title-error" className="text-xs text-red-600">
+              {titleError}
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <span className="text-sm font-medium">Tipe pekerjaan</span>
@@ -230,7 +262,11 @@ export function OnboardingForm({
       </fieldset>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={submitting} className="w-full">
+      <Button
+        type="submit"
+        disabled={submitting || !!titleError}
+        className="w-full"
+      >
         {submitting ? "Menyimpan…" : "Selesaikan onboarding"}
       </Button>
     </form>

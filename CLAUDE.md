@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Frontend SPA under `frontend/`: Vite + React 19 + TS, **TanStack Router** (file-based, generated `routeTree.gen.ts`) + **TanStack Query**, **Jotai** for state, **shadcn / Radix** + Tailwind v4 for UI, `recharts` for charts, `react-toastify` for toasts. Talks to Django via `/api/v1/`.
 - Celery + Redis for async work; `django_celery_beat` (`DatabaseScheduler`) for periodic tasks — schedules edited via Django admin, not code. `CELERY_TASK_ACKS_LATE=True`, `CELERY_TASK_REJECT_ON_WORKER_LOST=True`.
 - LLM: `openai` SDK, structured output via `pydantic` (`SkillAssessment`, `RelevanceCheck`, `JobSkills`, `LinkedInIngest`). Model from `OPENAI_MODEL` (settings default `gpt-4o-mini`). Cheap calls (relevance gate, job-skill extraction) read `OPENAI_RELEVANCE_MODEL` via `getattr(settings, ..., "gpt-4o-mini")` — that setting is **not** declared in `core/settings.py`, so it's `gpt-4o-mini` unless you add it. All OpenAI calls go through `core.openai.get_prompt_manager()`.
+- Job-title gate: **Jev** (TypeSafe AI, `typesafe-sdk`) in `core/jev.py:classify_job_title` → `valid`/`invalid`/`multiple`. Called from `validate_title` on `OnboardingSerializer` and `PreferenceSerializer` (create + changed-title edits); multiple titles are a pro feature. Fails open (no `TYPESAFE_API_KEY`, error, or probability < `MIN_BLOCK_PROBABILITY`). `TYPESAFE_API_KEY` is forced blank under `manage.py test` so the suite never hits the network — patch `api.v1.serializers.classify_job_title` in tests.
 - Scrapers use `curl-cffi` (TLS fingerprint impersonation) + `lxml`/`beautifulsoup4`.
 - LinkedIn *profile* ingestion uses **Apify** (`apify-client`, actor `harvestapi/linkedin-profile-scraper`) — distinct from the LinkedIn *jobs* scraper in `jobs/scrapers/linkedin.py`, which is our own.
 - Auth: `core.auth.EmailBackend` (login by email) **plus** Google OAuth via `/api/v1/auth/google/` (verifies `GOOGLE_OAUTH_CLIENT_ID`).
@@ -44,6 +45,8 @@ make shell      # bash into the running compose backend container
 There is **no `make test`** — run Django's test runner directly.
 
 Tests: `uv run manage.py test` (full suite, ~194 tests), `uv run manage.py test <app>` (one app), or `uv run manage.py test <app>.tests.<TestClass>.<test_method>` for a single test (e.g. `uv run manage.py test jobs.tests.JobModelTests.test_create`). Scraper tests parse checked-in HTML from `jobs/fixtures_html/` — no network.
+
+Live Jev prompt check (opt-in, ~50 real API calls, skipped in the normal run): `JEV_LIVE=1 uv run manage.py test core.tests.JevLiveTests` — run it after editing `JOB_TITLE_QUESTION` in `core/jev.py`.
 
 Frontend-only (no Make target): `cd frontend && pnpm run lint` (eslint), `cd frontend && pnpm run build` (`tsc -b && vite build`).
 

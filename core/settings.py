@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -200,6 +201,10 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+# Jev (TypeSafe AI) job-title check. Blank under `manage.py test` because
+# load_dotenv(override=True) would otherwise let the suite hit the live API.
+TYPESAFE_API_KEY = "" if "test" in sys.argv else os.environ.get("TYPESAFE_API_KEY", "")
 
 MAYAR_API_KEY = os.environ.get("MAYAR_API_KEY", "")
 MAYAR_WEBHOOK_TOKEN = os.environ.get("MAYAR_WEBHOOK_TOKEN", "")

@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.v1.serializers import PreferenceSerializer
+from api.v1.serializers import JobTitleCheckSerializer, PreferenceSerializer
 from billing.upgrades import get_active_subscription
 from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status as PreferenceStatus
@@ -78,3 +78,11 @@ def detail(request, pk):
         pref.crawl_urls = new_urls
         pref.save(update_fields=["crawl_urls", "updated_on"])
     return Response(PreferenceSerializer(pref).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def check_title(request):
+    """204 if the job title passes Jev; 400 {"title": [msg]} otherwise."""
+    JobTitleCheckSerializer(data=request.data).is_valid(raise_exception=True)
+    return Response(status=status.HTTP_204_NO_CONTENT)
