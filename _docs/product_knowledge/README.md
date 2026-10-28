@@ -44,7 +44,7 @@ the code (or ask the founder) and add it here.
 Run this on every caption, script, ad, or thread before it goes out:
 
 1. **No "gratis", "free", "trial", or "coba dulu".** The product is paid-only.
-2. **Prices come only from this folder.** Older docs and the pitch deck show retired prices. Don't promote the Open-to-Work discount; it currently has no effect.
+2. **Prices come only from this folder.** Older docs and the pitch deck show retired prices. The Open-to-Work discount is live: Rp 15.000 off the 1-search plan (Rp 34.000).
 3. **Name job sources only if they're still live.** Check `jobs/url_builders.py` on `main`. When in doubt, say "loker dari berbagai job board", as the ad script does.
 4. **Every traction number carries its date.** Use the snapshot date, or pull fresh numbers from the live stats endpoint.
 5. **Never name the AI model** ("GPT-4o" etc.); just say "AI". **Never promise a job or an interview.**

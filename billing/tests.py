@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
-from billing.models import Plan, Subscription, SubscriptionStatus
+from billing.models import Plan, Subscription, SubscriptionStatus, effective_price
 from billing.upgrades import (
     UpgradeNotAllowed,
     compute_upgrade_quote,
@@ -844,3 +844,21 @@ class PlanDurationSurfaceTests(TestCase):
         self.assertEqual(sub.status, SubscriptionStatus.ACTIVE)
         elapsed = (sub.expires_at - timezone.now()).total_seconds()
         self.assertAlmostEqual(elapsed, 365 * 86400, delta=10)
+
+
+class EffectivePriceTests(TestCase):
+    def setUp(self):
+        self.base = Plan.objects.create(name="Basic", price=49000, preference_limit=1)
+        self.pro = Plan.objects.create(name="Pro", price=99000, preference_limit=3)
+        self.otw = Profile.objects.create(full_name="O", open_to_work=True)
+        self.normal = Profile.objects.create(full_name="N")
+
+    def test_open_to_work_gets_15k_off_base_plan(self):
+        self.assertEqual(effective_price(self.base, self.otw), 34000)
+
+    def test_open_to_work_pays_full_on_other_plans(self):
+        self.assertEqual(effective_price(self.pro, self.otw), 99000)
+
+    def test_not_eligible_pays_full(self):
+        self.assertEqual(effective_price(self.base, self.normal), 49000)
+        self.assertEqual(effective_price(self.base, None), 49000)

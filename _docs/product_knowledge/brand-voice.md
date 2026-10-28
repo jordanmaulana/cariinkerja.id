@@ -154,7 +154,7 @@ More in [product.md §10](product.md#10-vocabulary).
 - "A score of 72 with two fixable skill gaps is often a better lead than an 85 you'll never get a callback from."
 - "Empty LinkedIn = bad assessments. Garbage in, garbage out."
 - "Sustainable, not predatory."
-- "If you're hunting hard, you shouldn't be paying full price." *(tied to the dormant Open-to-Work discount; don't use for now)*
+- "If you're hunting hard, you shouldn't be paying full price." *(Open-to-Work discount: Rp 15.000 off the 1-search plan)*
 
 ### Founder signature lines (from Jordan's past videos)
 - "Iya, ekonomi lagi sulit, tapi usahamu jangan ikut sempit."

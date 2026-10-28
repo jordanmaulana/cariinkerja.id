@@ -212,17 +212,14 @@ simultaneous searches you can run. Plan *names* aren't recorded here — check t
 before quoting one. The older three-tier table (Rp 99k / 159k / 239k for 1 / 3 / 5 searches)
 is retired; ignore it wherever it still appears.
 
-### Open-to-Work discount — currently has no effect
+### Open-to-Work discount
 
-The code still carries an Open-to-Work discount: if the user's LinkedIn has "Open to Work"
-on, the **cheapest active plan** is sold at **Rp 49.000**. Its stated reasoning: if you're
-hunting hard, you shouldn't be paying full price.
+If the user's LinkedIn has "Open to Work" on, the **cheapest active plan** gets
+**Rp 15.000 off** — today that's Rp 49.000 → **Rp 34.000** for 1 search. Other plans stay
+full price. Reasoning: if you're hunting hard, you shouldn't be paying full price.
 
-It only kicks in when the cheapest plan costs *more* than Rp 49.000. The cheapest plan now
-costs exactly Rp 49.000, so **nobody gets a discount today**. Don't advertise it.
-
-(If it is ever revived: the code applies it to any non-upgrade checkout of the cheapest
-plan, including a repeat purchase — not "new subscriptions only" as earlier docs claimed.)
+It applies to any non-upgrade checkout of the cheapest plan, including a repeat purchase —
+not "new subscriptions only" as earlier docs claimed. Upgrades are always full price.
 
 ### Upgrades, downgrades, expiry
 
@@ -319,4 +316,4 @@ Recorded as fact, not as a task list. Verify against the code before repeating a
 | **Verdict** | The short Bahasa explanation attached to a score. |
 | **Skill gap** | Skills the job requires that the candidate's profile lacks. |
 | **High-fit** | A match scoring 80 or above. Drives the daily email and public stats. |
-| **Open to Work** | LinkedIn flag; would unlock the cheapest-plan discount, which currently has no effect (§6). |
+| **Open to Work** | LinkedIn flag; unlocks Rp 15.000 off the cheapest plan (§6). |

@@ -107,7 +107,7 @@ Hard rules. Breaking one makes the post wrong or off-brand.
 **Truthfulness**
 - Never say **gratis / free / trial / coba gratis / coba dulu**. The product is paid-only.
 - Quote prices only from [product.md §6](product.md#6-business-model) (Rp 49.000 → 1 search, Rp 99.000 → 3 searches, 30 days).
-- Don't promote the Open-to-Work discount. It currently has no effect.
+- Open-to-Work discount is OK to promote: "Open to Work" on LinkedIn → 1-search plan Rp 34.000 (normally Rp 49.000). Only the cheapest plan; upgrades are full price.
 - Name only live job sources (Indeed, JobStreet, LinkedIn). **Don't announce Kalibrr/Kitalulus** until `migrate-portal` merges. Safest wording: "dari berbagai job board".
 - Never name the AI model. Say "AI".
 - Every traction number carries its date.

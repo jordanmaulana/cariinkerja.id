@@ -194,7 +194,7 @@ ACTIVE sub with `expires_at > now`.
 ## 4. Pricing — `effective_price()` + Open-to-Work discount
 
 ```python
-OPEN_TO_WORK_DISCOUNT_PRICE = 49000
+OPEN_TO_WORK_DISCOUNT = 15000
 
 def effective_price(plan, profile, cheapest_id=None):
     if profile is None or not profile.linkedin_discount_eligible:
@@ -204,9 +204,7 @@ def effective_price(plan, profile, cheapest_id=None):
                        .order_by("price").values_list("id", flat=True).first())
     if plan.id != cheapest_id:
         return plan.price                              # rule 1: only the cheapest plan
-    if plan.price <= OPEN_TO_WORK_DISCOUNT_PRICE:
-        return plan.price                              # rule 2: already at/below cap
-    return OPEN_TO_WORK_DISCOUNT_PRICE                 # rule 3: cap to 49 000
+    return max(plan.price - OPEN_TO_WORK_DISCOUNT, 0)  # rule 2: 15 000 off
 ```
 
 `profile.linkedin_discount_eligible` derives from `profile.open_to_work` (set during
@@ -214,9 +212,8 @@ LinkedIn ingest). Worked examples for an eligible user:
 
 | Cheapest plan | Buying | Charged | Rule |
 |---|---|---|---|
-| 50 000 | 50 000 (cheapest) | **49 000** | 3 — capped |
-| 50 000 | 75 000 (2nd) | 75 000 | 1 — not the cheapest |
-| 40 000 | 40 000 (cheapest) | 40 000 | 2 — already below cap |
+| 49 000 | 49 000 (cheapest) | **34 000** | 2 — 15 000 off |
+| 49 000 | 99 000 (2nd) | 99 000 | 1 — not the cheapest |
 
 `GET /plans/` (`billing_api.list`) computes `cheapest_id` once and passes it to the
 serializer so each plan shows both `price` and `effective_price`.

@@ -3,7 +3,7 @@ from django.db import models
 
 from core.models import BaseModel
 
-OPEN_TO_WORK_DISCOUNT_PRICE = 49000
+OPEN_TO_WORK_DISCOUNT = 15000
 
 
 def effective_price(plan, profile, cheapest_id=None):
@@ -18,9 +18,7 @@ def effective_price(plan, profile, cheapest_id=None):
         )
     if plan.id != cheapest_id:
         return plan.price
-    if plan.price <= OPEN_TO_WORK_DISCOUNT_PRICE:
-        return plan.price
-    return OPEN_TO_WORK_DISCOUNT_PRICE
+    return max(plan.price - OPEN_TO_WORK_DISCOUNT, 0)
 
 
 class Plan(BaseModel):
