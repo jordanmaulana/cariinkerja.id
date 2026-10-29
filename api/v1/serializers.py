@@ -175,6 +175,7 @@ class JobBriefSerializer(serializers.ModelSerializer):
             "job_type",
             "remote_option",
             "is_expired",
+            "source",
         ]
 
     def get_is_expired(self, obj) -> bool:

@@ -20,7 +20,11 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 export function GoogleSignInCard() {
   const buttonRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    CLIENT_ID
+      ? null
+      : "Google sign-in belum dikonfigurasi. Set VITE_GOOGLE_CLIENT_ID.",
+  );
   const [checked, setChecked] = useState<boolean[]>(() =>
     BEFORE_YOU_BUY.map(() => false),
   );
@@ -30,10 +34,7 @@ export function GoogleSignInCard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!CLIENT_ID) {
-      setError("Google sign-in belum dikonfigurasi. Set VITE_GOOGLE_CLIENT_ID.");
-      return;
-    }
+    if (!CLIENT_ID) return;
     let cancelled = false;
     let attempts = 0;
     const tryInit = () => {

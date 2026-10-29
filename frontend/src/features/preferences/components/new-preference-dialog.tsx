@@ -14,12 +14,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { PreferenceFormFields } from "@/features/preferences/components/preference-form";
 import {
   buildInitialValues,
-  PreferenceFormFields,
   type PreferenceFormValues,
   valuesToPayload,
-} from "@/features/preferences/components/preference-form";
+} from "@/features/preferences/utils";
 import { createPreference } from "@/features/preferences/api";
 import type { Preference } from "@/features/preferences/types";
 

@@ -15,6 +15,7 @@ from jobs.scrapers import (
     dealls,
     himalayas,
     indeed,
+    jobicy,
     jobstreet,
     linkedin,
     scraper_for_url,
@@ -23,6 +24,7 @@ from jobs.url_builders import (
     LINKEDIN_GEOID_EMEA,
     build_crawl_urls,
     build_himalayas_url,
+    build_jobicy_url,
     build_jobstreet_url,
     build_linkedin_url,
 )
@@ -335,6 +337,11 @@ class ScraperForUrlTests(TestCase):
         self.assertIs(scraper, himalayas)
         self.assertEqual(source, "himalayas")
 
+    def test_jobicy_host(self):
+        scraper, source = scraper_for_url("https://jobicy.com/api/jobs?tag=flutter")
+        self.assertIs(scraper, jobicy)
+        self.assertEqual(source, "jobicy")
+
     def test_unknown_host(self):
         self.assertEqual(scraper_for_url("https://example.com/jobs"), (None, None))
 
@@ -625,18 +632,20 @@ class BuildLinkedInUrlTests(TestCase):
 class BuildCrawlUrlsTests(TestCase):
     def test_includes_indeed_jobstreet_and_linkedin(self):
         urls = build_crawl_urls("Mobile Developer")
-        self.assertEqual(len(urls), 4)
+        self.assertEqual(len(urls), 5)
         hosts = [scraper_for_url(u)[1] for u in urls]
-        self.assertEqual(hosts, ["indeed", "jobstreet", "linkedin", "himalayas"])
+        self.assertEqual(
+            hosts, ["indeed", "jobstreet", "linkedin", "himalayas", "jobicy"]
+        )
 
     def test_non_remote_preference_omits_emea(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.ON_SITE])
-        self.assertEqual(len(urls), 4)
+        self.assertEqual(len(urls), 5)
         self.assertNotIn("geoId=91000007", " ".join(urls))
 
     def test_remote_preference_appends_emea_linkedin(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.REMOTE])
-        self.assertEqual(len(urls), 5)
+        self.assertEqual(len(urls), 6)
         emea = urls[3]
         self.assertIn("geoId=91000007", emea)
         self.assertIn("f_WT=2", emea)
@@ -644,11 +653,15 @@ class BuildCrawlUrlsTests(TestCase):
         self.assertIs(scraper, linkedin)
         self.assertEqual(source, "linkedin")
 
-    def test_himalayas_always_appended_last(self):
+    def test_remote_boards_always_appended_last(self):
         for ros in (None, [RemoteOption.ON_SITE], [RemoteOption.REMOTE]):
             urls = build_crawl_urls("Mobile Developer", [JobType.FULL_TIME], ros)
             self.assertEqual(
-                urls[-1], build_himalayas_url("Mobile Developer", [JobType.FULL_TIME])
+                urls[-2:],
+                [
+                    build_himalayas_url("Mobile Developer", [JobType.FULL_TIME]),
+                    build_jobicy_url("Mobile Developer"),
+                ],
             )
 
     def test_empty_title_returns_empty(self):
@@ -777,6 +790,132 @@ class HimalayasCrawlTests(TestCase):
 
     def test_respects_limit(self):
         page = {"jobs": [_himalayas_job(str(i)) for i in range(5)]}
+        out, _ = self._crawl([page], limit=2)
+        self.assertEqual(len(out), 2)
+
+    def test_listing_failure_does_not_raise(self):
+        out, _ = self._crawl(RuntimeError("boom"))
+        self.assertEqual(out, [])
+
+
+class BuildJobicyUrlTests(TestCase):
+    def test_title_with_apac_geo_and_count(self):
+        self.assertEqual(
+            build_jobicy_url(" Mobile Developer "),
+            "https://jobicy.com/api/jobs?geo=apac&tag=Mobile+Developer&count=20",
+        )
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_jobicy_url(""))
+        self.assertIsNone(build_jobicy_url(None))
+        self.assertIsNone(build_jobicy_url("   "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        scraper, source = scraper_for_url(build_jobicy_url("Dev"))
+        self.assertIs(scraper, jobicy)
+        self.assertEqual(source, "jobicy")
+
+
+# --- Jobicy (JSON API) -------------------------------------------------------
+
+JOBICY_URL = "https://jobicy.com/api/jobs?geo=apac&tag=flutter&count=20"
+
+
+def _jobicy_job(job_id=1, **overrides):
+    """Trimmed shape of a real job object from jobicy.com/api/jobs."""
+    job = {
+        "id": job_id,
+        "url": f"https://jobicy.com/jobs/{job_id}-flutter-developer",
+        "jobTitle": "Flutter Developer",
+        "companyName": "Acme",
+        "jobType": ["Full-Time"],
+        "jobGeo": "Anywhere",
+        "jobExcerpt": "Short excerpt&hellip;",
+        "jobDescription": "<p>Build <strong>apps</strong>.</p><ul><li>Dart</li></ul>",
+    }
+    job.update(overrides)
+    return job
+
+
+class JobicyParseJobTests(TestCase):
+    def test_maps_fields(self):
+        job = _jobicy_job(jobType=["Contract"])
+        out = jobicy.parse_job(job)
+        self.assertEqual(out["url"], job["url"])  # ToS: apply via Jobicy URL
+        self.assertEqual(out["title"], "Flutter Developer")
+        self.assertEqual(out["company"], "Acme")
+        self.assertEqual(out["job_type"], JobType.CONTRACT)
+        self.assertEqual(out["remote_option"], RemoteOption.REMOTE)
+        self.assertEqual(out["location"], "Anywhere")
+        self.assertIn("Build\napps", out["description"])
+        self.assertNotIn("<", out["description"])
+
+    def test_geo_spacing_normalised(self):
+        out = jobicy.parse_job(_jobicy_job(jobGeo="Canada,  USA"))
+        self.assertEqual(out["location"], "Canada, USA")
+
+    def test_missing_geo_is_anywhere(self):
+        self.assertEqual(
+            jobicy.parse_job(_jobicy_job(jobGeo=""))["location"], "Anywhere"
+        )
+
+    def test_unmapped_job_type_is_none(self):
+        self.assertIsNone(
+            jobicy.parse_job(_jobicy_job(jobType=["Volunteer"]))["job_type"]
+        )
+
+    def test_falls_back_to_excerpt(self):
+        out = jobicy.parse_job(_jobicy_job(jobDescription=""))
+        self.assertEqual(out["description"], "Short excerpt\u2026")
+
+    def test_missing_title_returns_none(self):
+        self.assertIsNone(jobicy.parse_job(_jobicy_job(jobTitle="  ")))
+
+
+class JobicyCrawlTests(TestCase):
+    def _crawl(self, pages, **kwargs):
+        with patch.object(jobicy, "_request_json", side_effect=pages) as req:
+            out = list(jobicy.crawl(JOBICY_URL, client=object(), sleep=0, **kwargs))
+        return out, req
+
+    def test_skips_duplicate_and_blocked_jobs(self):
+        page = {
+            "jobs": [
+                _jobicy_job(1),
+                _jobicy_job(1),
+                _jobicy_job(2, companyName="Mindrift"),
+                _jobicy_job(3),
+            ],
+            "hasMore": False,
+        }
+        out, _ = self._crawl([page])
+        self.assertEqual(
+            [j["url"].split("/")[-1].split("-")[0] for j in out], ["1", "3"]
+        )
+
+    def test_follows_cursor_until_no_more(self):
+        out, req = self._crawl(
+            [
+                {"jobs": [_jobicy_job(1)], "hasMore": True, "nextCursor": "abc"},
+                {"jobs": [_jobicy_job(2)], "hasMore": False, "nextCursor": None},
+            ],
+            max_pages=5,
+        )
+        self.assertEqual(len(out), 2)
+        self.assertEqual(req.call_count, 2)
+        second = req.call_args_list[1].args[1]
+        self.assertIn("cursor=abc", second)
+        self.assertIn("tag=flutter", second)
+
+    def test_single_page_by_default(self):
+        out, req = self._crawl(
+            [{"jobs": [_jobicy_job(1)], "hasMore": True, "nextCursor": "abc"}]
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(req.call_count, 1)
+
+    def test_respects_limit(self):
+        page = {"jobs": [_jobicy_job(i) for i in range(5)], "hasMore": False}
         out, _ = self._crawl([page], limit=2)
         self.assertEqual(len(out), 2)
 

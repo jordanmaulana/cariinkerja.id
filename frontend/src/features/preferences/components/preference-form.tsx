@@ -9,32 +9,7 @@ import {
   type JobType,
   type RemoteOption,
 } from "@/features/jobs/consts";
-import {
-  type Preference,
-  type PreferencePayload,
-} from "@/features/preferences/types";
-
-export type PreferenceFormValues = {
-  title: string;
-  job_type: JobType[];
-  remote_option: RemoteOption[];
-};
-
-export function buildInitialValues(p?: Preference | null): PreferenceFormValues {
-  return {
-    title: p?.title ?? "",
-    job_type: p?.job_type ?? [],
-    remote_option: p?.remote_option ?? [],
-  };
-}
-
-export function valuesToPayload(v: PreferenceFormValues): PreferencePayload {
-  return {
-    title: v.title.trim() || null,
-    job_type: v.job_type,
-    remote_option: v.remote_option,
-  };
-}
+import type { PreferenceFormValues } from "@/features/preferences/utils";
 
 type Props = {
   values: PreferenceFormValues;

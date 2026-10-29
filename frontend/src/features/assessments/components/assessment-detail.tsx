@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { ScoreGauge } from "@/features/assessments/components/score-gauge";
 import { SkillGapCard } from "@/features/assessments/components/skill-gap-card";
+import { SourceCredit } from "@/features/assessments/components/source-credit";
 import { getActionsForStatus } from "@/features/assessments/actions";
 import type {
   Assessment,
@@ -54,6 +55,7 @@ export function AssessmentDetail({ assessment, isPending, onAction }: Props) {
                 {job.job_type ? JOB_TYPE_LABEL[job.job_type] : "—"}
                 {" · "}
                 {job.remote_option ? REMOTE_LABEL[job.remote_option] : "—"}
+                <SourceCredit job={job} className="before:content-['_·_']" />
               </CardDescription>
               <div className="text-xs text-muted-foreground">
                 Dicocokkan dengan{" "}

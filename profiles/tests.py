@@ -483,7 +483,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 4)
+        self.assertEqual(len(pref.crawl_urls), 5)
         self.assertIn("id.indeed.com/jobs?q=Mobile+Developer", pref.crawl_urls[0])
         self.assertEqual(
             pref.crawl_urls[1],
@@ -504,7 +504,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 5)
+        self.assertEqual(len(pref.crawl_urls), 6)
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[3])
         self.assertIn("geoId=91000007", pref.crawl_urls[3])
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
@@ -517,7 +517,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 4)
+        self.assertEqual(len(pref.crawl_urls), 5)
         self.assertEqual(pref.crawl_urls[1], "https://id.jobstreet.com/developer-jobs")
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)

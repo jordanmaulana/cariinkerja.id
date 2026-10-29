@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 const THEME_KEY = "theme";
 
-export function useTheme() {
+function useTheme() {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
     const stored = localStorage.getItem(THEME_KEY);

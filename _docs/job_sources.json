@@ -21,7 +21,7 @@
         "permission_urls": [
             {
                 "url": "https://jobicy.com/jobs-rss-feed",
-                "statement": "Free API \"can be used in commercial projects\"; may \"store, cache, process, and redistribute\". Credit Jobicy with clickable link; apply to original job URL; RSS max 1x/hour."
+                "statement": "Free API \"can be used in commercial projects\"; may \"store, cache, process, and redistribute\". \"Clearly credit Jobicy as the original source\" with a direct link; apply links go to the original job page on Jobicy; start an automated sync pass \"no more than once per hour\"."
             }
         ],
         "api_endpoints": [

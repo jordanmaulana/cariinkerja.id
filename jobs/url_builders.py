@@ -18,6 +18,7 @@ LINKEDIN_BASE = "https://www.linkedin.com/jobs/search/"
 LINKEDIN_GEOID_SEA = "91000014"
 LINKEDIN_GEOID_EMEA = "91000007"
 HIMALAYAS_SEARCH = "https://himalayas.app/jobs/api/search"
+JOBICY_API = "https://jobicy.com/api/jobs"
 SLUG_MAX_LEN = 80
 
 # LinkedIn search filter codes.
@@ -188,12 +189,25 @@ def build_himalayas_url(
     return f"{HIMALAYAS_SEARCH}?{urlencode(query)}"
 
 
+def build_jobicy_url(title: str | None) -> str | None:
+    """Jobicy API URL for a Preference title.
+
+    Jobicy is remote-only and has no job-type filter. ``geo`` takes one slug
+    and there is none for Indonesia; ``apac`` also includes "Anywhere" jobs.
+    ``count=20`` leaves headroom above the crawl item limit.
+    """
+    if not title or not title.strip():
+        return None
+    query = [("geo", "apac"), ("tag", title.strip()), ("count", "20")]
+    return f"{JOBICY_API}?{urlencode(query)}"
+
+
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet + LinkedIn (+ EMEA) + Himalayas URLs."""
+    """Standard Indeed + JobStreet + LinkedIn (+ EMEA) + Himalayas + Jobicy URLs."""
     if not title or not title.strip():
         return []
     urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
@@ -211,8 +225,12 @@ def build_crawl_urls(
         )
         if emea:
             urls.append(emea)
-    # Appended last for every preference, whatever remote_option says.
+    # Remote-only boards, appended last for every preference, whatever
+    # remote_option says.
     hm = build_himalayas_url(title, job_types)
     if hm:
         urls.append(hm)
+    jc = build_jobicy_url(title)
+    if jc:
+        urls.append(jc)
     return urls

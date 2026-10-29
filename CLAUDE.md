@@ -91,15 +91,17 @@ Directional flow: **Profile + LinkedIn → Apify ingest → Preference (auto-fil
 
 ### Crawl-source routing — `jobs/scrapers/`
 
-Five scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`, `himalayas.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts.
+Six scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`, `himalayas.py`, `jobicy.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts.
 
 `jobs/scrapers/__init__.py:scraper_for_url(url)` resolves `(module, Source value)` **by hostname** and returns `(None, None)` for unknown URLs. A Preference therefore never names its source — the URL does. Adding a board = one hostname branch here + a `profiles.consts.Source` member + a `CrawlHealthTarget.SOURCE_*` entry.
 
 **Himalayas** (`himalayas.py`) is a remote-only board scraped via its public JSON API: the stored crawl URL *is* the API URL (`https://himalayas.app/jobs/api/search?q=<title>&employment_type=...`, no country filter) because the human site is Cloudflare-gated. One call returns full descriptions (no detail fetch). API ToS: `Job.url` = `applicationLink` unchanged, and expired jobs must go — the scraper skips already-expired postings and stores `Job.expires_at`; `JobBriefSerializer.is_expired` drives a "Kedaluwarsa" badge in the SPA. Optional `HIMALAYAS_API_KEY` raises rate limits (shared public pool without it).
 
+**Jobicy** (`jobicy.py`) is also remote-only and scraped via its free JSON API (no key): the stored crawl URL is `https://jobicy.com/api/jobs?geo=apac&tag=<title>&count=20`. `geo` takes one slug and there is none for Indonesia; `apac` also includes "Anywhere" jobs, and country-locked APAC jobs are left to the relevance gate. There is no job-type filter, `tag` is a loose full-text match, the feed covers only the last 7 days, and pages via `nextCursor`. API ToS: `Job.url` = the Jobicy job page from `url`, unchanged (apply links must go there); credit Jobicy with a link — `SourceCredit` (`frontend/src/features/assessments/components/source-credit.tsx`, driven by `JobBriefSerializer.source`) shows "via Jobicy"/"via Himalayas"; start a sync pass no more than once per hour, so keep the `crawl_running_preferences` beat interval ≥ 1h. Not built yet: syncing closed listings via the free `/api/jobs/status?ids=` endpoint into `expires_at`.
+
 `jobs/scrapers/filters.py` drops postings from staffing/crowdwork brands (`BLOCKED_COMPANY_SUBSTRINGS = ("mindrift", "toloka")`) at each scraper's yield point.
 
-`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), and — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia — and, **always, last**, a Himalayas API URL (`build_himalayas_url`, title + job types only).
+`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), and — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia — and, **always, last**, a Himalayas API URL (`build_himalayas_url`, title + job types only) followed by a Jobicy API URL (`build_jobicy_url`, title only).
 
 ### LinkedIn profile ingestion
 

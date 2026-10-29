@@ -11,12 +11,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PreferenceFormFields } from "@/features/preferences/components/preference-form";
 import {
   buildInitialValues,
-  PreferenceFormFields,
   type PreferenceFormValues,
   valuesToPayload,
-} from "@/features/preferences/components/preference-form";
+} from "@/features/preferences/utils";
 import { DeleteDialog } from "@/features/preferences/components/delete-dialog";
 import { deletePreference, updatePreference } from "@/features/preferences/api";
 import type { Preference } from "@/features/preferences/types";

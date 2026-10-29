@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,8 +36,11 @@ export function OnboardingForm({
   error,
   onSubmit,
 }: Props) {
-  const [fullName, setFullName] = useState(initialFullName);
-  const [phone, setPhone] = useState(initialPhone);
+  // null until the user types, so the async profile prefill shows through.
+  const [fullNameEdit, setFullName] = useState<string | null>(null);
+  const [phoneEdit, setPhone] = useState<string | null>(null);
+  const fullName = fullNameEdit ?? initialFullName;
+  const phone = phoneEdit ?? initialPhone;
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [bio, setBio] = useState("");
   const [title, setTitle] = useState("");
@@ -65,14 +68,6 @@ export function OnboardingForm({
       }
     }
   }
-
-  // Sync prefill values from props (loaded async via getProfile).
-  useEffect(() => {
-    if (initialFullName) setFullName((prev) => prev || initialFullName);
-  }, [initialFullName]);
-  useEffect(() => {
-    if (initialPhone) setPhone((prev) => prev || initialPhone);
-  }, [initialPhone]);
 
   function toggleJobType(value: JobType, checked: boolean) {
     setJobType((prev) => {
