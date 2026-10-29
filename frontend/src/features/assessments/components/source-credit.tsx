@@ -4,6 +4,7 @@ import type { AssessmentJob } from "@/features/assessments/types";
 const CREDITED: Record<string, string> = {
   jobicy: "Jobicy",
   himalayas: "Himalayas",
+  remoteok: "Remote OK",
 };
 
 type Props = {

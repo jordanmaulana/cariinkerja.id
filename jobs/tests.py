@@ -18,6 +18,7 @@ from jobs.scrapers import (
     jobicy,
     jobstreet,
     linkedin,
+    remoteok,
     scraper_for_url,
     workable,
 )
@@ -28,6 +29,7 @@ from jobs.url_builders import (
     build_jobicy_url,
     build_jobstreet_url,
     build_linkedin_url,
+    build_remoteok_url,
     build_workable_url,
 )
 
@@ -634,21 +636,29 @@ class BuildLinkedInUrlTests(TestCase):
 class BuildCrawlUrlsTests(TestCase):
     def test_includes_indeed_jobstreet_and_linkedin(self):
         urls = build_crawl_urls("Mobile Developer")
-        self.assertEqual(len(urls), 6)
+        self.assertEqual(len(urls), 7)
         hosts = [scraper_for_url(u)[1] for u in urls]
         self.assertEqual(
             hosts,
-            ["indeed", "jobstreet", "linkedin", "himalayas", "jobicy", "workable"],
+            [
+                "indeed",
+                "jobstreet",
+                "linkedin",
+                "himalayas",
+                "jobicy",
+                "workable",
+                "remoteok",
+            ],
         )
 
     def test_non_remote_preference_omits_emea(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.ON_SITE])
-        self.assertEqual(len(urls), 6)
+        self.assertEqual(len(urls), 7)
         self.assertNotIn("geoId=91000007", " ".join(urls))
 
     def test_remote_preference_appends_emea_linkedin(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.REMOTE])
-        self.assertEqual(len(urls), 7)
+        self.assertEqual(len(urls), 8)
         emea = urls[3]
         self.assertIn("geoId=91000007", emea)
         self.assertIn("f_WT=2", emea)
@@ -660,11 +670,12 @@ class BuildCrawlUrlsTests(TestCase):
         for ros in (None, [RemoteOption.ON_SITE], [RemoteOption.REMOTE]):
             urls = build_crawl_urls("Mobile Developer", [JobType.FULL_TIME], ros)
             self.assertEqual(
-                urls[-3:],
+                urls[-4:],
                 [
                     build_himalayas_url("Mobile Developer", [JobType.FULL_TIME]),
                     build_jobicy_url("Mobile Developer"),
                     build_workable_url("Mobile Developer", ros),
+                    build_remoteok_url("Mobile Developer"),
                 ],
             )
 
@@ -926,6 +937,113 @@ class JobicyCrawlTests(TestCase):
     def test_listing_failure_does_not_raise(self):
         out, _ = self._crawl(RuntimeError("boom"))
         self.assertEqual(out, [])
+
+
+class BuildRemoteOkUrlTests(TestCase):
+    def test_title_as_search_param(self):
+        self.assertEqual(
+            build_remoteok_url(" Mobile Developer "),
+            "https://remoteok.com/api?search=Mobile+Developer",
+        )
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_remoteok_url(""))
+        self.assertIsNone(build_remoteok_url(None))
+        self.assertIsNone(build_remoteok_url("   "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        scraper, source = scraper_for_url(build_remoteok_url("Dev"))
+        self.assertIs(scraper, remoteok)
+        self.assertEqual(source, "remoteok")
+
+
+# --- Remote OK (JSON API) ----------------------------------------------------
+
+REMOTEOK_URL = "https://remoteok.com/api?search=backend+engineer"
+REMOTEOK_LEGAL = {"last_updated": 1793224395, "legal": "API Terms of Service: ..."}
+
+
+def _remoteok_job(job_id="1", **overrides):
+    """Trimmed shape of a real job object from remoteok.com/api."""
+    job = {
+        "id": job_id,
+        "slug": f"remote-senior-backend-engineer-acme-{job_id}",
+        "company": "Acme",
+        "position": "Senior Backend Engineer",
+        "tags": ["dev", "backend"],
+        "description": "<p>Build <strong>APIs</strong>.</p><ul><li>Go</li></ul>",
+        "location": "",
+        "url": f"https://remoteOK.com/remote-jobs/remote-senior-backend-engineer-acme-{job_id}",
+    }
+    job.update(overrides)
+    return job
+
+
+class RemoteOkParseJobTests(TestCase):
+    def test_maps_fields(self):
+        job = _remoteok_job(location="United States")
+        out = remoteok.parse_job(job)
+        self.assertEqual(out["url"], job["url"])  # ToS: link back to Remote OK
+        self.assertEqual(out["title"], "Senior Backend Engineer")
+        self.assertEqual(out["company"], "Acme")
+        self.assertEqual(out["location"], "United States")
+        self.assertIsNone(out["job_type"])
+        self.assertEqual(out["remote_option"], RemoteOption.REMOTE)
+        self.assertIn("Build\nAPIs", out["description"])
+        self.assertNotIn("<", out["description"])
+
+    def test_blank_location_is_none(self):
+        self.assertIsNone(remoteok.parse_job(_remoteok_job(location="  "))["location"])
+
+    def test_unescapes_entities(self):
+        out = remoteok.parse_job(_remoteok_job(position="Supply &amp; Logistics"))
+        self.assertEqual(out["title"], "Supply & Logistics")
+
+    def test_missing_description_returns_none(self):
+        self.assertIsNone(remoteok.parse_job(_remoteok_job(description="")))
+
+
+class RemoteOkCrawlTests(TestCase):
+    def _crawl(self, feed, url=REMOTEOK_URL, **kwargs):
+        with patch.object(remoteok, "_request_json", side_effect=[feed]) as req:
+            out = list(remoteok.crawl(url, client=object(), **kwargs))
+        return out, req
+
+    def test_keeps_jobs_matching_every_word(self):
+        feed = [
+            REMOTEOK_LEGAL,
+            _remoteok_job("1"),
+            _remoteok_job("2", position="Backend Developer"),
+            _remoteok_job("3", position="Staff Engineer, Backend"),
+        ]
+        out, req = self._crawl(feed)
+        self.assertEqual([j["url"][-1] for j in out], ["1", "3"])
+        self.assertEqual(req.call_args.args[1], remoteok.FEED_URL)
+
+    def test_skips_duplicate_and_blocked_jobs(self):
+        feed = [
+            REMOTEOK_LEGAL,
+            _remoteok_job("1"),
+            _remoteok_job("1"),
+            _remoteok_job("2", company="Mindrift"),
+            _remoteok_job("3"),
+        ]
+        out, _ = self._crawl(feed)
+        self.assertEqual([j["url"][-1] for j in out], ["1", "3"])
+
+    def test_respects_limit(self):
+        feed = [REMOTEOK_LEGAL] + [_remoteok_job(str(i)) for i in range(5)]
+        out, _ = self._crawl(feed, limit=2)
+        self.assertEqual(len(out), 2)
+
+    def test_fetch_failure_does_not_raise(self):
+        out, _ = self._crawl(RuntimeError("boom"))
+        self.assertEqual(out, [])
+
+    def test_missing_search_skips_fetch(self):
+        out, req = self._crawl([REMOTEOK_LEGAL], url="https://remoteok.com/api")
+        self.assertEqual(out, [])
+        req.assert_not_called()
 
 
 class JobBriefSerializerExpiryTests(TestCase):

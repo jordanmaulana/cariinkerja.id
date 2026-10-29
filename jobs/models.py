@@ -12,6 +12,7 @@ class CrawlHealthTarget(BaseModel):
     SOURCE_HIMALAYAS = "himalayas"
     SOURCE_JOBICY = "jobicy"
     SOURCE_WORKABLE = "workable"
+    SOURCE_REMOTEOK = "remoteok"
     SOURCE_CHOICES = [
         (SOURCE_INDEED, "Indeed"),
         (SOURCE_JOBSTREET, "Jobstreet"),
@@ -20,6 +21,7 @@ class CrawlHealthTarget(BaseModel):
         (SOURCE_HIMALAYAS, "Himalayas"),
         (SOURCE_JOBICY, "Jobicy"),
         (SOURCE_WORKABLE, "Workable"),
+        (SOURCE_REMOTEOK, "Remote OK"),
     ]
 
     label = models.CharField(max_length=120)
