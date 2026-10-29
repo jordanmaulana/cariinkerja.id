@@ -30,6 +30,11 @@ export function RecentList({ rows }: { rows: Assessment[] }) {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
+              {row.job.is_expired && (
+                <Badge variant="destructive" title="Lowongan ini udah lewat batas waktunya di sumber">
+                  Kedaluwarsa
+                </Badge>
+              )}
               <span className="text-sm tabular-nums">{row.score}</span>
               <Badge variant="outline" className="capitalize">
                 {row.status}

@@ -2,17 +2,27 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
 
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
-from jobs.scrapers import dealls, indeed, jobstreet, linkedin, scraper_for_url
+from jobs.scrapers import (
+    dealls,
+    himalayas,
+    indeed,
+    jobstreet,
+    linkedin,
+    scraper_for_url,
+)
 from jobs.url_builders import (
     LINKEDIN_GEOID_EMEA,
     build_crawl_urls,
+    build_himalayas_url,
     build_jobstreet_url,
     build_linkedin_url,
 )
@@ -318,6 +328,13 @@ class ScraperForUrlTests(TestCase):
             self.assertIs(scraper, dealls)
             self.assertEqual(source, "dealls")
 
+    def test_himalayas_host(self):
+        scraper, source = scraper_for_url(
+            "https://himalayas.app/jobs/api/search?q=flutter"
+        )
+        self.assertIs(scraper, himalayas)
+        self.assertEqual(source, "himalayas")
+
     def test_unknown_host(self):
         self.assertEqual(scraper_for_url("https://example.com/jobs"), (None, None))
 
@@ -608,18 +625,18 @@ class BuildLinkedInUrlTests(TestCase):
 class BuildCrawlUrlsTests(TestCase):
     def test_includes_indeed_jobstreet_and_linkedin(self):
         urls = build_crawl_urls("Mobile Developer")
-        self.assertEqual(len(urls), 3)
+        self.assertEqual(len(urls), 4)
         hosts = [scraper_for_url(u)[1] for u in urls]
-        self.assertEqual(hosts, ["indeed", "jobstreet", "linkedin"])
+        self.assertEqual(hosts, ["indeed", "jobstreet", "linkedin", "himalayas"])
 
     def test_non_remote_preference_omits_emea(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.ON_SITE])
-        self.assertEqual(len(urls), 3)
+        self.assertEqual(len(urls), 4)
         self.assertNotIn("geoId=91000007", " ".join(urls))
 
     def test_remote_preference_appends_emea_linkedin(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.REMOTE])
-        self.assertEqual(len(urls), 4)
+        self.assertEqual(len(urls), 5)
         emea = urls[3]
         self.assertIn("geoId=91000007", emea)
         self.assertIn("f_WT=2", emea)
@@ -627,8 +644,162 @@ class BuildCrawlUrlsTests(TestCase):
         self.assertIs(scraper, linkedin)
         self.assertEqual(source, "linkedin")
 
+    def test_himalayas_always_appended_last(self):
+        for ros in (None, [RemoteOption.ON_SITE], [RemoteOption.REMOTE]):
+            urls = build_crawl_urls("Mobile Developer", [JobType.FULL_TIME], ros)
+            self.assertEqual(
+                urls[-1], build_himalayas_url("Mobile Developer", [JobType.FULL_TIME])
+            )
+
     def test_empty_title_returns_empty(self):
         self.assertEqual(build_crawl_urls(""), [])
+
+
+class BuildHimalayasUrlTests(TestCase):
+    BASE = "https://himalayas.app/jobs/api/search"
+
+    def test_title_only_has_no_country_filter(self):
+        self.assertEqual(
+            build_himalayas_url("Mobile Developer"), f"{self.BASE}?q=Mobile+Developer"
+        )
+
+    def test_job_types_comma_joined(self):
+        self.assertEqual(
+            build_himalayas_url(
+                "Dev", [JobType.FULL_TIME, JobType.CONTRACT, JobType.INTERNSHIP]
+            ),
+            f"{self.BASE}?q=Dev&employment_type=Full+Time%2CContractor%2CTemporary%2CIntern",
+        )
+
+    def test_unknown_and_duplicate_values_dropped(self):
+        self.assertEqual(
+            build_himalayas_url("Dev", ["bogus", JobType.PART_TIME, JobType.PART_TIME]),
+            f"{self.BASE}?q=Dev&employment_type=Part+Time",
+        )
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_himalayas_url(""))
+        self.assertIsNone(build_himalayas_url(None))
+        self.assertIsNone(build_himalayas_url("   "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        scraper, source = scraper_for_url(
+            build_himalayas_url("Dev", [JobType.FULL_TIME])
+        )
+        self.assertIs(scraper, himalayas)
+        self.assertEqual(source, "himalayas")
+
+
+# --- Himalayas (JSON API) ----------------------------------------------------
+
+HIMALAYAS_URL = "https://himalayas.app/jobs/api/search?q=flutter"
+
+
+def _himalayas_job(guid="g1", expiry_delta=timedelta(days=10), **overrides):
+    """Trimmed shape of a real job object from himalayas.app/jobs/api/search."""
+    job = {
+        "title": "Senior Flutter Developer",
+        "excerpt": "Short excerpt.",
+        "companyName": "Somnio Software",
+        "employmentType": "Contractor",
+        "locationRestrictions": [],
+        "description": "<p>Build <strong>apps</strong>.</p><ul><li>Dart</li></ul>",
+        "expiryDate": int((timezone.now() + expiry_delta).timestamp()),
+        "applicationLink": f"https://himalayas.app/companies/somnio/jobs/{guid}?utm_source=api",
+        "guid": f"https://himalayas.app/companies/somnio/jobs/{guid}",
+    }
+    job.update(overrides)
+    return job
+
+
+class HimalayasParseJobTests(TestCase):
+    def test_maps_fields(self):
+        job = _himalayas_job(locationRestrictions=["Indonesia", "Malaysia"])
+        out = himalayas.parse_job(job)
+        self.assertEqual(out["url"], job["applicationLink"])  # ToS: unchanged
+        self.assertEqual(out["title"], "Senior Flutter Developer")
+        self.assertEqual(out["company"], "Somnio Software")
+        self.assertEqual(out["job_type"], JobType.CONTRACT)
+        self.assertEqual(out["remote_option"], RemoteOption.REMOTE)
+        self.assertEqual(out["location"], "Indonesia, Malaysia")
+        self.assertIn("Build\napps", out["description"])
+        self.assertNotIn("<", out["description"])
+        self.assertEqual(int(out["expires_at"].timestamp()), job["expiryDate"])
+
+    def test_indonesia_listed_first_so_truncation_keeps_it(self):
+        countries = [f"Country{i:02d}" for i in range(60)] + ["Indonesia"]
+        out = himalayas.parse_job(_himalayas_job(locationRestrictions=countries))
+        self.assertTrue(out["location"].startswith("Indonesia, "))
+        self.assertLessEqual(len(out["location"]), 255)
+
+    def test_no_restrictions_is_worldwide(self):
+        self.assertEqual(himalayas.parse_job(_himalayas_job())["location"], "Worldwide")
+
+    def test_unmapped_employment_type_is_none(self):
+        out = himalayas.parse_job(_himalayas_job(employmentType="Volunteer"))
+        self.assertIsNone(out["job_type"])
+
+    def test_missing_title_returns_none(self):
+        self.assertIsNone(himalayas.parse_job(_himalayas_job(title="  ")))
+
+
+class HimalayasCrawlTests(TestCase):
+    def _crawl(self, pages, **kwargs):
+        with patch.object(himalayas, "_request_json", side_effect=pages) as req:
+            out = list(
+                himalayas.crawl(HIMALAYAS_URL, client=object(), sleep=0, **kwargs)
+            )
+        return out, req
+
+    def test_skips_expired_and_duplicate_jobs(self):
+        page = {
+            "jobs": [
+                _himalayas_job("a"),
+                _himalayas_job("a"),
+                _himalayas_job("old", expiry_delta=timedelta(days=-1)),
+                _himalayas_job("b"),
+            ]
+        }
+        out, _ = self._crawl([page])
+        self.assertEqual(
+            [j["url"].split("/")[-1] for j in out],
+            ["a?utm_source=api", "b?utm_source=api"],
+        )
+
+    def test_paginates_until_empty_page(self):
+        out, req = self._crawl(
+            [{"jobs": [_himalayas_job("a")]}, {"jobs": []}], max_pages=5
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(req.call_count, 2)
+        self.assertIn("page=2", req.call_args_list[1].args[1])
+        self.assertIn("q=flutter", req.call_args_list[1].args[1])
+
+    def test_respects_limit(self):
+        page = {"jobs": [_himalayas_job(str(i)) for i in range(5)]}
+        out, _ = self._crawl([page], limit=2)
+        self.assertEqual(len(out), 2)
+
+    def test_listing_failure_does_not_raise(self):
+        out, _ = self._crawl(RuntimeError("boom"))
+        self.assertEqual(out, [])
+
+
+class JobBriefSerializerExpiryTests(TestCase):
+    def test_is_expired(self):
+        from api.v1.serializers import JobBriefSerializer
+
+        def make(url, expires_at):
+            return Job.objects.create(
+                url=url, title="t", description="d", expires_at=expires_at
+            )
+
+        past = make("https://himalayas.app/a", timezone.now() - timedelta(hours=1))
+        future = make("https://himalayas.app/b", timezone.now() + timedelta(days=1))
+        none = make("https://himalayas.app/c", None)
+        self.assertTrue(JobBriefSerializer(past).data["is_expired"])
+        self.assertFalse(JobBriefSerializer(future).data["is_expired"])
+        self.assertFalse(JobBriefSerializer(none).data["is_expired"])
 
 
 class ExtractJobSkillsTaskTests(TestCase):

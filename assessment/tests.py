@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from types import SimpleNamespace
+from unittest import skipUnless
 from unittest.mock import MagicMock, patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -265,3 +268,141 @@ class CrawlReassessExistingTests(TestCase):
         self._crawl(reassess_existing=True)
         existing.job.refresh_from_db()
         self.assertEqual(existing.job.description, POSTING["description"])
+
+
+class CheckRelevanceTests(TestCase):
+    """Guards the gate's inputs and the in-code combination; the model's
+    judgement itself is checked live."""
+
+    def setUp(self):
+        self.pref = Preference.objects.create(
+            profile=Profile.objects.create(full_name="Cody"), title="Engineer"
+        )
+
+    def _check(self, remote_option, location="Singapore", **answer):
+        from assessment.services import _RelevanceAnswer, check_relevance
+
+        fields = dict(
+            same_field=True,
+            residency_excludes_indonesia=False,
+            requires_foreign_work_authorization=False,
+            reason="r",
+        )
+        fields.update(answer)
+        job = Job(
+            url="https://x",
+            title="Engineer",
+            location=location,
+            remote_option=remote_option,
+            description="x" * 6000 + " Canada residents only.",
+        )
+        with patch("assessment.services.get_prompt_manager") as get_pm:
+            get_pm.return_value.parse.return_value = _RelevanceAnswer(**fields)
+            result = check_relevance(job, self.pref)
+        return result, get_pm.return_value.parse.call_args.kwargs
+
+    def test_sends_labelled_location_and_description_tail(self):
+        from jobs.consts import RemoteOption
+
+        _, kwargs = self._check(RemoteOption.REMOTE, location="United States")
+        self.assertIn("APPLICANT LOCATION RESTRICTION: United States", kwargs["user"])
+        self.assertIn("JOB REMOTE_OPTION: remote", kwargs["user"])
+        self.assertIn("Canada residents only.", kwargs["user"])
+        self.assertIn("Indonesia", kwargs["system"])
+
+        _, kwargs = self._check(RemoteOption.ON_SITE)
+        self.assertIn("OFFICE LOCATION: Singapore", kwargs["user"])
+        self.assertNotIn("APPLICANT LOCATION RESTRICTION", kwargs["user"])
+
+    def test_residency_blocks_remote_and_unspecified_but_not_office_jobs(self):
+        from jobs.consts import RemoteOption
+
+        flag = {"residency_excludes_indonesia": True}
+        self.assertFalse(self._check(RemoteOption.REMOTE, **flag)[0].is_relevant)
+        self.assertFalse(self._check(None, **flag)[0].is_relevant)
+        self.assertTrue(self._check(RemoteOption.ON_SITE, **flag)[0].is_relevant)
+        self.assertTrue(self._check(RemoteOption.HYBRID, **flag)[0].is_relevant)
+
+    def test_foreign_work_authorization_blocks_every_job(self):
+        from jobs.consts import RemoteOption
+
+        flag = {"requires_foreign_work_authorization": True}
+        for ro in (RemoteOption.REMOTE, RemoteOption.ON_SITE, None):
+            self.assertFalse(self._check(ro, **flag)[0].is_relevant)
+
+    def test_field_mismatch_blocks(self):
+        from jobs.consts import RemoteOption
+
+        self.assertFalse(
+            self._check(RemoteOption.ON_SITE, same_field=False)[0].is_relevant
+        )
+
+
+_BODY = (
+    "We are hiring a backend engineer to build Python/Django APIs, design "
+    "Postgres schemas, and ship features with a small product team. "
+)
+
+
+@skipUnless(settings.OPENAI_API_KEY, "needs OPENAI_API_KEY (real gpt-4o-mini calls)")
+class RelevanceGateLiveTests(SimpleTestCase):
+    """Guards RELEVANCE_SYSTEM_PROMPT against the real model, which mocks can't.
+
+    Runs in the regular suite whenever OPENAI_API_KEY is set (~10 cheap
+    gpt-4o-mini calls). A failure after a prompt/model change means the
+    country or field rule regressed. The model is nondeterministic, so a rare
+    one-off flake is possible (50/50 correct across 5 runs when written).
+    """
+
+    PREF = SimpleNamespace(title="Software Engineer", job_type=[], remote_option=[])
+
+    def _assert_all(self, expected, cases):
+        from assessment.services import check_relevance
+
+        for name, title, location, remote_option, description in cases:
+            with self.subTest(case=name):
+                job = Job(
+                    url="https://x",
+                    title=title,
+                    company="Acme",
+                    location=location,
+                    remote_option=remote_option,
+                    description=description,
+                )
+                result = check_relevance(job, self.PREF)
+                self.assertEqual(result.is_relevant, expected, result.reason)
+
+    def test_not_open_to_indonesia_is_filtered(self):
+        self._assert_all(
+            False,
+            [
+                ("remote US-only list", "Backend Engineer", "United States", "remote", _BODY),
+                ("US work authorization", "Backend Engineer", "Remote", "remote",
+                 _BODY + "Candidates must be authorized to work in the US. We do not sponsor visas."),
+                ("UK right to work", "Backend Engineer", "London, England", "remote",
+                 _BODY + "You must have the right to work in the UK."),
+                ("restriction at description tail", "Backend Engineer", None, "remote",
+                 _BODY * 25 + "This position is open to residents of Canada only."),
+            ],
+        )  # fmt: skip
+
+    def test_open_to_indonesia_passes(self):
+        self._assert_all(
+            True,
+            [
+                ("remote worldwide", "Backend Engineer", "Worldwide", "remote", _BODY),
+                ("remote list with Indonesia", "Backend Engineer",
+                 "Indonesia, Malaysia, Philippines", "remote", _BODY),
+                ("remote APAC", "Backend Engineer", "APAC", "remote", _BODY),
+                ("on-site office abroad", "Backend Engineer", "Singapore", "on-site",
+                 _BODY + "Work from our Singapore office."),
+                ("timezone overlap only", "Backend Engineer", "Worldwide", "remote",
+                 _BODY + "Must overlap at least 4 hours with US Eastern time."),
+            ],
+        )  # fmt: skip
+
+    def test_field_mismatch_is_filtered(self):
+        self._assert_all(
+            False,
+            [("housekeeper", "Housekeeper", "Jakarta", "on-site", "Clean hotel rooms daily.")],
+        )  # fmt: skip

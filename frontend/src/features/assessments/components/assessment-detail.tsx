@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,6 +39,11 @@ export function AssessmentDetail({ assessment, isPending, onAction }: Props) {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-2">
               <CardTitle className="text-xl">{job.title}</CardTitle>
+              {job.is_expired && (
+                <Badge variant="destructive" title="Lowongan ini udah lewat batas waktunya di sumber">
+                  Kedaluwarsa
+                </Badge>
+              )}
               <CardDescription>
                 <span className="font-medium text-foreground">
                   {job.company ?? "—"}

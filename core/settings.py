@@ -217,6 +217,8 @@ GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
+# Optional: raises Himalayas API limits to 60/min, 10k/day (free key).
+HIMALAYAS_API_KEY = os.environ.get("HIMALAYAS_API_KEY", "")
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 

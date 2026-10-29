@@ -81,6 +81,7 @@ def crawl_and_assess_preference(preference_id: str, reassess_existing: bool = Fa
                                 "job_type": posting["job_type"],
                                 "remote_option": posting["remote_option"],
                                 "source": source,
+                                "expires_at": posting.get("expires_at"),
                             },
                         )
                 except Exception:

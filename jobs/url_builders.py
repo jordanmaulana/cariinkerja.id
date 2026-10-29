@@ -17,6 +17,7 @@ JOBSTREET_BASE = "https://id.jobstreet.com"
 LINKEDIN_BASE = "https://www.linkedin.com/jobs/search/"
 LINKEDIN_GEOID_SEA = "91000014"
 LINKEDIN_GEOID_EMEA = "91000007"
+HIMALAYAS_SEARCH = "https://himalayas.app/jobs/api/search"
 SLUG_MAX_LEN = 80
 
 # LinkedIn search filter codes.
@@ -31,6 +32,14 @@ LINKEDIN_WT_CODE: dict[str, str] = {
     RemoteOption.ON_SITE.value: "1",
     RemoteOption.REMOTE.value: "2",
     RemoteOption.HYBRID.value: "3",
+}
+
+# Himalayas `employment_type` values (comma-joined in one param).
+HIMALAYAS_EMPLOYMENT: dict[str, list[str]] = {
+    JobType.FULL_TIME.value: ["Full Time"],
+    JobType.PART_TIME.value: ["Part Time"],
+    JobType.CONTRACT.value: ["Contractor", "Temporary"],
+    JobType.INTERNSHIP.value: ["Intern"],
 }
 
 JOBSTREET_JT_SLUG: dict[str, str] = {
@@ -155,12 +164,36 @@ def build_linkedin_url(
     return f"{LINKEDIN_BASE}?{urlencode(query, quote_via=quote_plus)}"
 
 
+def build_himalayas_url(
+    title: str | None,
+    job_types: list[str] | None = None,
+) -> str | None:
+    """Himalayas search-API URL for a Preference title.
+
+    We store the JSON API URL itself: the public site is Cloudflare-gated.
+    Himalayas is remote-only, so there is no remote filter; no country filter
+    either (product decision — crawl the global remote pool).
+    """
+    if not title or not title.strip():
+        return None
+    query: list[tuple[str, str]] = [("q", title.strip())]
+    jts = _dedupe_known(job_types, HIMALAYAS_EMPLOYMENT)
+    if jts:
+        query.append(
+            (
+                "employment_type",
+                ",".join(e for v in jts for e in HIMALAYAS_EMPLOYMENT[v]),
+            )
+        )
+    return f"{HIMALAYAS_SEARCH}?{urlencode(query)}"
+
+
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet + LinkedIn listing URLs for a Preference."""
+    """Standard Indeed + JobStreet + LinkedIn (+ EMEA) + Himalayas URLs."""
     if not title or not title.strip():
         return []
     urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
@@ -178,4 +211,8 @@ def build_crawl_urls(
         )
         if emea:
             urls.append(emea)
+    # Appended last for every preference, whatever remote_option says.
+    hm = build_himalayas_url(title, job_types)
+    if hm:
+        urls.append(hm)
     return urls

@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import ModuleType
 from urllib.parse import urlparse
 
-from jobs.scrapers import dealls, indeed, jobstreet, linkedin
+from jobs.scrapers import dealls, himalayas, indeed, jobstreet, linkedin
 from profiles.consts import Source
 
 
@@ -28,4 +28,6 @@ def scraper_for_url(url: str) -> tuple[ModuleType | None, str | None]:
         return (linkedin, Source.LINKEDIN.value)
     if host == "dealls.com" or host.endswith(".dealls.com"):
         return (dealls, Source.DEALLS.value)
+    if host == "himalayas.app" or host.endswith(".himalayas.app"):
+        return (himalayas, Source.HIMALAYAS.value)
     return (None, None)

@@ -44,7 +44,7 @@ make shell      # bash into the running compose backend container
 
 There is **no `make test`** — run Django's test runner directly.
 
-Tests: `uv run manage.py test` (full suite, ~194 tests), `uv run manage.py test <app>` (one app), or `uv run manage.py test <app>.tests.<TestClass>.<test_method>` for a single test (e.g. `uv run manage.py test jobs.tests.JobModelTests.test_create`). Scraper tests parse checked-in HTML from `jobs/fixtures_html/` — no network.
+Tests: `uv run manage.py test` (full suite, ~240 tests), `uv run manage.py test <app>` (one app), or `uv run manage.py test <app>.tests.<TestClass>.<test_method>` for a single test (e.g. `uv run manage.py test jobs.tests.JobModelTests.test_create`). Scraper tests parse checked-in HTML from `jobs/fixtures_html/` — no network. **Exception:** `assessment.tests.RelevanceGateLiveTests` runs in the normal suite and makes ~10 real gpt-4o-mini calls whenever `OPENAI_API_KEY` is set (skipped without a key) — it guards the relevance-gate prompt; a rare one-off flake is possible since the model is nondeterministic.
 
 Live Jev prompt check (opt-in, ~50 real API calls, skipped in the normal run): `JEV_LIVE=1 uv run manage.py test core.tests.JevLiveTests` — run it after editing `JOB_TITLE_QUESTION` in `core/jev.py`.
 
@@ -91,13 +91,15 @@ Directional flow: **Profile + LinkedIn → Apify ingest → Preference (auto-fil
 
 ### Crawl-source routing — `jobs/scrapers/`
 
-Four scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts.
+Five scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`, `himalayas.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts.
 
 `jobs/scrapers/__init__.py:scraper_for_url(url)` resolves `(module, Source value)` **by hostname** and returns `(None, None)` for unknown URLs. A Preference therefore never names its source — the URL does. Adding a board = one hostname branch here + a `profiles.consts.Source` member + a `CrawlHealthTarget.SOURCE_*` entry.
 
+**Himalayas** (`himalayas.py`) is a remote-only board scraped via its public JSON API: the stored crawl URL *is* the API URL (`https://himalayas.app/jobs/api/search?q=<title>&employment_type=...`, no country filter) because the human site is Cloudflare-gated. One call returns full descriptions (no detail fetch). API ToS: `Job.url` = `applicationLink` unchanged, and expired jobs must go — the scraper skips already-expired postings and stores `Job.expires_at`; `JobBriefSerializer.is_expired` drives a "Kedaluwarsa" badge in the SPA. Optional `HIMALAYAS_API_KEY` raises rate limits (shared public pool without it).
+
 `jobs/scrapers/filters.py` drops postings from staffing/crowdwork brands (`BLOCKED_COMPANY_SUBSTRINGS = ("mindrift", "toloka")`) at each scraper's yield point.
 
-`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), and — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia.
+`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), and — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia — and, **always, last**, a Himalayas API URL (`build_himalayas_url`, title + job types only).
 
 ### LinkedIn profile ingestion
 
@@ -109,7 +111,7 @@ Four scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`. Each exp
 
 - `crawl_running_preferences()` — beat entrypoint. Selects Preferences where `status=RUNNING`, `crawl_urls` non-empty, **and** (the owning Profile has an `ACTIVE` Subscription with `expires_at > now` **OR** `profile.whitelist=True`). This gate is the paywall — don't loosen it without intent.
 - `crawl_and_assess_preference(preference_id, reassess_existing=False)` — iterates every URL in `crawl_urls`, resolves the scraper via `scraper_for_url`, upserts `Job` rows by `url` inside `transaction.atomic` (`CRAWL_ITEM_LIMIT = 10` per URL), queues `extract_job_skills` for jobs with no skills yet, then queues `assess_job` per posting. With `reassess_existing=True` an already-assessed job is re-scored via `reassess_assessment` instead of skipped (off by default — it costs two extra LLM calls per seen job). Per-URL and per-posting failures are logged and skipped, never fatal.
-- `assess_job(job_id, preference_id)` — idempotent. Runs `check_relevance` first (cheap LLM gate); if irrelevant, writes a stub Assessment with `is_relevant=False, score=0` and exits. Otherwise calls `assess()`. Publishes `assessment.created` to the user's Redis channel on create. `autoretry_for=(Exception,)`, `retry_backoff=True`, `max_retries=3`.
+- `assess_job(job_id, preference_id)` — idempotent. Runs `check_relevance` first (cheap LLM gate: rejects a field mismatch **or** a posting not open to Indonesia-based applicants — residency-restricted or requiring foreign work authorization; it sees location, remote option and up to `RELEVANCE_DESC_CHARS`=8000 description chars. The model answers separate booleans (`_RelevanceAnswer`) and code combines them: a residency flag is ignored for explicit on-site/hybrid jobs since the candidate may relocate. `RelevanceGateLiveTests` checks the prompt against the real model in the normal suite — gpt-4o-mini mixed up a single combined verdict); if irrelevant, writes a stub Assessment with `is_relevant=False, score=0` and exits. Otherwise calls `assess()`. Publishes `assessment.created` to the user's Redis channel on create. `autoretry_for=(Exception,)`, `retry_backoff=True`, `max_retries=3`.
 - `reassess_assessment(assessment_id)` — re-scores an existing Assessment in place, same retry policy. Triggered from the admin via `AssessmentReassessView` and by the reassess path above.
 - `email_morning_high_score_summary()` — per-profile digest of today's `NEW`, relevant Assessments scoring ≥ `HIGH_SCORE_THRESHOLD` (80), day boundary computed in Asia/Jakarta.
 

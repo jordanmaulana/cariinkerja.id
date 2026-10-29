@@ -88,6 +88,11 @@ export function AssessmentsTable({
                 >
                   {row.job.title}
                 </Link>
+                {row.job.is_expired && (
+                  <Badge variant="destructive" className="mt-1" title="Lowongan ini udah lewat batas waktunya di sumber">
+                    Kedaluwarsa
+                  </Badge>
+                )}
               </TableCell>
               <TableCell>
                 <div className="font-medium">{row.job.company ?? "—"}</div>

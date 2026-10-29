@@ -2,6 +2,7 @@ from django.conf import settings
 from pydantic import BaseModel, Field
 
 from core.openai import get_prompt_manager
+from jobs.consts import RemoteOption
 
 
 class SkillAssessment(BaseModel):
@@ -15,6 +16,20 @@ class SkillAssessment(BaseModel):
 
 class RelevanceCheck(BaseModel):
     is_relevant: bool
+    reason: str
+
+
+class _RelevanceAnswer(BaseModel):
+    """What the cheap model answers; check_relevance combines it in code.
+
+    Separate yes/no questions because the model mixed them up when asked for
+    one combined verdict (and kept reading 'work from our Singapore office'
+    as a residency rule).
+    """
+
+    same_field: bool
+    residency_excludes_indonesia: bool
+    requires_foreign_work_authorization: bool
     reason: str
 
 
@@ -39,12 +54,37 @@ SYSTEM_PROMPT = (
 )
 
 RELEVANCE_SYSTEM_PROMPT = (
-    "Decide if a job posting is plausibly in the same field as the candidate's "
-    "preference. Return is_relevant=false ONLY when the fields are clearly "
-    "unrelated (e.g. software developer vs housekeeper, accountant vs truck "
-    "driver). When in doubt, return true — borderline fits go to the full "
-    "scorer downstream."
+    "You screen a job posting for a candidate who lives in Indonesia. Answer "
+    "each question independently.\n\n"
+    "same_field: is the job plausibly in the same field as the candidate's "
+    "preference title? false ONLY when clearly unrelated (e.g. software "
+    "developer vs housekeeper, accountant vs truck driver). When in doubt, "
+    "true. Ignore location for this question.\n\n"
+    "residency_excludes_indonesia: true ONLY when the posting explicitly "
+    "requires applicants to live or be based in specific countries/regions "
+    "that do not include Indonesia (e.g. 'US only', 'must be based in the "
+    "EU', 'Canada residents only', or an APPLICANT LOCATION RESTRICTION that "
+    "names neither Indonesia nor a region containing it). These regions "
+    "CONTAIN Indonesia: Worldwide, Anywhere, Global, Asia, Asia Pacific, "
+    "APAC, Southeast Asia, SEA, ASEAN. false when any listed country or "
+    "region contains Indonesia, when no location is given, and for timezone "
+    "or working-hours requirements. An OFFICE LOCATION by itself is not a "
+    "residency requirement.\n\n"
+    "requires_foreign_work_authorization: true ONLY when the posting "
+    "explicitly requires work authorization, right to work, citizenship or "
+    "permanent residency in a country other than Indonesia, or says it does "
+    "not sponsor visas.\n\n"
+    "APPLICANT LOCATION RESTRICTION (remote jobs) lists where applicants "
+    "must be based. OFFICE LOCATION is only where the office is.\n\n"
+    "reason: a few words. When an answer rules the job out, name the cause "
+    "and quote the real country or region (e.g. 'Canada residents only', "
+    "'requires US work authorization', 'field mismatch: housekeeping')."
 )
+
+# ponytail: fixed cap — restriction clauses tend to sit at the end of a
+# posting; 8000 chars covers every description seen so far (max ~7.3k) at
+# ~2k tokens on the cheap model. Switch to head+tail if postings grow.
+RELEVANCE_DESC_CHARS = 8000
 
 
 def _candidate_context(profile) -> str:
@@ -79,16 +119,34 @@ def assess(job, preference) -> SkillAssessment:
 
 def check_relevance(job, preference) -> RelevanceCheck:
     pref_job_types = _format_choices(preference.job_type)
+    # Label the location in code so the model can't read an office address
+    # as a residency rule (the cheap model got this wrong when left to infer).
+    location_label = (
+        "APPLICANT LOCATION RESTRICTION"
+        if job.remote_option == RemoteOption.REMOTE
+        else "OFFICE LOCATION"
+    )
     user_msg = (
         f"PREFERENCE TITLE: {preference.title}\n"
         f"PREFERENCE JOB TYPE: {pref_job_types}\n\n"
         f"JOB TITLE: {job.title}\n"
         f"JOB COMPANY: {job.company}\n"
-        f"JOB DESCRIPTION (first 1500 chars):\n{(job.description or '')[:1500]}"
+        f"JOB REMOTE_OPTION: {job.remote_option or 'unspecified'}\n"
+        f"{location_label}: {job.location or 'unspecified'}\n"
+        f"JOB DESCRIPTION:\n{(job.description or '')[:RELEVANCE_DESC_CHARS]}"
     )
-    return get_prompt_manager().parse(
+    answer = get_prompt_manager().parse(
         system=RELEVANCE_SYSTEM_PROMPT,
         user=user_msg,
-        response_format=RelevanceCheck,
+        response_format=_RelevanceAnswer,
         model=getattr(settings, "OPENAI_RELEVANCE_MODEL", "gpt-4o-mini"),
+    )
+    # An on-site/hybrid office abroad is fine (candidate may relocate), so a
+    # residency flag only counts when the job isn't explicitly on-site/hybrid.
+    office_bound = job.remote_option in (RemoteOption.ON_SITE, RemoteOption.HYBRID)
+    blocked = answer.requires_foreign_work_authorization or (
+        answer.residency_excludes_indonesia and not office_bound
+    )
+    return RelevanceCheck(
+        is_relevant=answer.same_field and not blocked, reason=answer.reason
     )
