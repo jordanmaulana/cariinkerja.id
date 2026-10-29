@@ -11,6 +11,7 @@ class CrawlHealthTarget(BaseModel):
     SOURCE_DEALLS = "dealls"
     SOURCE_HIMALAYAS = "himalayas"
     SOURCE_JOBICY = "jobicy"
+    SOURCE_WORKABLE = "workable"
     SOURCE_CHOICES = [
         (SOURCE_INDEED, "Indeed"),
         (SOURCE_JOBSTREET, "Jobstreet"),
@@ -18,6 +19,7 @@ class CrawlHealthTarget(BaseModel):
         (SOURCE_DEALLS, "Dealls"),
         (SOURCE_HIMALAYAS, "Himalayas"),
         (SOURCE_JOBICY, "Jobicy"),
+        (SOURCE_WORKABLE, "Workable"),
     ]
 
     label = models.CharField(max_length=120)
@@ -49,7 +51,8 @@ class Job(models.Model):
     hard_skills = models.JSONField(default=list, blank=True)
     soft_skills = models.JSONField(default=list, blank=True)
     source = models.CharField(max_length=255, null=True, blank=True)
-    # Set only by sources that publish an expiry (Himalayas); SPA labels it.
+    # Set by sources that publish an expiry (Himalayas) or that we see vanish
+    # from a full feed (Workable); SPA labels it.
     expires_at = models.DateTimeField(null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)

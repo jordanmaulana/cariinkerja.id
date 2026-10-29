@@ -15,3 +15,4 @@ class Source(models.TextChoices):
     DEALLS = "dealls", "Dealls"
     HIMALAYAS = "himalayas", "Himalayas"
     JOBICY = "jobicy", "Jobicy"
+    WORKABLE = "workable", "Workable"

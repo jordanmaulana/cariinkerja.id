@@ -19,6 +19,7 @@ LINKEDIN_GEOID_SEA = "91000014"
 LINKEDIN_GEOID_EMEA = "91000007"
 HIMALAYAS_SEARCH = "https://himalayas.app/jobs/api/search"
 JOBICY_API = "https://jobicy.com/api/jobs"
+WORKABLE_SEARCH = "https://jobs.workable.com/search"
 SLUG_MAX_LEN = 80
 
 # LinkedIn search filter codes.
@@ -202,12 +203,31 @@ def build_jobicy_url(title: str | None) -> str | None:
     return f"{JOBICY_API}?{urlencode(query)}"
 
 
+def build_workable_url(
+    title: str | None,
+    remote_options: list[str] | None = None,
+) -> str | None:
+    """Workable crawl URL for a Preference title.
+
+    Workable's human search page, but the scraper only reads ``query`` /
+    ``location`` and matches them against the synced feed (no network).
+    Without ``location=Indonesia`` the APAC remote pool is matched too — only
+    for remote seekers, same rule as the EMEA LinkedIn URL.
+    """
+    if not title or not title.strip():
+        return None
+    query = [("query", title.strip())]
+    if not (remote_options and RemoteOption.REMOTE.value in remote_options):
+        query.append(("location", "Indonesia"))
+    return f"{WORKABLE_SEARCH}?{urlencode(query)}"
+
+
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet + LinkedIn (+ EMEA) + Himalayas + Jobicy URLs."""
+    """Standard Indeed + JobStreet + LinkedIn (+ EMEA) + Himalayas + Jobicy + Workable URLs."""
     if not title or not title.strip():
         return []
     urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
@@ -233,4 +253,7 @@ def build_crawl_urls(
     jc = build_jobicy_url(title)
     if jc:
         urls.append(jc)
+    wk = build_workable_url(title, remote_options)
+    if wk:
+        urls.append(wk)
     return urls
