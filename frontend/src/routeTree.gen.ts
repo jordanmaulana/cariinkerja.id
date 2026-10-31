@@ -14,6 +14,7 @@ import { Route as PlansRouteImport } from './routes/plans'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ComplianceRouteImport } from './routes/compliance'
 import { Route as AssessmentsRouteImport } from './routes/assessments'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreferencesIndexRouteImport } from './routes/preferences.index'
@@ -45,6 +46,11 @@ const LoginRoute = LoginRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComplianceRoute = ComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentsRoute = AssessmentsRouteImport.update({
@@ -86,6 +92,7 @@ const AssessmentsIdRoute = AssessmentsIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assessments': typeof AssessmentsRouteWithChildren
+  '/compliance': typeof ComplianceRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/compliance': typeof ComplianceRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/assessments': typeof AssessmentsRouteWithChildren
+  '/compliance': typeof ComplianceRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/assessments'
+    | '/compliance'
     | '/dashboard'
     | '/login'
     | '/onboarding'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/compliance'
     | '/dashboard'
     | '/login'
     | '/onboarding'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/assessments'
+    | '/compliance'
     | '/dashboard'
     | '/login'
     | '/onboarding'
@@ -168,6 +180,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssessmentsRoute: typeof AssessmentsRouteWithChildren
+  ComplianceRoute: typeof ComplianceRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -210,6 +223,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compliance': {
+      id: '/compliance'
+      path: '/compliance'
+      fullPath: '/compliance'
+      preLoaderRoute: typeof ComplianceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessments': {
@@ -305,6 +325,7 @@ const PreferencesRouteWithChildren = PreferencesRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssessmentsRoute: AssessmentsRouteWithChildren,
+  ComplianceRoute: ComplianceRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,

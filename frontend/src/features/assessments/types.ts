@@ -15,6 +15,8 @@ export type AssessmentJob = {
   url: string;
   job_type: JobType | null;
   remote_option: RemoteOption | null;
+  is_expired: boolean;
+  source: string | null;
 };
 
 export type AssessmentPreference = {

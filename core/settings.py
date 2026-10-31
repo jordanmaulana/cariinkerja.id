@@ -208,7 +208,7 @@ TYPESAFE_API_KEY = "" if "test" in sys.argv else os.environ.get("TYPESAFE_API_KE
 
 MAYAR_API_KEY = os.environ.get("MAYAR_API_KEY", "")
 MAYAR_WEBHOOK_TOKEN = os.environ.get("MAYAR_WEBHOOK_TOKEN", "")
-MAYAR_BASE_URL = os.environ.get("MAYAR_BASE_URL", "https://api.mayar.id/hl/v1")
+MAYAR_BASE_URL = os.environ.get("MAYAR_BASE_URL", "https://api.mayar.id/hl/v2")
 PAYMENT_REDIRECT_URL = os.environ.get(
     "PAYMENT_REDIRECT_URL", "http://localhost:5173/plans"
 )
@@ -217,6 +217,8 @@ GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
+# Optional: raises Himalayas API limits to 60/min, 10k/day (free key).
+HIMALAYAS_API_KEY = os.environ.get("HIMALAYAS_API_KEY", "")
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 

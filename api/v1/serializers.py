@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from assessment.consts import Status as AssessmentStatus
@@ -161,6 +162,8 @@ class JobTitleCheckSerializer(serializers.Serializer):
 
 
 class JobBriefSerializer(serializers.ModelSerializer):
+    is_expired = serializers.SerializerMethodField()
+
     class Meta:
         model = Job
         fields = [
@@ -171,7 +174,12 @@ class JobBriefSerializer(serializers.ModelSerializer):
             "url",
             "job_type",
             "remote_option",
+            "is_expired",
+            "source",
         ]
+
+    def get_is_expired(self, obj) -> bool:
+        return bool(obj.expires_at and obj.expires_at <= timezone.now())
 
 
 class PreferenceBriefSerializer(serializers.ModelSerializer):

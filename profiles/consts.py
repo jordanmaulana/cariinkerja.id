@@ -13,3 +13,7 @@ class Source(models.TextChoices):
     INDEED = "indeed", "Indeed"
     LINKEDIN = "linkedin", "LinkedIn"
     DEALLS = "dealls", "Dealls"
+    HIMALAYAS = "himalayas", "Himalayas"
+    JOBICY = "jobicy", "Jobicy"
+    WORKABLE = "workable", "Workable"
+    REMOTEOK = "remoteok", "Remote OK"

@@ -10,7 +10,9 @@ import { me } from "@/features/auth/api";
 import { tokenAtom, userAtom } from "@/features/auth/state";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
-const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, "/onboarding"]);
+// Reachable by everyone, logged in or not, with no redirects.
+const OPEN_PATHS = new Set(["/compliance"]);
+const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, ...OPEN_PATHS, "/onboarding"]);
 
 export function AuthGate() {
   const [token, setToken] = useAtom(tokenAtom);
@@ -50,7 +52,7 @@ export function AuthGate() {
   }, [token, user, setToken, setUser]);
 
   useEffect(() => {
-    if (isNotFound) return;
+    if (isNotFound || OPEN_PATHS.has(pathname)) return;
     if (!token) {
       if (!PUBLIC_PATHS.has(pathname)) {
         navigate({ to: "/login" });

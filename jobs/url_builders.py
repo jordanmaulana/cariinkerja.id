@@ -17,6 +17,10 @@ JOBSTREET_BASE = "https://id.jobstreet.com"
 LINKEDIN_BASE = "https://www.linkedin.com/jobs/search/"
 LINKEDIN_GEOID_SEA = "91000014"
 LINKEDIN_GEOID_EMEA = "91000007"
+HIMALAYAS_SEARCH = "https://himalayas.app/jobs/api/search"
+JOBICY_API = "https://jobicy.com/api/jobs"
+WORKABLE_SEARCH = "https://jobs.workable.com/search"
+REMOTEOK_API = "https://remoteok.com/api"
 SLUG_MAX_LEN = 80
 
 # LinkedIn search filter codes.
@@ -31,6 +35,14 @@ LINKEDIN_WT_CODE: dict[str, str] = {
     RemoteOption.ON_SITE.value: "1",
     RemoteOption.REMOTE.value: "2",
     RemoteOption.HYBRID.value: "3",
+}
+
+# Himalayas `employment_type` values (comma-joined in one param).
+HIMALAYAS_EMPLOYMENT: dict[str, list[str]] = {
+    JobType.FULL_TIME.value: ["Full Time"],
+    JobType.PART_TIME.value: ["Part Time"],
+    JobType.CONTRACT.value: ["Contractor", "Temporary"],
+    JobType.INTERNSHIP.value: ["Intern"],
 }
 
 JOBSTREET_JT_SLUG: dict[str, str] = {
@@ -155,12 +167,79 @@ def build_linkedin_url(
     return f"{LINKEDIN_BASE}?{urlencode(query, quote_via=quote_plus)}"
 
 
+def build_himalayas_url(
+    title: str | None,
+    job_types: list[str] | None = None,
+) -> str | None:
+    """Himalayas search-API URL for a Preference title.
+
+    We store the JSON API URL itself: the public site is Cloudflare-gated.
+    Himalayas is remote-only, so there is no remote filter; no country filter
+    either (product decision — crawl the global remote pool).
+    """
+    if not title or not title.strip():
+        return None
+    query: list[tuple[str, str]] = [("q", title.strip())]
+    jts = _dedupe_known(job_types, HIMALAYAS_EMPLOYMENT)
+    if jts:
+        query.append(
+            (
+                "employment_type",
+                ",".join(e for v in jts for e in HIMALAYAS_EMPLOYMENT[v]),
+            )
+        )
+    return f"{HIMALAYAS_SEARCH}?{urlencode(query)}"
+
+
+def build_jobicy_url(title: str | None) -> str | None:
+    """Jobicy API URL for a Preference title.
+
+    Jobicy is remote-only and has no job-type filter. ``geo`` takes one slug
+    and there is none for Indonesia; ``apac`` also includes "Anywhere" jobs.
+    ``count=20`` leaves headroom above the crawl item limit.
+    """
+    if not title or not title.strip():
+        return None
+    query = [("geo", "apac"), ("tag", title.strip()), ("count", "20")]
+    return f"{JOBICY_API}?{urlencode(query)}"
+
+
+def build_workable_url(
+    title: str | None,
+    remote_options: list[str] | None = None,
+) -> str | None:
+    """Workable crawl URL for a Preference title.
+
+    Workable's human search page, but the scraper only reads ``query`` /
+    ``location`` and matches them against the synced feed (no network).
+    Without ``location=Indonesia`` the APAC remote pool is matched too — only
+    for remote seekers, same rule as the EMEA LinkedIn URL.
+    """
+    if not title or not title.strip():
+        return None
+    query = [("query", title.strip())]
+    if not (remote_options and RemoteOption.REMOTE.value in remote_options):
+        query.append(("location", "Indonesia"))
+    return f"{WORKABLE_SEARCH}?{urlencode(query)}"
+
+
+def build_remoteok_url(title: str | None) -> str | None:
+    """Remote OK crawl URL for a Preference title.
+
+    The API has no free-text search; ``search`` is our own param, read by the
+    scraper to filter the feed locally (the API ignores it).
+    """
+    if not title or not title.strip():
+        return None
+    return f"{REMOTEOK_API}?{urlencode([('search', title.strip())])}"
+
+
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard Indeed + JobStreet + LinkedIn listing URLs for a Preference."""
+    """Standard Indeed + JobStreet + LinkedIn (+ EMEA) + Himalayas + Jobicy + Workable + Remote OK URLs."""
     if not title or not title.strip():
         return []
     urls = [f"https://id.indeed.com/jobs?q={quote_plus(title)}"]
@@ -178,4 +257,18 @@ def build_crawl_urls(
         )
         if emea:
             urls.append(emea)
+    # Remote-only boards, appended last for every preference, whatever
+    # remote_option says.
+    hm = build_himalayas_url(title, job_types)
+    if hm:
+        urls.append(hm)
+    jc = build_jobicy_url(title)
+    if jc:
+        urls.append(jc)
+    wk = build_workable_url(title, remote_options)
+    if wk:
+        urls.append(wk)
+    rok = build_remoteok_url(title)
+    if rok:
+        urls.append(rok)
     return urls

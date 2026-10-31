@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ConfirmActionButton } from "@/features/assessments/components/confirm-action-button";
+import { SourceCredit } from "@/features/assessments/components/source-credit";
 import { getActionsForStatus } from "@/features/assessments/actions";
 import {
   STATUS_HINT,
@@ -88,6 +89,11 @@ export function AssessmentsTable({
                 >
                   {row.job.title}
                 </Link>
+                {row.job.is_expired && (
+                  <Badge variant="destructive" className="mt-1" title="Lowongan ini udah lewat batas waktunya di sumber">
+                    Kedaluwarsa
+                  </Badge>
+                )}
               </TableCell>
               <TableCell>
                 <div className="font-medium">{row.job.company ?? "—"}</div>
@@ -96,6 +102,10 @@ export function AssessmentsTable({
                     {row.job.location}
                   </div>
                 )}
+                <SourceCredit
+                  job={row.job}
+                  className="block text-xs text-muted-foreground"
+                />
               </TableCell>
               <TableCell>
                 {row.job.job_type ? JOB_TYPE_LABEL[row.job.job_type] : "—"}

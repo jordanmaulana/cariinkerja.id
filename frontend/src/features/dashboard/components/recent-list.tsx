@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { Badge } from "@/components/ui/badge";
+import { SourceCredit } from "@/features/assessments/components/source-credit";
 import type { Assessment } from "@/features/assessments/types";
 
 export function RecentList({ rows }: { rows: Assessment[] }) {
@@ -27,9 +28,19 @@ export function RecentList({ rows }: { rows: Assessment[] }) {
               <div className="truncate text-xs text-muted-foreground">
                 {row.job.company || "—"}
                 {row.job.location ? ` · ${row.job.location}` : ""}
+                <SourceCredit
+                  job={row.job}
+                  link={false}
+                  className="before:content-['_·_']"
+                />
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
+              {row.job.is_expired && (
+                <Badge variant="destructive" title="Lowongan ini udah lewat batas waktunya di sumber">
+                  Kedaluwarsa
+                </Badge>
+              )}
               <span className="text-sm tabular-nums">{row.score}</span>
               <Badge variant="outline" className="capitalize">
                 {row.status}

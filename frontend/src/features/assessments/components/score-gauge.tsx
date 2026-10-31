@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 
 export function ScoreGauge({ value }: { value: number }) {
-  const [n, setN] = useState(0);
+  const [animated, setN] = useState(0);
+  const reduce =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const n = reduce ? value : animated;
   useEffect(() => {
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      setN(value);
-      return;
-    }
+    if (reduce) return;
     const start = performance.now();
     const dur = 1200;
     let raf = 0;
@@ -21,7 +19,7 @@ export function ScoreGauge({ value }: { value: number }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [value]);
+  }, [value, reduce]);
 
   const r = 42;
   const c = 2 * Math.PI * r;

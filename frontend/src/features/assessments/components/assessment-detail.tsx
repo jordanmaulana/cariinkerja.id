@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { ScoreGauge } from "@/features/assessments/components/score-gauge";
 import { SkillGapCard } from "@/features/assessments/components/skill-gap-card";
+import { SourceCredit } from "@/features/assessments/components/source-credit";
 import { getActionsForStatus } from "@/features/assessments/actions";
 import type {
   Assessment,
@@ -38,6 +40,11 @@ export function AssessmentDetail({ assessment, isPending, onAction }: Props) {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-2">
               <CardTitle className="text-xl">{job.title}</CardTitle>
+              {job.is_expired && (
+                <Badge variant="destructive" title="Lowongan ini udah lewat batas waktunya di sumber">
+                  Kedaluwarsa
+                </Badge>
+              )}
               <CardDescription>
                 <span className="font-medium text-foreground">
                   {job.company ?? "—"}
@@ -48,6 +55,7 @@ export function AssessmentDetail({ assessment, isPending, onAction }: Props) {
                 {job.job_type ? JOB_TYPE_LABEL[job.job_type] : "—"}
                 {" · "}
                 {job.remote_option ? REMOTE_LABEL[job.remote_option] : "—"}
+                <SourceCredit job={job} className="before:content-['_·_']" />
               </CardDescription>
               <div className="text-xs text-muted-foreground">
                 Dicocokkan dengan{" "}

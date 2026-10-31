@@ -17,16 +17,12 @@ export function useInView<T extends HTMLElement>(
 ): { ref: React.RefObject<T | null>; show: boolean } {
   const ref = useRef<T | null>(null);
   const [show, setShow] = useState(false);
+  const reduce =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   useEffect(() => {
     const node = ref.current;
-    if (!node) return;
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      setShow(true);
-      return;
-    }
+    if (!node || reduce) return;
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -41,6 +37,6 @@ export function useInView<T extends HTMLElement>(
     );
     io.observe(node);
     return () => io.disconnect();
-  }, [options]);
-  return { ref, show };
+  }, [options, reduce]);
+  return { ref, show: show || reduce };
 }

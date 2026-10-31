@@ -19,4 +19,10 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // TanStack Router (autoCodeSplitting) hot-reloads route files itself;
+    // shadcn ui files export cva variants alongside components by design.
+    files: ['src/routes/**', 'src/components/ui/**'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

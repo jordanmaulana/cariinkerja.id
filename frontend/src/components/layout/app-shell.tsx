@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
+  ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 
@@ -184,6 +185,14 @@ export function AppShell() {
                 <CalendarDays className="size-3.5" />
                 Curhat Karir Gratis
               </a>
+              <span aria-hidden="true">·</span>
+              <Link
+                to="/compliance"
+                className="inline-flex items-center gap-1 font-medium text-foreground transition-colors hover:text-primary"
+              >
+                <ShieldCheck className="size-3.5" />
+                Compliance
+              </Link>
             </div>
           </div>
         </footer>

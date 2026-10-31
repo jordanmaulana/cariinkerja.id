@@ -7,7 +7,16 @@ from django.utils import timezone
 
 from core.notifications.discord import send_discord_message
 from jobs.models import CrawlHealthTarget, Job
-from jobs.scrapers import dealls, indeed, jobstreet, linkedin
+from jobs.scrapers import (
+    dealls,
+    himalayas,
+    indeed,
+    jobicy,
+    jobstreet,
+    linkedin,
+    remoteok,
+    workable,
+)
 from jobs.services import extract_skills
 
 logger = logging.getLogger(__name__)
@@ -37,6 +46,10 @@ SCRAPERS = {
     CrawlHealthTarget.SOURCE_JOBSTREET: jobstreet.crawl,
     CrawlHealthTarget.SOURCE_LINKEDIN: linkedin.crawl,
     CrawlHealthTarget.SOURCE_DEALLS: dealls.crawl,
+    CrawlHealthTarget.SOURCE_HIMALAYAS: himalayas.crawl,
+    CrawlHealthTarget.SOURCE_JOBICY: jobicy.crawl,
+    CrawlHealthTarget.SOURCE_WORKABLE: workable.crawl,
+    CrawlHealthTarget.SOURCE_REMOTEOK: remoteok.crawl,
 }
 
 
@@ -87,6 +100,18 @@ def _format_report(results):
             f"{mark} {r['source']} — {r['count']} jobs in {r['elapsed_s']}s{tail}"
         )
     return "\n".join(lines)
+
+
+@shared_task
+def sync_workable_feed() -> dict:
+    """Pull Workable's full XML feed into Job rows. Beat: every ~6h."""
+    try:
+        return workable.sync_feed()
+    except Exception as exc:
+        send_discord_message(
+            f"❌ Workable feed sync failed: {type(exc).__name__}: {exc}"
+        )
+        raise
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)

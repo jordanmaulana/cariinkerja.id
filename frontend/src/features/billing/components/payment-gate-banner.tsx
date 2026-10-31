@@ -56,10 +56,3 @@ export function PaymentGateBanner() {
     </div>
   );
 }
-
-export function paymentGateMessage(
-  data: PaymentGate | undefined,
-): string | null {
-  if (!data || !data.locked) return null;
-  return TITLE[data.code];
-}

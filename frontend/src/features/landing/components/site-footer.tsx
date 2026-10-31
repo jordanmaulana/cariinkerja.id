@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 import { LogoLockup } from "@/components/brand/logo-mark";
 
 export function SiteFooter() {
@@ -15,6 +17,10 @@ export function SiteFooter() {
           >
             Source
           </a>
+          {" · "}
+          <Link to="/compliance" className="underline-offset-2 hover:underline">
+            Compliance
+          </Link>
         </p>
       </div>
     </footer>

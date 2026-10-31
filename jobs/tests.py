@@ -2,19 +2,35 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase
+from django.utils import timezone
 
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
-from jobs.scrapers import dealls, indeed, jobstreet, linkedin, scraper_for_url
+from jobs.scrapers import (
+    dealls,
+    himalayas,
+    indeed,
+    jobicy,
+    jobstreet,
+    linkedin,
+    remoteok,
+    scraper_for_url,
+    workable,
+)
 from jobs.url_builders import (
     LINKEDIN_GEOID_EMEA,
     build_crawl_urls,
+    build_himalayas_url,
+    build_jobicy_url,
     build_jobstreet_url,
     build_linkedin_url,
+    build_remoteok_url,
+    build_workable_url,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures_html"
@@ -318,6 +334,18 @@ class ScraperForUrlTests(TestCase):
             self.assertIs(scraper, dealls)
             self.assertEqual(source, "dealls")
 
+    def test_himalayas_host(self):
+        scraper, source = scraper_for_url(
+            "https://himalayas.app/jobs/api/search?q=flutter"
+        )
+        self.assertIs(scraper, himalayas)
+        self.assertEqual(source, "himalayas")
+
+    def test_jobicy_host(self):
+        scraper, source = scraper_for_url("https://jobicy.com/api/jobs?tag=flutter")
+        self.assertIs(scraper, jobicy)
+        self.assertEqual(source, "jobicy")
+
     def test_unknown_host(self):
         self.assertEqual(scraper_for_url("https://example.com/jobs"), (None, None))
 
@@ -608,18 +636,29 @@ class BuildLinkedInUrlTests(TestCase):
 class BuildCrawlUrlsTests(TestCase):
     def test_includes_indeed_jobstreet_and_linkedin(self):
         urls = build_crawl_urls("Mobile Developer")
-        self.assertEqual(len(urls), 3)
+        self.assertEqual(len(urls), 7)
         hosts = [scraper_for_url(u)[1] for u in urls]
-        self.assertEqual(hosts, ["indeed", "jobstreet", "linkedin"])
+        self.assertEqual(
+            hosts,
+            [
+                "indeed",
+                "jobstreet",
+                "linkedin",
+                "himalayas",
+                "jobicy",
+                "workable",
+                "remoteok",
+            ],
+        )
 
     def test_non_remote_preference_omits_emea(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.ON_SITE])
-        self.assertEqual(len(urls), 3)
+        self.assertEqual(len(urls), 7)
         self.assertNotIn("geoId=91000007", " ".join(urls))
 
     def test_remote_preference_appends_emea_linkedin(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.REMOTE])
-        self.assertEqual(len(urls), 4)
+        self.assertEqual(len(urls), 8)
         emea = urls[3]
         self.assertIn("geoId=91000007", emea)
         self.assertIn("f_WT=2", emea)
@@ -627,8 +666,401 @@ class BuildCrawlUrlsTests(TestCase):
         self.assertIs(scraper, linkedin)
         self.assertEqual(source, "linkedin")
 
+    def test_remote_boards_always_appended_last(self):
+        for ros in (None, [RemoteOption.ON_SITE], [RemoteOption.REMOTE]):
+            urls = build_crawl_urls("Mobile Developer", [JobType.FULL_TIME], ros)
+            self.assertEqual(
+                urls[-4:],
+                [
+                    build_himalayas_url("Mobile Developer", [JobType.FULL_TIME]),
+                    build_jobicy_url("Mobile Developer"),
+                    build_workable_url("Mobile Developer", ros),
+                    build_remoteok_url("Mobile Developer"),
+                ],
+            )
+
     def test_empty_title_returns_empty(self):
         self.assertEqual(build_crawl_urls(""), [])
+
+
+class BuildHimalayasUrlTests(TestCase):
+    BASE = "https://himalayas.app/jobs/api/search"
+
+    def test_title_only_has_no_country_filter(self):
+        self.assertEqual(
+            build_himalayas_url("Mobile Developer"), f"{self.BASE}?q=Mobile+Developer"
+        )
+
+    def test_job_types_comma_joined(self):
+        self.assertEqual(
+            build_himalayas_url(
+                "Dev", [JobType.FULL_TIME, JobType.CONTRACT, JobType.INTERNSHIP]
+            ),
+            f"{self.BASE}?q=Dev&employment_type=Full+Time%2CContractor%2CTemporary%2CIntern",
+        )
+
+    def test_unknown_and_duplicate_values_dropped(self):
+        self.assertEqual(
+            build_himalayas_url("Dev", ["bogus", JobType.PART_TIME, JobType.PART_TIME]),
+            f"{self.BASE}?q=Dev&employment_type=Part+Time",
+        )
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_himalayas_url(""))
+        self.assertIsNone(build_himalayas_url(None))
+        self.assertIsNone(build_himalayas_url("   "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        scraper, source = scraper_for_url(
+            build_himalayas_url("Dev", [JobType.FULL_TIME])
+        )
+        self.assertIs(scraper, himalayas)
+        self.assertEqual(source, "himalayas")
+
+
+# --- Himalayas (JSON API) ----------------------------------------------------
+
+HIMALAYAS_URL = "https://himalayas.app/jobs/api/search?q=flutter"
+
+
+def _himalayas_job(guid="g1", expiry_delta=timedelta(days=10), **overrides):
+    """Trimmed shape of a real job object from himalayas.app/jobs/api/search."""
+    job = {
+        "title": "Senior Flutter Developer",
+        "excerpt": "Short excerpt.",
+        "companyName": "Somnio Software",
+        "employmentType": "Contractor",
+        "locationRestrictions": [],
+        "description": "<p>Build <strong>apps</strong>.</p><ul><li>Dart</li></ul>",
+        "expiryDate": int((timezone.now() + expiry_delta).timestamp()),
+        "applicationLink": f"https://himalayas.app/companies/somnio/jobs/{guid}?utm_source=api",
+        "guid": f"https://himalayas.app/companies/somnio/jobs/{guid}",
+    }
+    job.update(overrides)
+    return job
+
+
+class HimalayasParseJobTests(TestCase):
+    def test_maps_fields(self):
+        job = _himalayas_job(locationRestrictions=["Indonesia", "Malaysia"])
+        out = himalayas.parse_job(job)
+        self.assertEqual(out["url"], job["applicationLink"])  # ToS: unchanged
+        self.assertEqual(out["title"], "Senior Flutter Developer")
+        self.assertEqual(out["company"], "Somnio Software")
+        self.assertEqual(out["job_type"], JobType.CONTRACT)
+        self.assertEqual(out["remote_option"], RemoteOption.REMOTE)
+        self.assertEqual(out["location"], "Indonesia, Malaysia")
+        self.assertIn("Build\napps", out["description"])
+        self.assertNotIn("<", out["description"])
+        self.assertEqual(int(out["expires_at"].timestamp()), job["expiryDate"])
+
+    def test_indonesia_listed_first_so_truncation_keeps_it(self):
+        countries = [f"Country{i:02d}" for i in range(60)] + ["Indonesia"]
+        out = himalayas.parse_job(_himalayas_job(locationRestrictions=countries))
+        self.assertTrue(out["location"].startswith("Indonesia, "))
+        self.assertLessEqual(len(out["location"]), 255)
+
+    def test_no_restrictions_is_worldwide(self):
+        self.assertEqual(himalayas.parse_job(_himalayas_job())["location"], "Worldwide")
+
+    def test_unmapped_employment_type_is_none(self):
+        out = himalayas.parse_job(_himalayas_job(employmentType="Volunteer"))
+        self.assertIsNone(out["job_type"])
+
+    def test_missing_title_returns_none(self):
+        self.assertIsNone(himalayas.parse_job(_himalayas_job(title="  ")))
+
+
+class HimalayasCrawlTests(TestCase):
+    def _crawl(self, pages, **kwargs):
+        with patch.object(himalayas, "_request_json", side_effect=pages) as req:
+            out = list(
+                himalayas.crawl(HIMALAYAS_URL, client=object(), sleep=0, **kwargs)
+            )
+        return out, req
+
+    def test_skips_expired_and_duplicate_jobs(self):
+        page = {
+            "jobs": [
+                _himalayas_job("a"),
+                _himalayas_job("a"),
+                _himalayas_job("old", expiry_delta=timedelta(days=-1)),
+                _himalayas_job("b"),
+            ]
+        }
+        out, _ = self._crawl([page])
+        self.assertEqual(
+            [j["url"].split("/")[-1] for j in out],
+            ["a?utm_source=api", "b?utm_source=api"],
+        )
+
+    def test_paginates_until_empty_page(self):
+        out, req = self._crawl(
+            [{"jobs": [_himalayas_job("a")]}, {"jobs": []}], max_pages=5
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(req.call_count, 2)
+        self.assertIn("page=2", req.call_args_list[1].args[1])
+        self.assertIn("q=flutter", req.call_args_list[1].args[1])
+
+    def test_respects_limit(self):
+        page = {"jobs": [_himalayas_job(str(i)) for i in range(5)]}
+        out, _ = self._crawl([page], limit=2)
+        self.assertEqual(len(out), 2)
+
+    def test_listing_failure_does_not_raise(self):
+        out, _ = self._crawl(RuntimeError("boom"))
+        self.assertEqual(out, [])
+
+
+class BuildJobicyUrlTests(TestCase):
+    def test_title_with_apac_geo_and_count(self):
+        self.assertEqual(
+            build_jobicy_url(" Mobile Developer "),
+            "https://jobicy.com/api/jobs?geo=apac&tag=Mobile+Developer&count=20",
+        )
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_jobicy_url(""))
+        self.assertIsNone(build_jobicy_url(None))
+        self.assertIsNone(build_jobicy_url("   "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        scraper, source = scraper_for_url(build_jobicy_url("Dev"))
+        self.assertIs(scraper, jobicy)
+        self.assertEqual(source, "jobicy")
+
+
+# --- Jobicy (JSON API) -------------------------------------------------------
+
+JOBICY_URL = "https://jobicy.com/api/jobs?geo=apac&tag=flutter&count=20"
+
+
+def _jobicy_job(job_id=1, **overrides):
+    """Trimmed shape of a real job object from jobicy.com/api/jobs."""
+    job = {
+        "id": job_id,
+        "url": f"https://jobicy.com/jobs/{job_id}-flutter-developer",
+        "jobTitle": "Flutter Developer",
+        "companyName": "Acme",
+        "jobType": ["Full-Time"],
+        "jobGeo": "Anywhere",
+        "jobExcerpt": "Short excerpt&hellip;",
+        "jobDescription": "<p>Build <strong>apps</strong>.</p><ul><li>Dart</li></ul>",
+    }
+    job.update(overrides)
+    return job
+
+
+class JobicyParseJobTests(TestCase):
+    def test_maps_fields(self):
+        job = _jobicy_job(jobType=["Contract"])
+        out = jobicy.parse_job(job)
+        self.assertEqual(out["url"], job["url"])  # ToS: apply via Jobicy URL
+        self.assertEqual(out["title"], "Flutter Developer")
+        self.assertEqual(out["company"], "Acme")
+        self.assertEqual(out["job_type"], JobType.CONTRACT)
+        self.assertEqual(out["remote_option"], RemoteOption.REMOTE)
+        self.assertEqual(out["location"], "Anywhere")
+        self.assertIn("Build\napps", out["description"])
+        self.assertNotIn("<", out["description"])
+
+    def test_geo_spacing_normalised(self):
+        out = jobicy.parse_job(_jobicy_job(jobGeo="Canada,  USA"))
+        self.assertEqual(out["location"], "Canada, USA")
+
+    def test_missing_geo_is_anywhere(self):
+        self.assertEqual(
+            jobicy.parse_job(_jobicy_job(jobGeo=""))["location"], "Anywhere"
+        )
+
+    def test_unmapped_job_type_is_none(self):
+        self.assertIsNone(
+            jobicy.parse_job(_jobicy_job(jobType=["Volunteer"]))["job_type"]
+        )
+
+    def test_falls_back_to_excerpt(self):
+        out = jobicy.parse_job(_jobicy_job(jobDescription=""))
+        self.assertEqual(out["description"], "Short excerpt\u2026")
+
+    def test_missing_title_returns_none(self):
+        self.assertIsNone(jobicy.parse_job(_jobicy_job(jobTitle="  ")))
+
+
+class JobicyCrawlTests(TestCase):
+    def _crawl(self, pages, **kwargs):
+        with patch.object(jobicy, "_request_json", side_effect=pages) as req:
+            out = list(jobicy.crawl(JOBICY_URL, client=object(), sleep=0, **kwargs))
+        return out, req
+
+    def test_skips_duplicate_and_blocked_jobs(self):
+        page = {
+            "jobs": [
+                _jobicy_job(1),
+                _jobicy_job(1),
+                _jobicy_job(2, companyName="Mindrift"),
+                _jobicy_job(3),
+            ],
+            "hasMore": False,
+        }
+        out, _ = self._crawl([page])
+        self.assertEqual(
+            [j["url"].split("/")[-1].split("-")[0] for j in out], ["1", "3"]
+        )
+
+    def test_follows_cursor_until_no_more(self):
+        out, req = self._crawl(
+            [
+                {"jobs": [_jobicy_job(1)], "hasMore": True, "nextCursor": "abc"},
+                {"jobs": [_jobicy_job(2)], "hasMore": False, "nextCursor": None},
+            ],
+            max_pages=5,
+        )
+        self.assertEqual(len(out), 2)
+        self.assertEqual(req.call_count, 2)
+        second = req.call_args_list[1].args[1]
+        self.assertIn("cursor=abc", second)
+        self.assertIn("tag=flutter", second)
+
+    def test_single_page_by_default(self):
+        out, req = self._crawl(
+            [{"jobs": [_jobicy_job(1)], "hasMore": True, "nextCursor": "abc"}]
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(req.call_count, 1)
+
+    def test_respects_limit(self):
+        page = {"jobs": [_jobicy_job(i) for i in range(5)], "hasMore": False}
+        out, _ = self._crawl([page], limit=2)
+        self.assertEqual(len(out), 2)
+
+    def test_listing_failure_does_not_raise(self):
+        out, _ = self._crawl(RuntimeError("boom"))
+        self.assertEqual(out, [])
+
+
+class BuildRemoteOkUrlTests(TestCase):
+    def test_title_as_search_param(self):
+        self.assertEqual(
+            build_remoteok_url(" Mobile Developer "),
+            "https://remoteok.com/api?search=Mobile+Developer",
+        )
+
+    def test_empty_title_returns_none(self):
+        self.assertIsNone(build_remoteok_url(""))
+        self.assertIsNone(build_remoteok_url(None))
+        self.assertIsNone(build_remoteok_url("   "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        scraper, source = scraper_for_url(build_remoteok_url("Dev"))
+        self.assertIs(scraper, remoteok)
+        self.assertEqual(source, "remoteok")
+
+
+# --- Remote OK (JSON API) ----------------------------------------------------
+
+REMOTEOK_URL = "https://remoteok.com/api?search=backend+engineer"
+REMOTEOK_LEGAL = {"last_updated": 1793224395, "legal": "API Terms of Service: ..."}
+
+
+def _remoteok_job(job_id="1", **overrides):
+    """Trimmed shape of a real job object from remoteok.com/api."""
+    job = {
+        "id": job_id,
+        "slug": f"remote-senior-backend-engineer-acme-{job_id}",
+        "company": "Acme",
+        "position": "Senior Backend Engineer",
+        "tags": ["dev", "backend"],
+        "description": "<p>Build <strong>APIs</strong>.</p><ul><li>Go</li></ul>",
+        "location": "",
+        "url": f"https://remoteOK.com/remote-jobs/remote-senior-backend-engineer-acme-{job_id}",
+    }
+    job.update(overrides)
+    return job
+
+
+class RemoteOkParseJobTests(TestCase):
+    def test_maps_fields(self):
+        job = _remoteok_job(location="United States")
+        out = remoteok.parse_job(job)
+        self.assertEqual(out["url"], job["url"])  # ToS: link back to Remote OK
+        self.assertEqual(out["title"], "Senior Backend Engineer")
+        self.assertEqual(out["company"], "Acme")
+        self.assertEqual(out["location"], "United States")
+        self.assertIsNone(out["job_type"])
+        self.assertEqual(out["remote_option"], RemoteOption.REMOTE)
+        self.assertIn("Build\nAPIs", out["description"])
+        self.assertNotIn("<", out["description"])
+
+    def test_blank_location_is_none(self):
+        self.assertIsNone(remoteok.parse_job(_remoteok_job(location="  "))["location"])
+
+    def test_unescapes_entities(self):
+        out = remoteok.parse_job(_remoteok_job(position="Supply &amp; Logistics"))
+        self.assertEqual(out["title"], "Supply & Logistics")
+
+    def test_missing_description_returns_none(self):
+        self.assertIsNone(remoteok.parse_job(_remoteok_job(description="")))
+
+
+class RemoteOkCrawlTests(TestCase):
+    def _crawl(self, feed, url=REMOTEOK_URL, **kwargs):
+        with patch.object(remoteok, "_request_json", side_effect=[feed]) as req:
+            out = list(remoteok.crawl(url, client=object(), **kwargs))
+        return out, req
+
+    def test_keeps_jobs_matching_every_word(self):
+        feed = [
+            REMOTEOK_LEGAL,
+            _remoteok_job("1"),
+            _remoteok_job("2", position="Backend Developer"),
+            _remoteok_job("3", position="Staff Engineer, Backend"),
+        ]
+        out, req = self._crawl(feed)
+        self.assertEqual([j["url"][-1] for j in out], ["1", "3"])
+        self.assertEqual(req.call_args.args[1], remoteok.FEED_URL)
+
+    def test_skips_duplicate_and_blocked_jobs(self):
+        feed = [
+            REMOTEOK_LEGAL,
+            _remoteok_job("1"),
+            _remoteok_job("1"),
+            _remoteok_job("2", company="Mindrift"),
+            _remoteok_job("3"),
+        ]
+        out, _ = self._crawl(feed)
+        self.assertEqual([j["url"][-1] for j in out], ["1", "3"])
+
+    def test_respects_limit(self):
+        feed = [REMOTEOK_LEGAL] + [_remoteok_job(str(i)) for i in range(5)]
+        out, _ = self._crawl(feed, limit=2)
+        self.assertEqual(len(out), 2)
+
+    def test_fetch_failure_does_not_raise(self):
+        out, _ = self._crawl(RuntimeError("boom"))
+        self.assertEqual(out, [])
+
+    def test_missing_search_skips_fetch(self):
+        out, req = self._crawl([REMOTEOK_LEGAL], url="https://remoteok.com/api")
+        self.assertEqual(out, [])
+        req.assert_not_called()
+
+
+class JobBriefSerializerExpiryTests(TestCase):
+    def test_is_expired(self):
+        from api.v1.serializers import JobBriefSerializer
+
+        def make(url, expires_at):
+            return Job.objects.create(
+                url=url, title="t", description="d", expires_at=expires_at
+            )
+
+        past = make("https://himalayas.app/a", timezone.now() - timedelta(hours=1))
+        future = make("https://himalayas.app/b", timezone.now() + timedelta(days=1))
+        none = make("https://himalayas.app/c", None)
+        self.assertTrue(JobBriefSerializer(past).data["is_expired"])
+        self.assertFalse(JobBriefSerializer(future).data["is_expired"])
+        self.assertFalse(JobBriefSerializer(none).data["is_expired"])
 
 
 class ExtractJobSkillsTaskTests(TestCase):
@@ -788,3 +1220,249 @@ class IndeedCloudflareResilienceTests(TestCase):
         self.assertEqual(serp.get("Referer"), indeed.BASE_URL)
         detail = next(h for u, h in calls if "/viewjob" in u)
         self.assertEqual(detail.get("Referer"), INDEED_URL)
+
+
+# --- Workable (XML feed, synced into Job) -----------------------------------
+
+
+def _wk_job(
+    ref, *, title, country, remote="false", days_ago=1, company="Acme", **extra
+):
+    posted = timezone.now() - timedelta(days=days_ago)
+    fields = {
+        "title": title,
+        "date": posted.strftime("%a, %d %b %Y %H:%M:%S UTC"),
+        "referencenumber": ref,
+        "url": f"https://apply.workable.com/j/{ref}",
+        "company": company,
+        "city": "",
+        "state": "",
+        "country": country,
+        "remote": remote,
+        "description": "<p>Build <strong>things</strong>.</p>",
+        "jobtype": "Full-time",
+        "experience": "",
+        **extra,
+    }
+    inner = "".join(f"<{k}><![CDATA[{v}]]></{k}>" for k, v in fields.items())
+    return f"<job>{inner}</job>"
+
+
+def _wk_feed(*jobs):
+    return (
+        '<?xml version="1.0" encoding="utf-8"?><source>'
+        "<publisher>Workable</publisher>" + "".join(jobs) + "</source>"
+    ).encode()
+
+
+class _FakeFeedClient:
+    """Stands in for the curl_cffi session; streams the body in small chunks."""
+
+    def __init__(self, body):
+        self.body = body
+        self.kwargs = None
+
+    def get(self, url, **kwargs):
+        self.kwargs = kwargs
+        body = self.body
+
+        class _Resp:
+            def raise_for_status(self):
+                pass
+
+            def iter_content(self):
+                for i in range(0, len(body), 50):
+                    yield body[i : i + 50]
+
+            def close(self):
+                pass
+
+        return _Resp()
+
+
+WK_FEED = _wk_feed(
+    _wk_job("AAA", title="Backend Engineer", country="ID", city="Jakarta", state="DKI Jakarta"),
+    # Same remote posting cloned per country: one row survives.
+    _wk_job("BBB", title="Video Editor", country="PH", remote="true", jobtype="Contract"),
+    _wk_job("CCC", title="Video Editor", country="SG", remote="true", jobtype="Contract"),
+    # The Indonesia clone wins over a later APAC one.
+    _wk_job("DDD", title="Data Analyst", country="ID", remote="true", city="Bandung"),
+    _wk_job("EEE", title="Data Analyst", country="PH", remote="true"),
+    _wk_job("FFF", title="Remote Dev", country="US", remote="true"),
+    _wk_job("GGG", title="Old Job", country="ID", days_ago=200),
+    _wk_job("HHH", title="Tagger", country="ID", company="Mindrift"),
+    _wk_job("III", title="Marketing Intern", country="ID", jobtype="", experience="Internship"),
+)  # fmt: skip
+
+
+class WorkableSyncTests(TestCase):
+    def _sync(self, body=WK_FEED):
+        client = _FakeFeedClient(body)
+        return workable.sync_feed(client=client), client
+
+    def test_keeps_indonesia_and_apac_remote(self):
+        result, client = self._sync()
+
+        self.assertTrue(client.kwargs["stream"])
+        urls = set(Job.objects.values_list("url", flat=True))
+        refs = {u.rsplit("/", 1)[1] for u in urls}
+        self.assertEqual(refs, {"AAA", "CCC", "DDD", "III"})
+        self.assertEqual(result["in_feed"], 9)
+        self.assertEqual(result["upserted"], 4)
+
+        a = Job.objects.get(url__endswith="/AAA")
+        self.assertEqual(a.source, "workable")
+        self.assertEqual(a.location, "Jakarta, DKI Jakarta, Indonesia")
+        self.assertIsNone(a.remote_option)
+        self.assertEqual(a.job_type, JobType.FULL_TIME)
+        self.assertEqual(a.description, "Build\nthings\n.")
+        c = Job.objects.get(url__endswith="/CCC")
+        self.assertIsNone(c.location)  # anchor country is not a residency rule
+        self.assertEqual(c.remote_option, RemoteOption.REMOTE)
+        self.assertEqual(c.job_type, JobType.CONTRACT)
+        self.assertEqual(
+            Job.objects.get(url__endswith="/DDD").location, "Bandung, Indonesia"
+        )
+        self.assertEqual(
+            Job.objects.get(url__endswith="/III").job_type, JobType.INTERNSHIP
+        )
+
+    def test_expires_jobs_gone_from_feed(self):
+        past = timezone.now() - timedelta(days=3)
+        gone = Job.objects.create(
+            url="https://apply.workable.com/j/ZZZ",
+            title="t",
+            description="d",
+            source="workable",
+        )
+        back = Job.objects.create(
+            url="https://apply.workable.com/j/AAA",
+            title="t",
+            description="d",
+            source="workable",
+            expires_at=past,
+        )
+        stale = Job.objects.create(
+            url="https://apply.workable.com/j/GGG",
+            title="t",
+            description="d",
+            source="workable",
+        )
+        other = Job.objects.create(
+            url="https://jobicy.com/jobs/1", title="t", description="d", source="jobicy"
+        )
+        result, _ = self._sync()
+
+        self.assertEqual(result["expired"], 1)
+        for job in (gone, back, stale, other):
+            job.refresh_from_db()
+        self.assertIsNotNone(gone.expires_at)
+        self.assertIsNone(back.expires_at)  # republished
+        self.assertIsNone(stale.expires_at)  # too old to import, but still in the feed
+        self.assertIsNone(other.expires_at)  # other sources untouched
+        self.assertEqual(back.title, "Backend Engineer")  # refreshed by the upsert
+
+    def test_resync_is_idempotent(self):
+        self._sync()
+        result, _ = self._sync()
+        self.assertEqual(result["expired"], 0)
+        self.assertEqual(Job.objects.count(), 4)
+
+    def test_truncated_feed_writes_nothing(self):
+        from lxml import etree
+
+        gone = Job.objects.create(
+            url="https://apply.workable.com/j/ZZZ",
+            title="t",
+            description="d",
+            source="workable",
+        )
+        with self.assertRaises(etree.XMLSyntaxError):
+            self._sync(WK_FEED[: len(WK_FEED) // 2])
+        self.assertEqual(Job.objects.count(), 1)
+        gone.refresh_from_db()
+        self.assertIsNone(gone.expires_at)
+
+
+class WorkableCrawlTests(TestCase):
+    URL = "https://jobs.workable.com/search?query=Backend+Engineer"
+
+    def setUp(self):
+        def make(
+            ref, title, location, remote=None, expires_at=None, source="workable", age=0
+        ):
+            job = Job.objects.create(
+                url=f"https://apply.workable.com/j/{ref}",
+                title=title,
+                description="d",
+                location=location,
+                remote_option=remote,
+                source=source,
+                expires_at=expires_at,
+            )
+            Job.objects.filter(pk=job.pk).update(
+                created_on=timezone.now() - timedelta(hours=age)
+            )
+            return job
+
+        self.local = make("L", "Senior Backend Engineer", "Jakarta, Indonesia", age=5)
+        self.remote = make("R", "Backend Engineer", None, RemoteOption.REMOTE, age=1)
+        make(
+            "X", "Backend Engineer II", "Bandung, Indonesia", expires_at=timezone.now()
+        )
+        make("F", "Frontend Engineer", "Jakarta, Indonesia")
+        make("O", "Backend Engineer", "Jakarta, Indonesia", source="jobicy")
+
+    def _crawl(self, url, **kw):
+        return [p["url"] for p in workable.crawl(url, **kw)]
+
+    def test_matches_every_word_newest_first(self):
+        self.assertEqual(self._crawl(self.URL), [self.remote.url, self.local.url])
+
+    def test_location_indonesia_drops_remote_pool(self):
+        self.assertEqual(
+            self._crawl(self.URL + "&location=Indonesia"), [self.local.url]
+        )
+
+    def test_limit_and_posting_shape(self):
+        postings = list(workable.crawl(self.URL, limit=1))
+        self.assertEqual(len(postings), 1)
+        self.assertEqual(
+            set(postings[0]),
+            {
+                "url",
+                "title",
+                "company",
+                "description",
+                "location",
+                "job_type",
+                "remote_option",
+            },
+        )
+
+    def test_warns_when_nothing_synced(self):
+        Job.objects.filter(source="workable").delete()
+        with self.assertLogs("jobs.scrapers.workable", level="WARNING"):
+            self.assertEqual(self._crawl(self.URL), [])
+
+
+class WorkableUrlTests(TestCase):
+    def test_build_url_location_rule(self):
+        self.assertEqual(
+            build_workable_url("Mobile Developer"),
+            "https://jobs.workable.com/search?query=Mobile+Developer&location=Indonesia",
+        )
+        self.assertEqual(
+            build_workable_url("Dev", [RemoteOption.ON_SITE]),
+            "https://jobs.workable.com/search?query=Dev&location=Indonesia",
+        )
+        self.assertEqual(
+            build_workable_url("Dev", [RemoteOption.REMOTE, RemoteOption.HYBRID]),
+            "https://jobs.workable.com/search?query=Dev",
+        )
+        self.assertIsNone(build_workable_url("  "))
+
+    def test_round_trips_through_scraper_for_url(self):
+        scraper, source = scraper_for_url(build_workable_url("Dev"))
+        self.assertIs(scraper, workable)
+        self.assertEqual(source, "workable")

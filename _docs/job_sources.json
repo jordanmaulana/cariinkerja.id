@@ -1,0 +1,57 @@
+[
+    {
+        "name": "Himalayas",
+        "permission_urls": [
+            {
+                "url": "https://himalayas.app/terms",
+                "statement": "Clause 113: API may be used \"in personal and commercial integrations\"; apply via applicationLink, link back, no passing jobs to Google Jobs/LinkedIn/aggregators (incl. JobPosting schema)."
+            },
+            {
+                "url": "https://himalayas.app/api",
+                "statement": "Public API docs; free key gives 60 req/min, 10,000/day."
+            }
+        ],
+        "api_endpoints": [
+            "https://himalayas.app/jobs/api/search?country=ID",
+            "https://himalayas.app/jobs/api"
+        ]
+    },
+    {
+        "name": "Jobicy",
+        "permission_urls": [
+            {
+                "url": "https://jobicy.com/jobs-rss-feed",
+                "statement": "Free API \"can be used in commercial projects\"; may \"store, cache, process, and redistribute\". \"Clearly credit Jobicy as the original source\" with a direct link; apply links go to the original job page on Jobicy; start an automated sync pass \"no more than once per hour\"."
+            }
+        ],
+        "api_endpoints": [
+            "https://jobicy.com/api/jobs?geo=anywhere&count=200",
+            "https://jobicy.com/api/jobs?geo=apac&count=200",
+            "https://jobicy.com/jobs/feed"
+        ]
+    },
+    {
+        "name": "Workable",
+        "permission_urls": [
+            {
+                "url": "https://help.workable.com/hc/en-us/articles/4420464031767-Utilizing-the-XML-Job-Feed",
+                "statement": "Public XML feed of all customers' published jobs; offered for \"a job board/partner we don't integrate with\". Keep job URLs unchanged. No formal licence text."
+            }
+        ],
+        "api_endpoints": [
+            "https://www.workable.com/boards/workable.xml"
+        ]
+    },
+    {
+        "name": "Remote OK",
+        "permission_urls": [
+            {
+                "url": "https://remoteok.com/api",
+                "statement": "\"legal\" field in API response: link back (follow, no nofollow) and mention Remote OK as source; no logo without written permission."
+            }
+        ],
+        "api_endpoints": [
+            "https://remoteok.com/api"
+        ]
+    }
+]
