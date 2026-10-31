@@ -14,7 +14,10 @@ from billing.models import Plan
 from jobs.models import SkillMapPage
 from jobs.skill_map import format_date_id, visible_pages, visible_snapshot
 
-CACHE_SECONDS = 60 * 60
+# Short on purpose: the cache is per gunicorn worker (no shared CACHES), so a
+# page published in admin shows up everywhere within this window. The views
+# only read one snapshot row, so they are cheap without caching anyway.
+CACHE_SECONDS = 5 * 60
 
 
 def _base_context() -> dict:
