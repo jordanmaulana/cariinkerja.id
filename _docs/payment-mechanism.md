@@ -38,67 +38,34 @@ paths safe.
 
 ## 1. The Mayar adapter — `core/payments/mayar.py`
 
-The whole gateway integration is **three functions + two status sets**. Base URL and key
-come from settings. `httpx` for HTTP, 15s timeout, raises `MayarError` on any failure.
+Mayar **API v2** (`/hl/v2`; v1 was shut down 2026-10-01). Reference: the `mayar-api-v2`
+skill. The integration is **three functions + two status sets**. Base URL and key come
+from settings. `httpx`, 15s timeout, raises `MayarError` on any failure.
 
-```python
-PAID_STATUSES   = {"paid", "success", "completed"}
-FAILED_STATUSES = {"failed", "expired", "cancelled", "canceled"}
+All calls go through `_request(method, path, **kw)`, which returns the body's `data`. v2
+can answer HTTP 200 with an error in the body, so it raises when HTTP ≥ 400 **or** body
+`statusCode` ≥ 400 **or** `messages == "failed"` (it reads `messages`, then `message`).
 
-class MayarError(Exception): ...
+### 1.1 Create payment request — `POST {BASE}/payments/create`
 
-def _base_url() -> str:
-    return getattr(settings, "MAYAR_BASE_URL", "") or "https://api.mayar.id/hl/v1"
+Payload: `name`, `amount` (int IDR), `email`, `description`, `redirectUrl`, optional
+`mobile`. Returns `{"link", "payment_id"}`.
 
-def _headers() -> dict:
-    api_key = settings.MAYAR_API_KEY
-    if not api_key:
-        raise MayarError("MAYAR_API_KEY not configured.")
-    return {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-```
+v2 returns **two ids**: `data.id` is the payment-request id, `data.transactionId` is
+the payment id. We store `data.id` as `Subscription.payment_ref`: it's the key for
+`GET /payments/{id}`, and webhooks send it as `data.productId`.
 
-### 1.1 Create payment link — `POST {BASE}/payment/create`
+If Mayar rejects `redirectUrl` with its documented 400 ("redirectUrl is not supported on
+payment requests…"), the adapter retries once without it. A 400 created nothing, so that
+retry is safe. Nothing else is retried: create is **not idempotent**, and a 429 means
+"duplicate request".
 
-```python
-def create_payment_link(*, name, amount, email, description, redirect_url, mobile=""):
-    payload = {
-        "name": name,
-        "amount": amount,                 # int IDR, no decimals
-        "email": email,
-        "description": description,
-        "redirectUrl": redirect_url,      # note camelCase key Mayar expects
-    }
-    if mobile:
-        payload["mobile"] = mobile
-    resp = httpx.post(f"{_base_url()}/payment/create", headers=_headers(),
-                      json=payload, timeout=15)
-    if resp.status_code >= 400:
-        raise MayarError(f"Mayar {resp.status_code}: {resp.text}")
-    data = resp.json().get("data") or {}
-    link = data.get("link")
-    transaction_id = data.get("id") or data.get("transaction_id")
-    if not link or not transaction_id:
-        raise MayarError(f"Mayar response missing link/id: {resp.json()}")
-    return {"link": link, "transaction_id": str(transaction_id)}
-```
+### 1.2 Get payment status — `GET {BASE}/payments/{id}`
 
-Mayar wraps everything under `data`. The transaction id comes back as `data.id` (fall
-back to `data.transaction_id`). It's stored on the subscription as `payment_ref` and is
-the lookup key for webhooks/polls.
-
-### 1.2 Get payment status — `GET {BASE}/payment/{id}`
-
-```python
-def get_payment_status(payment_id) -> dict:
-    resp = httpx.get(f"{_base_url()}/payment/{payment_id}", headers=_headers(), timeout=15)
-    if resp.status_code >= 400:
-        raise MayarError(f"Mayar {resp.status_code}: {resp.text}")
-    data = resp.json().get("data") or {}
-    return {"status": str(data.get("status") or "").lower(), "raw": data}
-```
-
-Status is **lowercased** so it matches `PAID_STATUSES` / `FAILED_STATUSES` regardless of
-how Mayar cases it.
+Returns `{"status", "raw"}`. v2 statuses are `unpaid` / `paid` / `closed`. Status is
+**lowercased** to match `PAID_STATUSES` / `FAILED_STATUSES`. `closed` is deliberately in
+neither set: a sub left PENDING expires out of the 48h poll window, but a wrong cancel
+would hide a real payment.
 
 ### 1.3 Verify webhook — `X-Callback-Token` header
 
@@ -124,7 +91,7 @@ Read in `core/settings.py`, declared in `.env.example`:
 # --- Mayar (payments) ---
 MAYAR_API_KEY=
 MAYAR_WEBHOOK_TOKEN=
-MAYAR_BASE_URL=https://api.mayar.club/hl/v1
+MAYAR_BASE_URL=https://api.mayar.io/hl/v2
 PAYMENT_REDIRECT_URL=http://localhost:5173/plans
 ```
 
@@ -132,7 +99,7 @@ PAYMENT_REDIRECT_URL=http://localhost:5173/plans
 |---|---|---|
 | `MAYAR_API_KEY` | Bearer auth for Mayar API | required; `MayarError` if empty |
 | `MAYAR_WEBHOOK_TOKEN` | shared secret for `verify_webhook` | required for webhook to pass |
-| `MAYAR_BASE_URL` | API base | **mismatch to know:** `.env.example` ships `…api.mayar.club/hl/v1`; code fallback when unset is `…api.mayar.id/hl/v1`. Set it explicitly to the correct host for your account. |
+| `MAYAR_BASE_URL` | API base, includes `/hl/v2` | prod `https://api.mayar.id/hl/v2` (code default), sandbox `https://api.mayar.io/hl/v2`. A sandbox key only works on `.io`, a prod key only on `.id`. |
 | `PAYMENT_REDIRECT_URL` | where Mayar returns the user after pay | points at the SPA `/plans` |
 
 ---
@@ -270,35 +237,25 @@ payments/mayar/webhook/             POST  payments_api.webhook      (AllowAny + 
 
 `AllowAny` (Mayar isn't authenticated to our app); secured by the callback token.
 
-```python
-@api_view(["POST"]); @permission_classes([AllowAny])
-def webhook(request):
-    if not verify_webhook(request):                       # X-Callback-Token vs MAYAR_WEBHOOK_TOKEN
-        return Response({"detail": "Invalid token."}, status=401)
-    event = request.data.get("event") or ""
-    data  = request.data.get("data") or {}
-    payment_ref = str(data.get("id") or data.get("transaction_id") or "")
-    if not payment_ref:
-        return Response({"detail": "Missing transaction id."}, status=400)
-    sub = Subscription.objects.filter(payment_ref=payment_ref).first()
-    if sub is None:
-        return Response({"detail": "Subscription not found."}, status=404)
+Flow:
 
-    if event in {"payment.received", "payment.success", "PAYMENT_RECEIVED"}:
-        try: activate_subscription(sub)
-        except Exception: return Response({"detail": "Internal error."}, status=500)
-    elif event in {"payment.failed", "payment.expired"}:
-        try: cancel_pending_subscription(sub)
-        except Exception: return Response({"detail": "Internal error."}, status=500)
-    else:
-        logger.warning("unhandled event=%r …")            # still 200
+1. `verify_webhook` (X-Callback-Token vs `MAYAR_WEBHOOK_TOKEN`) → 401 on mismatch.
+2. Collect the non-empty ids `data.productId`, `data.transactionId`, `data.id` and find
+   the sub with `payment_ref__in` those ids (400 if none, 404 if no sub). v2 subs match
+   on `productId`; subs stored under v1 matched on `id`.
+3. `payment.received` (also `payment.success` / `PAYMENT_RECEIVED`):
+   - sub already ACTIVE → 200, no-op (redelivery).
+   - **Re-fetch** `get_payment_status(sub.payment_ref)`. v2 docs list no webhook
+     signature, so the payload alone never grants a plan. Mayar says not paid yet →
+     log + 200 (the 30s checkout poller picks it up). `MayarError` → 502.
+   - Paid → `activate_subscription` (500 on exception so Mayar retries).
+4. `payment.failed` / `payment.expired` → `cancel_pending_subscription`. v2's documented
+   events are only `payment.received` / `payment.reminder` (+ shipper/membership), so this
+   branch is effectively dead; harmless.
+5. Anything else → logged, 200 (keeps Mayar from retrying forever).
 
-    return Response({"ok": True})
-```
-
-Status codes — 401 bad token, 400 missing ref, 404 unknown sub, 500 on internal failure
-(so Mayar retries), 200 `{ok:true}` otherwise (including unhandled events, which are just
-logged — keeps Mayar from retrying forever).
+Status codes: 401 bad token, 400 no ids, 404 unknown sub, 502 status re-fetch failed,
+500 internal failure, 200 otherwise.
 
 ---
 
@@ -560,8 +517,8 @@ SPA /plans ──checkout──► billing_api.create ──create_payment_link�
 - **Reject downgrade & same-plan** before charging (`UpgradeNotAllowed`).
 - **Webhook is public** (`AllowAny`); its only auth is `X-Callback-Token`. Return 5xx on
   internal failure (Mayar retries), 200 on unhandled events (don't make it retry forever).
-- **`MAYAR_BASE_URL` host mismatch:** `.env.example` ships `api.mayar.club`, code fallback
-  is `api.mayar.id`. Set it explicitly.
+- **`MAYAR_BASE_URL` must end in `/hl/v2`.** v1 is gone; a stale `/hl/v1` env value
+  breaks checkout and every poller. Key and host must match (sandbox `.io`, prod `.id`).
 - **SSE token in query string** (EventSource limitation) — treat it like any bearer token.
 - **Don't trust the post-pay redirect.** Activation truth = the `subscription.activated`
   SSE event (or recheck).

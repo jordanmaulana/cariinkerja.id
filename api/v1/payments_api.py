@@ -5,8 +5,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from billing.models import Subscription
-from core.payments.mayar import verify_webhook
+from billing.models import Subscription, SubscriptionStatus
+from core.payments.mayar import (
+    PAID_STATUSES,
+    MayarError,
+    get_payment_status,
+    verify_webhook,
+)
 from core.payments.subscriptions import (
     activate_subscription,
     cancel_pending_subscription,
@@ -30,24 +35,28 @@ def webhook(request):
         )
     event = request.data.get("event") or ""
     data = request.data.get("data") or {}
-    payment_ref = str(data.get("id") or data.get("transaction_id") or "")
+    if not isinstance(data, dict):
+        data = {}
+    # v2: we store the payment-request id, which webhooks send as `productId`;
+    # `id`/`transactionId` is the payment id (also what v1-era subs stored).
+    refs = {str(data[k]) for k in ("productId", "transactionId", "id") if data.get(k)}
     logger.info(
-        "mayar webhook payload: event=%r payment_ref=%r data_keys=%s",
+        "mayar webhook payload: event=%r refs=%s data_keys=%s",
         event,
-        payment_ref,
-        sorted(data.keys()) if isinstance(data, dict) else None,
+        sorted(refs),
+        sorted(data.keys()),
     )
-    if not payment_ref:
-        logger.warning("mayar webhook: missing payment_ref; raw=%s", request.data)
+    if not refs:
+        logger.warning("mayar webhook: missing payment ids; raw=%s", request.data)
         return Response(
             {"detail": "Missing transaction id."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    sub = Subscription.objects.filter(payment_ref=payment_ref).first()
+    sub = Subscription.objects.filter(payment_ref__in=refs).first()
     if sub is None:
         logger.warning(
-            "mayar webhook: subscription not found for payment_ref=%s event=%s",
-            payment_ref,
+            "mayar webhook: subscription not found for refs=%s event=%s",
+            sorted(refs),
             event,
         )
         return Response(
@@ -56,6 +65,27 @@ def webhook(request):
         )
 
     if event in {"payment.received", "payment.success", "PAYMENT_RECEIVED"}:
+        if sub.status == SubscriptionStatus.ACTIVE:
+            logger.info("mayar webhook: sub=%s already ACTIVE, skip", sub.id)
+            return Response({"ok": True})
+        # The payload has no signature, so confirm with Mayar before granting.
+        try:
+            paid_status = get_payment_status(sub.payment_ref)["status"]
+        except MayarError as exc:
+            logger.warning(
+                "mayar webhook: status re-fetch failed sub=%s: %s", sub.id, exc
+            )
+            return Response(
+                {"detail": "Payment status check failed."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        if paid_status not in PAID_STATUSES:
+            logger.info(
+                "mayar webhook: sub=%s Mayar status=%r, not paid yet; pollers will retry",
+                sub.id,
+                paid_status,
+            )
+            return Response({"ok": True})
         logger.info(
             "mayar webhook: activating subscription id=%s event=%s",
             sub.id,

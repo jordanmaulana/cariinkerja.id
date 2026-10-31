@@ -1,6 +1,8 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+import httpx
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
@@ -15,13 +17,14 @@ from billing.upgrades import (
     compute_upgrade_quote,
     prorate_upgrade,
 )
+from core.payments.mayar import MayarError, create_payment_link
 from core.payments.subscriptions import activate_subscription
 from profiles.consts import Status as PreferenceStatus
 from profiles.models import Preference, Profile
 
 
-def _mock_link(transaction_id="tx-1", link="https://pay.mayar.id/abc"):
-    return {"link": link, "transaction_id": transaction_id}
+def _mock_link(payment_id="tx-1", link="https://pay.mayar.id/abc"):
+    return {"link": link, "payment_id": payment_id}
 
 
 class CheckoutLockTests(TestCase):
@@ -862,3 +865,123 @@ class EffectivePriceTests(TestCase):
     def test_not_eligible_pays_full(self):
         self.assertEqual(effective_price(self.base, self.normal), 49000)
         self.assertEqual(effective_price(self.base, None), 49000)
+
+
+def _mayar_resp(status_code, body):
+    return httpx.Response(status_code, json=body)
+
+
+@override_settings(MAYAR_API_KEY="k", MAYAR_BASE_URL="https://api.mayar.io/hl/v2")
+class MayarV2AdapterTests(TestCase):
+    LINK_ARGS = dict(
+        name="U",
+        amount=49000,
+        email="u@x.com",
+        description="d",
+        redirect_url="https://r",
+    )
+
+    @patch("core.payments.mayar.httpx.request")
+    def test_create_returns_payment_request_id(self, req):
+        req.return_value = _mayar_resp(
+            200,
+            {
+                "statusCode": 200,
+                "messages": "success",
+                "data": {
+                    "id": "pr-1",
+                    "transactionId": "tx-1",
+                    "link": "https://pay/1",
+                },
+            },
+        )
+        self.assertEqual(
+            create_payment_link(**self.LINK_ARGS),
+            {"link": "https://pay/1", "payment_id": "pr-1"},
+        )
+        method, url = req.call_args.args
+        self.assertEqual(
+            (method, url), ("POST", "https://api.mayar.io/hl/v2/payments/create")
+        )
+
+    @patch("core.payments.mayar.httpx.request")
+    def test_http_200_with_failed_body_raises(self, req):
+        req.return_value = _mayar_resp(200, {"statusCode": 400, "messages": "failed"})
+        with self.assertRaises(MayarError):
+            create_payment_link(**self.LINK_ARGS)
+
+    @patch("core.payments.mayar.httpx.request")
+    def test_rejected_redirect_url_retries_once_without_it(self, req):
+        req.side_effect = [
+            _mayar_resp(
+                400,
+                {
+                    "statusCode": 400,
+                    "messages": "redirectUrl is not supported on payment requests "
+                    "and was not saved",
+                },
+            ),
+            _mayar_resp(
+                200,
+                {"statusCode": 200, "data": {"id": "pr-2", "link": "https://pay/2"}},
+            ),
+        ]
+        self.assertEqual(create_payment_link(**self.LINK_ARGS)["payment_id"], "pr-2")
+        self.assertEqual(req.call_count, 2)
+        self.assertNotIn("redirectUrl", req.call_args.kwargs["json"])
+
+    @patch("core.payments.mayar.httpx.request")
+    def test_duplicate_429_is_not_retried(self, req):
+        req.return_value = _mayar_resp(
+            429, {"statusCode": 429, "messages": "Duplicate request detected."}
+        )
+        with self.assertRaises(MayarError):
+            create_payment_link(**self.LINK_ARGS)
+        self.assertEqual(req.call_count, 1)
+
+
+@override_settings(MAYAR_WEBHOOK_TOKEN="hook-secret")
+class MayarWebhookTests(TestCase):
+    def setUp(self):
+        user = User.objects.create_user("w", "w@example.com", "secret")
+        plan = Plan.objects.create(name="A", price=49000, preference_limit=1)
+        self.sub = Subscription.objects.create(
+            profile=Profile.objects.create(user=user),
+            plan=plan,
+            status=SubscriptionStatus.PENDING,
+            payment_ref="pr-1",
+        )
+        self.url = reverse("api-v1-mayar-webhook")
+        # Real v2 shape: id/transactionId = payment id, productId = payment request id.
+        self.payload = {
+            "event": "payment.received",
+            "data": {"id": "tx-9", "transactionId": "tx-9", "productId": "pr-1"},
+        }
+
+    def _post(self, token="hook-secret"):
+        return APIClient().post(
+            self.url, self.payload, format="json", HTTP_X_CALLBACK_TOKEN=token
+        )
+
+    @patch("api.v1.payments_api.activate_subscription")
+    @patch("api.v1.payments_api.get_payment_status")
+    def test_matches_by_product_id_and_activates_when_paid(self, status_, activate):
+        status_.return_value = {"status": "paid", "raw": {}}
+        self.assertEqual(self._post().status_code, 200)
+        status_.assert_called_once_with("pr-1")
+        activate.assert_called_once()
+        self.assertEqual(activate.call_args.args[0].pk, self.sub.pk)
+
+    @patch("api.v1.payments_api.activate_subscription")
+    @patch("api.v1.payments_api.get_payment_status")
+    def test_does_not_activate_when_mayar_says_unpaid(self, status_, activate):
+        status_.return_value = {"status": "unpaid", "raw": {}}
+        self.assertEqual(self._post().status_code, 200)
+        activate.assert_not_called()
+
+    @patch("api.v1.payments_api.activate_subscription")
+    @patch("api.v1.payments_api.get_payment_status")
+    def test_bad_token_rejected(self, status_, activate):
+        self.assertEqual(self._post(token="nope").status_code, 401)
+        status_.assert_not_called()
+        activate.assert_not_called()

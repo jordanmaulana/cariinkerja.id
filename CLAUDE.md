@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Scrapers use `curl-cffi` (TLS fingerprint impersonation) + `lxml`/`beautifulsoup4`.
 - LinkedIn *profile* ingestion uses **Apify** (`apify-client`, actor `harvestapi/linkedin-profile-scraper`) — distinct from the LinkedIn *jobs* scraper in `jobs/scrapers/linkedin.py`, which is our own.
 - Auth: `core.auth.EmailBackend` (login by email) **plus** Google OAuth via `/api/v1/auth/google/` (verifies `GOOGLE_OAUTH_CLIENT_ID`).
-- Payments: Mayar (`core/payments/mayar.py`) — payment-link create + webhook verified by `X-Callback-Token`.
+- Payments: Mayar **API v2** (`core/payments/mayar.py`, `MAYAR_BASE_URL` must end in `/hl/v2`; v1 died 2026-10-01): `POST /payments/create` + `GET /payments/{id}`, webhook verified by `X-Callback-Token`. Use the `mayar-api-v2` skill when touching it.
 - Realtime: Redis pub/sub (`core/realtime.py`) → SSE endpoint `/api/v1/subscriptions/stream/` (EventSource auth via `?token=` query param, since EventSource cannot set headers).
 - Notifications:
   - Discord webhook (`core/notifications/discord.py`), called from Celery tasks; no-ops when `DISCORD_WEBHOOK_URL` is empty.
@@ -149,9 +149,9 @@ Consequence: the post-payment crawl is the *only* crawl a paying user gets on ac
 ### Subscription / payment flow
 
 - Frontend hits `POST /api/v1/subscriptions/checkout/` → backend creates a Mayar payment link, persists `Subscription(status=PENDING, payment_ref, payment_link)`, and kicks off `poll_subscription_after_checkout`.
-- Mayar redirects the user to `PAYMENT_REDIRECT_URL`; the webhook to `/api/v1/payments/mayar/webhook/` (verified by `MAYAR_WEBHOOK_TOKEN` in `X-Callback-Token`) calls `core.payments.subscriptions.activate_subscription`.
+- Mayar redirects the user to `PAYMENT_REDIRECT_URL`; the webhook to `/api/v1/payments/mayar/webhook/` (verified by `MAYAR_WEBHOOK_TOKEN` in `X-Callback-Token`) finds the sub by `payment_ref` = the payment-request id (webhook `data.productId`; `data.id` is the *transaction* id), **re-fetches `GET /payments/{id}`** and only then calls `core.payments.subscriptions.activate_subscription` — the payload is never trusted alone.
 - `activate_subscription` flips `PENDING→ACTIVE`, sets `expires_at = now + plan.duration_days` (+ upgrade bonus seconds), unlocks `WAITING_PAYMENT` Preferences to `RUNNING`, backfills missing `crawl_urls`, queues immediate crawls, and publishes `subscription.activated` on the user's Redis channel (consumed by the SSE stream).
-- Design notes for this flow live in `docs/payment-mechanism.md`.
+- Design notes for this flow live in `_docs/payment-mechanism.md`.
 - Upgrades: `billing/upgrades.py:compute_upgrade_quote` / `prorate_upgrade` convert the old sub's unused value into bonus seconds on the new plan's window; on activation the old sub is marked `REPLACED` (expired immediately) and preference unlock is skipped (they're already RUNNING). Downgrades and same-plan are rejected (`UpgradeNotAllowed`).
 
 ### URLs / views

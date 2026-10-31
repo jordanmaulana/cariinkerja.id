@@ -208,7 +208,7 @@ TYPESAFE_API_KEY = "" if "test" in sys.argv else os.environ.get("TYPESAFE_API_KE
 
 MAYAR_API_KEY = os.environ.get("MAYAR_API_KEY", "")
 MAYAR_WEBHOOK_TOKEN = os.environ.get("MAYAR_WEBHOOK_TOKEN", "")
-MAYAR_BASE_URL = os.environ.get("MAYAR_BASE_URL", "https://api.mayar.id/hl/v1")
+MAYAR_BASE_URL = os.environ.get("MAYAR_BASE_URL", "https://api.mayar.id/hl/v2")
 PAYMENT_REDIRECT_URL = os.environ.get(
     "PAYMENT_REDIRECT_URL", "http://localhost:5173/plans"
 )

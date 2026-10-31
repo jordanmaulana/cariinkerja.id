@@ -14,7 +14,7 @@ class MayarError(Exception):
 
 
 def _base_url() -> str:
-    return getattr(settings, "MAYAR_BASE_URL", "") or "https://api.mayar.id/hl/v1"
+    return getattr(settings, "MAYAR_BASE_URL", "") or "https://api.mayar.id/hl/v2"
 
 
 def _headers() -> dict:
@@ -27,6 +27,31 @@ def _headers() -> dict:
     }
 
 
+def _request(method: str, path: str, **kwargs) -> dict:
+    """Call Mayar v2 and return the `data` object.
+
+    v2 can answer HTTP 200 with an error inside the body, so the body
+    `statusCode` and `messages == "failed"` count as errors too.
+    """
+    try:
+        resp = httpx.request(
+            method, f"{_base_url()}{path}", headers=_headers(), timeout=15, **kwargs
+        )
+    except httpx.HTTPError as exc:
+        raise MayarError(f"Mayar request failed: {exc}") from exc
+    try:
+        body = resp.json()
+    except ValueError:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    code = int(body.get("statusCode") or resp.status_code)
+    msg = body.get("messages") or body.get("message") or resp.text
+    if resp.status_code >= 400 or code >= 400 or msg == "failed":
+        raise MayarError(f"Mayar {code}: {msg}")
+    return body.get("data") or {}
+
+
 def create_payment_link(
     *,
     name: str,
@@ -36,6 +61,11 @@ def create_payment_link(
     redirect_url: str,
     mobile: str = "",
 ) -> dict:
+    """POST /payments/create. Returns {"link": str, "payment_id": str}.
+
+    `payment_id` is the payment-request id: the key for GET /payments/{id},
+    sent as `productId` in webhooks.
+    """
     payload = {
         "name": name,
         "amount": amount,
@@ -47,43 +77,31 @@ def create_payment_link(
         payload["mobile"] = mobile
 
     try:
-        resp = httpx.post(
-            f"{_base_url()}/payment/create",
-            headers=_headers(),
-            json=payload,
-            timeout=15,
-        )
-    except httpx.HTTPError as exc:
-        raise MayarError(f"Mayar request failed: {exc}") from exc
+        data = _request("POST", "/payments/create", json=payload)
+    except MayarError as exc:
+        # v2 may reject redirectUrl with a 400. A 400 created nothing, so one
+        # retry is safe. Never retry other errors: a 429 means "duplicate".
+        if "redirectUrl" not in str(exc):
+            raise
+        logger.warning("mayar: redirectUrl rejected, retrying without it: %s", exc)
+        payload.pop("redirectUrl")
+        data = _request("POST", "/payments/create", json=payload)
 
-    if resp.status_code >= 400:
-        raise MayarError(f"Mayar {resp.status_code}: {resp.text}")
-
-    body = resp.json()
-    data = body.get("data") or {}
     link = data.get("link")
-    transaction_id = data.get("id") or data.get("transaction_id")
-    if not link or not transaction_id:
-        raise MayarError(f"Mayar response missing link/id: {body}")
-    return {"link": link, "transaction_id": str(transaction_id)}
+    payment_id = data.get("id")
+    if not link or not payment_id:
+        raise MayarError(f"Mayar response missing link/id: {data}")
+    return {"link": link, "payment_id": str(payment_id)}
 
 
 def get_payment_status(payment_id: str) -> dict:
-    """GET /payment/{id}. Returns {"status": str, "raw": dict}."""
+    """GET /payments/{id}. Returns {"status": str, "raw": dict}.
+
+    v2 statuses: unpaid, paid, closed.
+    """
     if not payment_id:
         raise MayarError("payment_id is required.")
-    try:
-        resp = httpx.get(
-            f"{_base_url()}/payment/{payment_id}",
-            headers=_headers(),
-            timeout=15,
-        )
-    except httpx.HTTPError as exc:
-        raise MayarError(f"Mayar request failed: {exc}") from exc
-    if resp.status_code >= 400:
-        raise MayarError(f"Mayar {resp.status_code}: {resp.text}")
-    body = resp.json()
-    data = body.get("data") or {}
+    data = _request("GET", f"/payments/{payment_id}")
     return {"status": str(data.get("status") or "").lower(), "raw": data}
 
 

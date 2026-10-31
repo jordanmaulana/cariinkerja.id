@@ -224,7 +224,7 @@ def create(request):
         return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
     sub.payment_link = link["link"]
-    sub.payment_ref = link["transaction_id"]
+    sub.payment_ref = link["payment_id"]
     sub.amount_paid = amount
     sub.save(
         update_fields=[
