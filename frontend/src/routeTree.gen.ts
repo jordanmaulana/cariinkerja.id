@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SyaratRouteImport } from './routes/syarat'
+import { Route as PrivasiRouteImport } from './routes/privasi'
 import { Route as PreferencesRouteImport } from './routes/preferences'
 import { Route as PlansRouteImport } from './routes/plans'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -23,6 +25,16 @@ import { Route as AssessmentsIndexRouteImport } from './routes/assessments.index
 import { Route as PreferencesIdRouteImport } from './routes/preferences.$id'
 import { Route as AssessmentsIdRouteImport } from './routes/assessments.$id'
 
+const SyaratRoute = SyaratRouteImport.update({
+  id: '/syarat',
+  path: '/syarat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivasiRoute = PrivasiRouteImport.update({
+  id: '/privasi',
+  path: '/privasi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreferencesRoute = PreferencesRouteImport.update({
   id: '/preferences',
   path: '/preferences',
@@ -98,6 +110,8 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/plans': typeof PlansRouteWithChildren
   '/preferences': typeof PreferencesRouteWithChildren
+  '/privasi': typeof PrivasiRoute
+  '/syarat': typeof SyaratRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
   '/assessments/': typeof AssessmentsIndexRoute
@@ -110,6 +124,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/privasi': typeof PrivasiRoute
+  '/syarat': typeof SyaratRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
   '/assessments': typeof AssessmentsIndexRoute
@@ -126,6 +142,8 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/plans': typeof PlansRouteWithChildren
   '/preferences': typeof PreferencesRouteWithChildren
+  '/privasi': typeof PrivasiRoute
+  '/syarat': typeof SyaratRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
   '/assessments/': typeof AssessmentsIndexRoute
@@ -143,6 +161,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/plans'
     | '/preferences'
+    | '/privasi'
+    | '/syarat'
     | '/assessments/$id'
     | '/preferences/$id'
     | '/assessments/'
@@ -155,6 +175,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/onboarding'
+    | '/privasi'
+    | '/syarat'
     | '/assessments/$id'
     | '/preferences/$id'
     | '/assessments'
@@ -170,6 +192,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/plans'
     | '/preferences'
+    | '/privasi'
+    | '/syarat'
     | '/assessments/$id'
     | '/preferences/$id'
     | '/assessments/'
@@ -186,10 +210,26 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PlansRoute: typeof PlansRouteWithChildren
   PreferencesRoute: typeof PreferencesRouteWithChildren
+  PrivasiRoute: typeof PrivasiRoute
+  SyaratRoute: typeof SyaratRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/syarat': {
+      id: '/syarat'
+      path: '/syarat'
+      fullPath: '/syarat'
+      preLoaderRoute: typeof SyaratRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privasi': {
+      id: '/privasi'
+      path: '/privasi'
+      fullPath: '/privasi'
+      preLoaderRoute: typeof PrivasiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/preferences': {
       id: '/preferences'
       path: '/preferences'
@@ -331,6 +371,8 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PlansRoute: PlansRouteWithChildren,
   PreferencesRoute: PreferencesRouteWithChildren,
+  PrivasiRoute: PrivasiRoute,
+  SyaratRoute: SyaratRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

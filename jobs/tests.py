@@ -1466,3 +1466,230 @@ class WorkableUrlTests(TestCase):
         scraper, source = scraper_for_url(build_workable_url("Dev"))
         self.assertIs(scraper, workable)
         self.assertEqual(source, "workable")
+
+
+# --- Skill Map ---------------------------------------------------------------
+
+from django.core.cache import cache  # noqa: E402
+from django.test import override_settings  # noqa: E402
+
+from billing.models import Plan  # noqa: E402
+from jobs.models import SkillMapPage, SkillMapSnapshot  # noqa: E402
+from jobs.scrapers.filters import title_words  # noqa: E402
+from jobs.skill_map import (  # noqa: E402
+    compute_snapshot,
+    format_date_id,
+    refresh_page,
+    skill_key,
+    title_matches,
+    visible_pages,
+)
+
+
+def _job(n, title, hard=(), soft=(), company=None, **kw):
+    return Job.objects.create(
+        url=f"https://example.com/job/{n}",
+        title=title,
+        company=company or f"Company {n}",
+        description="x",
+        hard_skills=list(hard),
+        soft_skills=list(soft),
+        **kw,
+    )
+
+
+class TitleWordsTests(TestCase):
+    def test_splits_lowercases_and_drops_single_letters(self):
+        self.assertEqual(title_words("UI/UX Designer"), ["ui", "ux", "designer"])
+        self.assertEqual(title_words("C Developer"), ["developer"])
+        self.assertEqual(title_words(None), [])
+
+    def test_title_matches_word_starts_and_exclusions(self):
+        self.assertTrue(title_matches("Senior Data Analysts", ["data", "analyst"], []))
+        self.assertFalse(title_matches("Build Engineer", ["ui"], []))
+        self.assertFalse(
+            title_matches("Data Analyst Intern", ["data", "analyst"], ["intern"])
+        )
+
+
+class SkillKeyTests(TestCase):
+    def test_casefold_whitespace_and_aliases(self):
+        self.assertEqual(skill_key("  Python "), "python")
+        self.assertEqual(skill_key("MS  Excel"), "excel")
+        self.assertEqual(skill_key("Microsoft Excel"), "excel")
+        self.assertEqual(skill_key("ReactJS"), "react")
+
+    def test_format_date_id(self):
+        from datetime import date
+
+        self.assertEqual(format_date_id(date(2026, 8, 1)), "1 Agu 2026")
+
+
+class ComputeSnapshotTests(TestCase):
+    def setUp(self):
+        self.page = SkillMapPage.objects.create(
+            slug="data-analyst", title="Data Analyst"
+        )
+        _job(
+            1,
+            "Data Analyst",
+            ["SQL", "Excel"],
+            ["Communication"],
+            remote_option="remote",
+        )
+        _job(
+            2,
+            "Senior Data Analyst",
+            ["sql", "MS Excel", "Python"],
+            job_type="full-time",
+        )
+        _job(3, "Data Analyst Intern", ["SQL"])
+        _job(4, "Data Engineer", ["Spark"])  # title mismatch
+        _job(5, "Data Analyst", [])  # no skills yet
+        # The same posting as job 1, arriving from a second board.
+        _job(
+            6,
+            "Data Analyst",
+            ["SQL", "Excel"],
+            ["Communication"],
+            company="Company 1",
+            remote_option="remote",
+        )
+        old = _job(7, "Data Analyst", ["COBOL"])
+        Job.objects.filter(pk=old.pk).update(
+            created_on=timezone.now() - timedelta(days=200)
+        )
+
+    def test_counts_each_skill_once_per_matching_job(self):
+        data = compute_snapshot(self.page)
+        self.assertEqual(data["job_count"], 3)
+        hard = {s["name"]: (s["count"], s["pct"]) for s in data["hard_skills"]}
+        self.assertEqual(hard["SQL"], (3, 100))
+        # "Excel" and "MS Excel" merge; one spelling is shown.
+        excel = [s for s in data["hard_skills"] if skill_key(s["name"]) == "excel"]
+        self.assertEqual(len(excel), 1)
+        self.assertEqual(excel[0]["count"], 2)
+        self.assertEqual(hard["Python"], (1, 33))
+        self.assertNotIn("Spark", hard)
+        self.assertNotIn("COBOL", hard)
+        self.assertEqual(data["soft_skills"][0]["name"], "Communication")
+        self.assertEqual(
+            [(r["value"], r["pct"]) for r in data["remote_options"]], [("remote", 33)]
+        )
+        self.assertEqual([t["value"] for t in data["job_types"]], ["full-time"])
+
+    def test_exclude_words_and_match_words(self):
+        self.page.exclude_words = "intern"
+        self.assertEqual(compute_snapshot(self.page)["job_count"], 2)
+        self.page.match_words = "data"
+        self.page.exclude_words = ""
+        self.assertEqual(compute_snapshot(self.page)["job_count"], 4)
+
+    def test_refresh_page_overwrites_same_day(self):
+        refresh_page(self.page)
+        refresh_page(self.page)
+        self.assertEqual(SkillMapSnapshot.objects.filter(page=self.page).count(), 1)
+        self.assertEqual(self.page.latest_snapshot().job_count, 3)
+
+
+@override_settings(FRONTEND_URL="https://cariinkerja.id")
+class SkillMapViewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        Plan.objects.create(name="1 Pencarian", price=49000, duration_days=30)
+        for i in range(3):
+            _job(
+                i, "Backend Engineer", ["Go", "PostgreSQL"], company=f"Rahasia Corp {i}"
+            )
+        self.page = SkillMapPage.objects.create(
+            slug="backend-engineer",
+            title="Backend Engineer",
+            is_published=True,
+            min_jobs=3,
+        )
+        self.thin = SkillMapPage.objects.create(
+            slug="ios-engineer", title="iOS Engineer", is_published=True, min_jobs=3
+        )
+        self.draft = SkillMapPage.objects.create(
+            slug="draft", title="Backend Engineer", is_published=False, min_jobs=1
+        )
+        for p in (self.page, self.thin, self.draft):
+            refresh_page(p)
+
+    def test_detail_renders_aggregates_without_company_names(self):
+        resp = self.client.get("/skill/backend-engineer/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("Skill yang paling dicari buat", html)
+        self.assertIn("PostgreSQL", html)
+        self.assertIn("100%", html)
+        self.assertIn("3 loker", html)
+        self.assertIn("Rp 49.000 / 30 hari", html)
+        self.assertIn(
+            '<link rel="canonical" href="https://cariinkerja.id/skill/backend-engineer/"',
+            html,
+        )
+        self.assertIn("/login?ref=skillmap-backend-engineer", html)
+        self.assertNotIn("Rahasia Corp", html)
+        self.assertNotIn("JobPosting", html)
+        self.assertNotIn("gratis", html.lower())
+
+    def test_thin_unpublished_and_unknown_pages_404(self):
+        self.assertEqual(self.client.get("/skill/ios-engineer/").status_code, 404)
+        self.assertEqual(self.client.get("/skill/draft/").status_code, 404)
+        self.assertEqual(self.client.get("/skill/nope/").status_code, 404)
+
+    def test_index_and_sitemap_list_only_visible_pages(self):
+        self.assertEqual([p.slug for p, _ in visible_pages()], ["backend-engineer"])
+        index = self.client.get("/skill/").content.decode()
+        self.assertIn("/skill/backend-engineer/", index)
+        self.assertNotIn("/skill/ios-engineer/", index)
+        resp = self.client.get("/skill/sitemap.xml")
+        self.assertEqual(resp["Content-Type"], "application/xml")
+        xml = resp.content.decode()
+        self.assertIn("<loc>https://cariinkerja.id/skill/backend-engineer/</loc>", xml)
+        self.assertNotIn("ios-engineer", xml)
+        self.assertNotIn("/skill/draft/", xml)
+
+    def test_refresh_task_snapshots_every_page(self):
+        from jobs.tasks import refresh_skill_maps
+
+        result = refresh_skill_maps()
+        self.assertEqual(result["backend-engineer"], 3)
+        self.assertEqual(result["ios-engineer"], 0)
+
+
+class SkillMapCommandTests(TestCase):
+    def test_candidates_lists_preference_titles_with_job_counts(self):
+        from profiles.models import Preference, Profile
+
+        profile = Profile.objects.create()
+        for _ in range(2):
+            Preference.objects.create(profile=profile, title="Backend Engineer")
+        Preference.objects.create(profile=profile, title="backend  engineer")
+        _job(1, "Backend Engineer", ["Go"])
+        out = io.StringIO()
+        call_command("skill_map_candidates", "--min-jobs", "1", stdout=out)
+        line = next(
+            ln for ln in out.getvalue().splitlines() if "[backend-engineer]" in ln
+        )
+        self.assertEqual(line.split()[:3], ["3", "1", "✓"])
+
+    def test_backfill_filters_and_dry_run(self):
+        _job(1, "A", source="workable")
+        _job(2, "B", source="indeed")
+        old = _job(3, "C", source="workable")
+        Job.objects.filter(pk=old.pk).update(
+            created_on=timezone.now() - timedelta(days=200)
+        )
+        out = io.StringIO()
+        call_command(
+            "backfill_job_skills",
+            "--source",
+            "workable",
+            "--since-days",
+            "90",
+            "--dry-run",
+            stdout=out,
+        )
+        self.assertIn("1 job(s) would be queued", out.getvalue())

@@ -1,0 +1,42 @@
+{% extends "skillmap/base.html" %}
+{% load format_number %}
+
+{% block title %}Skill Map: skill yang paling dicari per posisi · cariinkerja.id{% endblock %}
+{% block description %}Skill apa yang paling dicari buat posisi incaranmu? Dihitung dari loker beneran yang kita kumpulin tiap hari, diperbarui tiap minggu.{% endblock %}
+{% block og_title %}Skill Map · cariinkerja.id{% endblock %}
+{% block og_description %}Skill yang paling dicari per posisi, dihitung dari loker beneran. Diperbarui tiap minggu.{% endblock %}
+
+{% block content %}
+  <h1>Skill Map</h1>
+  <p class="lede">
+    Skill apa yang paling dicari buat posisi incaranmu? Dihitung dari loker beneran yang kita
+    kumpulin tiap hari, bukan tebak-tebakan.{% if updated %} Terakhir diperbarui {{ updated }}.{% endif %}
+  </p>
+
+  <ul class="grid">
+    {% for item in pages %}
+      <li>
+        <a class="tile" href="{{ frontend_url }}/skill/{{ item.page.slug }}/">
+          <span class="t">{{ item.page.title }}</span>
+          <span class="n">{{ item.snap.job_count|intdot }} loker</span>
+          <span class="top">{% for s in item.top %}{{ s.name }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+        </a>
+      </li>
+    {% empty %}
+      <li class="empty">Datanya lagi dikumpulin. Balik lagi minggu depan ya.</li>
+    {% endfor %}
+  </ul>
+
+  <section class="cta">
+    <h2>Mau tau skill mana yang belum kamu punya?</h2>
+    <p>
+      Tiap pagi cariinkerja bandingin LinkedIn-mu sama loker baru: skor 0–100, skill yang udah
+      cocok, dan skill gap yang perlu kamu kejar.
+    </p>
+    <a class="btn" href="{{ frontend_url }}/login?ref=skillmap-index"
+      data-umami-event="skillmap-cta" data-umami-event-slug="index">Mulai sekarang</a>
+    {% if cheapest_plan %}
+      <p class="fine">Layanan berbayar, mulai Rp {{ cheapest_plan.price|intdot }} / {{ cheapest_plan.duration_days }} hari. Ga pake trial ya.</p>
+    {% endif %}
+  </section>
+{% endblock %}

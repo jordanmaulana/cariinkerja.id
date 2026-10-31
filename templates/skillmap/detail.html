@@ -1,0 +1,95 @@
+{% extends "skillmap/base.html" %}
+{% load format_number %}
+
+{% block title %}Skill yang paling dicari buat {{ page.title }} · Skill Map cariinkerja.id{% endblock %}
+{% block description %}Dari {{ data.job_count|intdot }} loker {{ page.title }} ({{ window_start }} – {{ window_end }}), skill yang paling sering diminta: {% for s in data.hard_skills|slice:":3" %}{{ s.name }} ({{ s.pct }}%){% if not forloop.last %}, {% endif %}{% endfor %}. Cek skill mana yang belum kamu punya.{% endblock %}
+{% block og_title %}Skill yang paling dicari buat {{ page.title }}{% endblock %}
+{% block og_description %}Dari {{ data.job_count|intdot }} loker, {{ window_start }} – {{ window_end }}. Diperbarui tiap minggu.{% endblock %}
+
+{% block content %}
+  <nav class="crumb"><a href="{{ frontend_url }}/skill/">Skill Map</a> / {{ page.title }}</nav>
+  <h1>Skill yang paling dicari buat <span class="accent">{{ page.title }}</span></h1>
+  <p class="lede">
+    Dari <b>{{ data.job_count|intdot }} loker</b> yang kita kumpulin, {{ window_start }} – {{ window_end }}.
+    Diperbarui tiap minggu.
+  </p>
+
+  <section class="card">
+    <h2>Hard skill</h2>
+    <p class="hint">Persennya = dari semua loker {{ page.title }}, berapa banyak yang nyebut skill ini.</p>
+    <ol class="bars">
+      {% for s in data.hard_skills %}
+        <li>
+          <span class="name">{{ s.name }}</span>
+          <span class="track"><span class="fill" style="width: {{ s.pct }}%"></span></span>
+          <span class="pct">{{ s.pct }}%</span>
+        </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if data.soft_skills %}
+    <section class="card">
+      <h2>Soft skill</h2>
+      <p class="hint">Yang ini sering kelewat di CV, padahal dicari juga.</p>
+      <ol class="bars soft">
+        {% for s in data.soft_skills %}
+          <li>
+            <span class="name">{{ s.name }}</span>
+            <span class="track"><span class="fill" style="width: {{ s.pct }}%"></span></span>
+            <span class="pct">{{ s.pct }}%</span>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endif %}
+
+  {% if data.remote_options or data.job_types %}
+    <section class="card">
+      <h2>Kerjanya kayak gimana?</h2>
+      <p class="hint">Sisanya ga nyebut di lokernya.</p>
+      {% if data.remote_options %}
+        <ul class="chips">
+          {% for r in data.remote_options %}<li>{{ r.label }} <b>{{ r.pct }}%</b></li>{% endfor %}
+        </ul>
+      {% endif %}
+      {% if data.job_types %}
+        <ul class="chips">
+          {% for t in data.job_types %}<li>{{ t.label }} <b>{{ t.pct }}%</b></li>{% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <section class="cta">
+    <h2>Nah, itu kata pasar. Kalau kata profilmu?</h2>
+    <p>
+      Tiap pagi cariinkerja bandingin LinkedIn-mu sama loker {{ page.title }} yang baru masuk:
+      skor 0–100, skill yang udah cocok, dan skill gap yang perlu kamu kejar.
+    </p>
+    <a class="btn" href="{{ frontend_url }}/login?ref=skillmap-{{ page.slug }}"
+      data-umami-event="skillmap-cta" data-umami-event-slug="{{ page.slug }}">Mulai sekarang</a>
+    {% if cheapest_plan %}
+      <p class="fine">Layanan berbayar, mulai Rp {{ cheapest_plan.price|intdot }} / {{ cheapest_plan.duration_days }} hari. Ga pake trial ya.</p>
+    {% endif %}
+  </section>
+
+  <section class="method">
+    <h2>Cara kita ngitung</h2>
+    <p>
+      Kita ambil loker yang masuk {{ snap.window_days }} hari terakhir dan judulnya mengandung
+      “{{ page.match_words|default:page.title }}”. Tiap loker dibaca AI buat narik skill yang diminta,
+      terus satu loker dihitung sekali per skill. Loker yang sama dari dua job board dihitung sekali.
+      Ini gambaran pasar ya, bukan jaminan kamu dipanggil interview.
+    </p>
+  </section>
+
+  {% if related %}
+    <section class="related">
+      <h2>Skill Map lainnya</h2>
+      <ul class="chips">
+        {% for p in related %}<li><a href="{{ frontend_url }}/skill/{{ p.slug }}/">{{ p.title }}</a></li>{% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+{% endblock %}

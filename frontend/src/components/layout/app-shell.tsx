@@ -193,6 +193,20 @@ export function AppShell() {
                 <ShieldCheck className="size-3.5" />
                 Compliance
               </Link>
+              <span aria-hidden="true">·</span>
+              <Link
+                to="/privasi"
+                className="font-medium text-foreground transition-colors hover:text-primary"
+              >
+                Privasi
+              </Link>
+              <span aria-hidden="true">·</span>
+              <Link
+                to="/syarat"
+                className="font-medium text-foreground transition-colors hover:text-primary"
+              >
+                Syarat
+              </Link>
             </div>
           </div>
         </footer>

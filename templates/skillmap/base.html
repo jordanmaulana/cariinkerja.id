@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Skill Map · cariinkerja.id{% endblock %}</title>
+  <meta name="description" content="{% block description %}{% endblock %}" />
+  <link rel="canonical" href="{{ canonical }}" />
+  <link rel="icon" href="{{ frontend_url }}/favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#863bff" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="cariinkerja.id" />
+  <meta property="og:locale" content="id_ID" />
+  <meta property="og:url" content="{{ canonical }}" />
+  <meta property="og:title" content="{% block og_title %}{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}{% endblock %}" />
+  <meta property="og:image" content="{{ frontend_url }}/og-image.png?v=2" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="{{ frontend_url }}/og-image.png?v=2" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Umami analytics + session recorder (same site id as frontend/index.html) -->
+  <script defer src="https://umami.jordanmaulana.space/script.js"
+    data-website-id="8210aaee-9ce5-4825-a5c5-8d81349ca09f"></script>
+  <script defer src="https://umami.jordanmaulana.space/recorder.js"
+    data-website-id="8210aaee-9ce5-4825-a5c5-8d81349ca09f"></script>
+
+  <style>
+    :root {
+      --bg: #050308;
+      --bg-glow: #1a1424;
+      --ink: #f4f2f8;
+      --muted: #a8a1b6;
+      --faint: #736c84;
+      --line: rgba(255, 255, 255, 0.08);
+      --card: rgba(255, 255, 255, 0.03);
+      --brand: #863bff;
+      --brand-soft: rgba(134, 59, 255, 0.16);
+      --track: rgba(255, 255, 255, 0.06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: "Geist", system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      background-image: radial-gradient(900px 520px at 85% -10%, var(--bg-glow), transparent 70%);
+      background-repeat: no-repeat;
+      line-height: 1.55;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+    header.site { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; letter-spacing: -0.01em; }
+    .brand svg { flex: none; }
+    .brand .tld { opacity: 0.6; }
+    .btn {
+      display: inline-block; background: var(--brand); color: #fff; text-decoration: none;
+      font-weight: 600; font-size: 15px; padding: 11px 20px; border-radius: 10px;
+      transition: filter 0.15s ease;
+    }
+    .btn:hover { filter: brightness(1.12); }
+    .btn.small { font-size: 13px; padding: 8px 14px; border-radius: 8px; }
+    main { padding: 28px 0 56px; }
+    .crumb { font-size: 13px; color: var(--faint); margin-bottom: 14px; }
+    .crumb a { color: var(--muted); text-decoration: none; }
+    .crumb a:hover { color: var(--ink); }
+    h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.12; letter-spacing: -0.02em; font-weight: 700; }
+    h1 .accent { color: #b48aff; }
+    h2 { font-size: 18px; letter-spacing: -0.01em; font-weight: 600; margin-bottom: 4px; }
+    .lede { color: var(--muted); font-size: 16px; margin-top: 12px; max-width: 60ch; }
+    .lede b { color: var(--ink); font-weight: 600; }
+    .card { border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 20px; margin-top: 20px; }
+    .hint { color: var(--faint); font-size: 13px; margin-bottom: 14px; }
+    ol.bars { list-style: none; display: grid; gap: 10px; }
+    ol.bars li { display: grid; grid-template-columns: minmax(0, 11rem) 1fr 3rem; align-items: center; gap: 12px; font-size: 14px; }
+    ol.bars .name { overflow-wrap: anywhere; }
+    ol.bars .track { height: 10px; border-radius: 99px; background: var(--track); overflow: hidden; }
+    ol.bars .fill { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #6d24e8, var(--brand) 60%, #a777ff); }
+    ol.bars .pct { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+    ol.bars.soft .fill { background: rgba(180, 138, 255, 0.55); }
+    .chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .chips li { font-size: 13px; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; color: var(--muted); }
+    .chips li b { color: var(--ink); font-weight: 600; }
+    .chips a { text-decoration: none; }
+    .chips a:hover { color: var(--ink); }
+    .cta { margin-top: 28px; border: 1px solid rgba(134, 59, 255, 0.45); background: linear-gradient(180deg, var(--brand-soft), transparent); border-radius: 16px; padding: 24px 20px; }
+    .cta h2 { font-size: 20px; }
+    .cta p { color: var(--muted); margin: 8px 0 16px; }
+    .cta .fine { font-size: 13px; color: var(--faint); margin: 12px 0 0; }
+    .method { margin-top: 28px; }
+    .method p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+    .related { margin-top: 28px; }
+    ul.grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 24px; }
+    .tile { display: block; height: 100%; text-decoration: none; border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 16px; transition: border-color 0.15s ease; }
+    .tile:hover { border-color: rgba(134, 59, 255, 0.6); }
+    .tile .t { display: block; font-weight: 600; }
+    .tile .n { display: block; font-size: 13px; color: var(--faint); margin-top: 2px; }
+    .tile .top { display: block; font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .empty { color: var(--muted); }
+    footer.site { border-top: 1px solid var(--line); padding: 22px 0 32px; font-size: 13px; color: var(--faint); }
+    footer.site nav { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }
+    footer.site a { color: var(--muted); text-decoration: none; }
+    footer.site a:hover { color: var(--ink); }
+    @media (max-width: 480px) {
+      ol.bars li { grid-template-columns: minmax(0, 8.5rem) 1fr 2.75rem; gap: 8px; font-size: 13px; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site">
+      <a class="brand" href="{{ frontend_url }}/">
+        <svg width="28" height="28" viewBox="0 0 240 240" aria-hidden="true">
+          <defs><linearGradient id="lm" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1a1424"/><stop offset="100%" stop-color="#050308"/></linearGradient></defs>
+          <rect width="240" height="240" rx="48" fill="url(#lm)"/>
+          <circle cx="120" cy="120" r="92" fill="none" stroke="#fff" stroke-opacity=".1" stroke-width="10"/>
+          <circle cx="120" cy="120" r="92" fill="none" stroke="#863bff" stroke-width="10" stroke-linecap="round" stroke-dasharray="531.9 46.3" transform="rotate(-90 120 120)"/>
+          <text x="120" y="156" text-anchor="middle" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-weight="800" font-size="104" letter-spacing="-4" fill="#fff">92</text>
+        </svg>
+        <span>cariinkerja<span class="tld">.id</span></span>
+      </a>
+      <a class="btn small" href="{{ frontend_url }}/login?ref=skillmap-header" data-umami-event="skillmap-cta" data-umami-event-slug="header">Mulai sekarang</a>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site">
+      <nav>
+        <a href="{{ frontend_url }}/">Beranda</a>
+        <a href="{{ frontend_url }}/skill/">Skill Map</a>
+        <a href="{{ frontend_url }}/compliance">Compliance</a>
+        <a href="{{ frontend_url }}/privasi">Privasi</a>
+        <a href="{{ frontend_url }}/syarat">Syarat</a>
+        <a href="https://github.com/jordanmaulana/cariinkerja.id" rel="noopener">Open source (AGPL)</a>
+      </nav>
+      © 2026 cariinkerja.id
+    </footer>
+  </div>
+</body>
+</html>

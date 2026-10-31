@@ -21,6 +21,19 @@ export function SiteFooter() {
           <Link to="/compliance" className="underline-offset-2 hover:underline">
             Compliance
           </Link>
+          {" · "}
+          <Link to="/privasi" className="underline-offset-2 hover:underline">
+            Privasi
+          </Link>
+          {" · "}
+          <Link to="/syarat" className="underline-offset-2 hover:underline">
+            Syarat
+          </Link>
+          {" · "}
+          {/* Served by Django via the reverse proxy, not the SPA. */}
+          <a href="/skill/" className="underline-offset-2 hover:underline">
+            Skill Map
+          </a>
         </p>
       </div>
     </footer>

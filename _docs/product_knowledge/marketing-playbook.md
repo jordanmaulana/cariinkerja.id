@@ -1,6 +1,6 @@
 # Marketing Playbook — cariinkerja.id
 
-*Last verified: 2026-10-22.* What to say, to whom, with what proof, through which channel,
+*Last verified: 2026-10-31.* What to say, to whom, with what proof, through which channel,
 and what never to say. For facts see [product.md](product.md); for wording see
 [brand-voice.md](brand-voice.md).
 
@@ -40,7 +40,7 @@ proven example (transcripts are in `ads/voice/*.transcript.json`, gitignored, lo
 | Pillar | What it is | Existing example / angle |
 |---|---|---|
 | **Objection handling** | Answer one real objection per post. | *GADA TRIAL*: there used to be a 1-day trial, but people typed job titles like "Coba kerja" and pasted other people's LinkedIn links. "Validasi itu gak ada ujungnya… Langsung tembokin payment aja." Next ideas: "kenapa harus LinkedIn?", "kenapa skor gue rendah?", "kenapa ga bisa downgrade?" |
-| **Stats report** | Dry, mock-official read-out of platform numbers. | *statistik-cariinkerja*: "seolah-olah ini programnya pemerintah". Lead stat: "Di antara 9 loker… hanya ada 2 yang sebenarnya cocok." Always date the numbers. |
+| **Stats report** | Dry, mock-official read-out of platform numbers. | *statistik-cariinkerja*: "seolah-olah ini programnya pemerintah". Lead stat: "Di antara 9 loker… hanya ada 2 yang sebenarnya cocok." Always date the numbers. Each Skill Map page (`cariinkerja.id/skill/<title>/`) is a ready-made stats report: "skill paling dicari buat Data Analyst" — link the page. |
 | **Job-hunt advice** | Useful advice that isn't a product pitch. | *cuma apply loker*: build an online presence so more people than HR know you exist. "Iya, ekonomi lagi sulit, tapi usahamu jangan ikut sempit." |
 | **Product demo** | Screen walkthrough of a real score + gap + verdict. | *cariinkerja_short*: "Asik kan? Menurutku ini asik." "Kita bisa sibuk upgrade skill aja yang tertera di skill gap." |
 | **Build in public / origin** | The solo-dev story. | It started as a script that auto-filled a Google Sheet, then became the product. Also: crawler fights, shipping notes, and the AGPL repo. |
@@ -95,7 +95,7 @@ and `today`. The landing page shows the same live numbers.
   - The GitHub repo: https://github.com/jordanmaulana/cariinkerja.id
   - Jordan's own short videos.
 - **Link previews:** OG and Twitter tags are set up, so any post linking `https://cariinkerja.id` renders the OG card on Facebook, LinkedIn, Threads, X and WhatsApp.
-- **Every CTA points to** `https://cariinkerja.id` → "Mulai sekarang" → Google sign-in. There's no separate pricing page to link to.
+- **Every CTA points to** `https://cariinkerja.id` → "Mulai sekarang" → Google sign-in. Pricing and FAQ are on the landing page. For skill-themed posts, link the matching Skill Map page instead (`https://cariinkerja.id/skill/<title>/`); its CTA carries `?ref=skillmap-<title>` so Umami can attribute sign-ins.
 - **Product Hunt:** copy is drafted (`producthunt.md`) but must be corrected first (§8).
 
 ---
@@ -108,7 +108,7 @@ Hard rules. Breaking one makes the post wrong or off-brand.
 - Never say **gratis / free / trial / coba gratis / coba dulu**. The product is paid-only.
 - Quote prices only from [product.md §6](product.md#6-business-model) (Rp 49.000 → 1 search, Rp 99.000 → 3 searches, 30 days).
 - Open-to-Work discount is OK to promote: "Open to Work" on LinkedIn → 1-search plan Rp 34.000 (normally Rp 49.000). Only the cheapest plan; upgrades are full price.
-- Name only live job sources (Indeed, JobStreet, LinkedIn). **Don't announce Kalibrr/Kitalulus** until `migrate-portal` merges. Safest wording: "dari berbagai job board".
+- Name only live job sources (Indeed, JobStreet, LinkedIn, Himalayas, Jobicy, Workable, Remote OK — check `jobs/url_builders.py`). **Don't announce Kalibrr/Kitalulus**: they are not live. Never use the Remote OK logo. Safest wording: "dari berbagai job board".
 - Never name the AI model. Say "AI".
 - Every traction number carries its date.
 - **Never promise jobs, interviews, callbacks or hiring speed.** The product finds fit; the user still has to land the interview.
@@ -129,15 +129,13 @@ Hard rules. Breaking one makes the post wrong or off-brand.
 ## 8. Known gaps & stale claims elsewhere
 
 ### Gaps to close before running paid ads (`todo.md`)
-- No privacy policy, terms & conditions, or cookie banner. Ad platforms (Meta, Google, TikTok) typically require a privacy-policy URL.
-- No pricing section or FAQ on the landing page.
+- Privacy policy (`/privasi`) and T&C (`/syarat`) exist as **drafts**: the founder must review them before running ads. Still no cookie banner.
 - No sticky mobile CTA.
 
 ### Stale claims (don't repeat them; fix the source when convenient)
 
 | Where | Stale claim | Truth |
 |---|---|---|
-| **Live landing page** `landing-stats.tsx` | "Cari & kasih skor sekitar 20 loker setelah registrasi" | Paid-only. Nothing is crawled before payment. |
 | `about.md` | Free tier ("get your footing first"); Indeed + JobStreet only; user picks a source; GPT-4o; full-time vs freelance only | Paid-only; 4 live sources, auto fan-out; no model name; job types are full-time / part-time / contract / internship, remote options are remote / on-site / hybrid |
 | `producthunt.md` | Free tier ~20 assessments; "crawls Indeed + JobStreet"; GPT-4o; struggling-user warning "on the landing page" | Paid-only; 4 sources; no model name; the warning lives in the sign-in checklist |
 | `README.md` (repo root) | Crawler watches "Indeed & JobStreet" | 4 live sources |
