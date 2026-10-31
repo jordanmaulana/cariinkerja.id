@@ -49,19 +49,4 @@ export const JOB_SOURCES: JobSource[] = [
       },
     ],
   },
-  {
-    name: "Remotive",
-    permissions: [
-      {
-        url: "https://remotive.com/remote-jobs/api",
-        statement:
-          "Link back to Remotive URL and mention Remotive as source; do not submit jobs to third-party sites (Jooble, Neuvoo, Google Jobs, LinkedIn Jobs).",
-      },
-      {
-        url: "https://github.com/remotive-com/remote-jobs-api",
-        statement:
-          "README: 24h delay, max ~4 fetches/day, >2 req/min blocked, no using jobs to collect emails/signups.",
-      },
-    ],
-  },
 ];
