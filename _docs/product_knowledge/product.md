@@ -160,9 +160,11 @@ Postings are also parsed for their own required hard and soft skills.
 Every match carries a status the user moves forward: **new → seen → applied → accepted**,
 with **rejected** available as a terminal branch at any point.
 
-Transitions are **forward-only and irreversible by design** — rejecting hides the job from
-the queue and only support can bring it back. The point is an honest record of what you
-actually did, not a task board you can groom.
+Transitions are **forward-only by design**: the app offers no way to move a status back. The
+point is an honest record of what you actually did, not a task board you can groom.
+
+**No match is ever lost.** The list opens on **new** matches by default, and every status,
+rejected included, is one filter away. Never describe rejecting as hiding or deleting a job.
 
 ### Dashboard
 

@@ -99,9 +99,10 @@ function TermsPage() {
           </li>
           <li>Pencarian cuma bisa dihapus selama belum dibayar.</li>
           <li>
-            Status loker cuma bisa maju (baru → dilihat → apply → diterima).
-            Loker yang kamu tolak hilang dari daftar dan cuma bisa dikembalikan
-            lewat admin.
+            Status loker cuma bisa maju (Baru → Sudah dilihat → Sudah dilamar →
+            Dapat tawaran), dan kamu bisa tandai Ditolak kapan aja. Nggak ada
+            loker yang hilang: semua loker, termasuk yang kamu tolak, tetap bisa
+            kamu lihat lewat filter status di daftar loker.
           </li>
         </ul>
       </LegalSection>
