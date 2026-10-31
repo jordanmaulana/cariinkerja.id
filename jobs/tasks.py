@@ -114,6 +114,15 @@ def sync_workable_feed() -> dict:
         raise
 
 
+@shared_task
+def refresh_skill_maps() -> dict:
+    """Write this week's Skill Map snapshot for every page. Beat: weekly."""
+    from jobs.models import SkillMapPage
+    from jobs.skill_map import refresh_page
+
+    return {p.slug: refresh_page(p).job_count for p in SkillMapPage.objects.all()}
+
+
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def extract_job_skills(job_id: str):
     """Fill Job.hard_skills / soft_skills from the description via LLM. Idempotent."""

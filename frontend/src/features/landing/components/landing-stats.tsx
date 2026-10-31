@@ -53,7 +53,7 @@ export function LandingStats() {
             Udah jalan, datanya nyata.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Cari & kasih skor sekitar 20 loker setelah registrasi, cari loker tiap hari selama 30 hari buat yang berlangganan.
+            Angka langsung dari sistem: tiap hari loker baru dicari dan dinilai buat yang berlangganan.
           </p>
         </div>
         <div className="mt-10 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">

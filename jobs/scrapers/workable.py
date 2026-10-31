@@ -24,7 +24,6 @@ with ``Retry-After`` ≈ 1 h, so sync at most hourly and never auto-retry.
 from __future__ import annotations
 
 import logging
-import re
 from datetime import timedelta
 from email.utils import parsedate_to_datetime
 from typing import Iterable, Iterator
@@ -39,7 +38,7 @@ from lxml import etree
 
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
-from jobs.scrapers.filters import is_blocked_company
+from jobs.scrapers.filters import is_blocked_company, title_words
 from profiles.consts import Source
 
 logger = logging.getLogger(__name__)
@@ -250,7 +249,7 @@ def crawl(
     https://jobs.workable.com/search?query=flutter+developer&location=Indonesia
     """
     params = dict(parse_qsl(urlparse(url).query))
-    words = [w for w in re.split(r"\W+", params.get("query", "").lower()) if len(w) > 1]
+    words = title_words(params.get("query"))
     if not words:
         logger.warning("no query in workable crawl url: %s", url)
         return

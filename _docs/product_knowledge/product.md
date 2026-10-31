@@ -1,6 +1,6 @@
 # Product Overview — cariinkerja.id
 
-*Last verified against code: 2026-10-22 (branch `main`).*
+*Last verified against code: 2026-10-31.*
 
 It describes *what the product is* and *why it behaves the way it does*. It contains no
 code. Start at [README.md](README.md) for the one-screen fact sheet. For architecture see
@@ -111,7 +111,10 @@ Searches can only be deleted while unpaid.
 ### Sources
 
 Every search automatically covers **Indeed Indonesia**, **JobStreet Indonesia**, **LinkedIn
-Southeast Asia**, and **LinkedIn EMEA**. **Dealls** also has a working crawler, but it is
+Southeast Asia**, **LinkedIn EMEA**, and four remote-friendly boards with public APIs or
+feeds that allow reuse: **Himalayas**, **Jobicy**, **Workable** (Indonesia jobs plus
+APAC-remote), and **Remote OK**. Their terms and the credit each needs are listed on the
+public `/compliance` page. **Dealls** also has a working crawler, but it is
 never added automatically — it only runs when an admin pastes a Dealls URL into a search by
 hand, so don't market it as a source.
 
@@ -121,11 +124,10 @@ job is unreachable for an Indonesian candidate, so including it would be noise.
 Certain staffing and crowdwork brands are filtered out of results entirely as low-quality
 listings.
 
-**Upcoming, not live — do not announce.** The unmerged `migrate-portal` branch replaces the
-automatic sources with **Kalibrr** and **Kitalulus** (boards whose terms allow crawling) and
-retires Indeed, JobStreet, and LinkedIn for crawl-policy reasons. Its source register lives
-at `_docs/scraping-policy.md` on that branch only. Once it merges, this section, the
-landing-page source strip, and every source mention in this folder must change together.
+**Not live — do not announce.** A `migrate-portal` branch once planned to swap in
+**Kalibrr** and **Kitalulus** and retire Indeed, JobStreet, and LinkedIn. As of 2026-10-31
+that branch is not on GitHub. If sources ever change, this section, the landing-page source
+strip, and every source mention in this folder must change together.
 
 ### Daily matching
 
@@ -158,9 +160,11 @@ Postings are also parsed for their own required hard and soft skills.
 Every match carries a status the user moves forward: **new → seen → applied → accepted**,
 with **rejected** available as a terminal branch at any point.
 
-Transitions are **forward-only and irreversible by design** — rejecting hides the job from
-the queue and only support can bring it back. The point is an honest record of what you
-actually did, not a task board you can groom.
+Transitions are **forward-only by design**: the app offers no way to move a status back. The
+point is an honest record of what you actually did, not a task board you can groom.
+
+**No match is ever lost.** The list opens on **new** matches by default, and every status,
+rejected included, is one filter away. Never describe rejecting as hiding or deleting a job.
 
 ### Dashboard
 
@@ -180,6 +184,20 @@ An open tab updates itself: subscription activation, newly created assessments, 
 changes, and search status changes all arrive without a refresh. Notably, the app never
 trusts the payment gateway's redirect — an activated subscription is confirmed by a pushed
 event or a manual "I already paid, refresh" button.
+
+### Skill Map (public, no login)
+
+`cariinkerja.id/skill/` lists public pages such as `/skill/data-analyst/`: the most-requested
+hard and soft skills for one job title, with the % of postings that ask for each, plus the
+remote / on-site / hybrid and job-type mix. Numbers come from the skills already extracted
+from crawled jobs over the last 90 days, refreshed weekly, and every page states its date
+window and job count. It is a top-of-funnel tool for search and social content, not a free
+tier: it shows the market, never the visitor's own score. Each page ends with the paid CTA
+and the price.
+
+What it never shows: individual postings, company names, or job-posting structured data.
+Only aggregate counts. The operator picks which titles get a page (in Django admin) and a
+page stays hidden until it has at least 30 jobs behind it.
 
 ### Operator tools
 
@@ -273,23 +291,23 @@ would raise signups and destroy the positioning:
 
 Recorded as fact, not as a task list. Verify against the code before repeating any of it:
 
-- **The free tier is gone.** `about.md`, `producthunt.md`, the pitch deck, and the **live
-  landing page's** stats sub-copy ("Cari & kasih skor sekitar 20 loker setelah
-  registrasi…") still advertise roughly 20 free
-  assessments after registration. The product is paid-only and the first crawl is triggered
+- **The free tier is gone.** `about.md`, `producthunt.md`, and the pitch deck still
+  advertise roughly 20 free assessments after registration (the landing page's stats copy
+  was fixed on 2026-10-31). The product is paid-only and the first crawl is triggered
   by payment. The sign-in checklist already tells users the truth.
 - **Prices.** Every older doc (`about.md`, pitch deck, earlier versions of this file) shows
   outdated prices. Only §6 is current.
 - **Source names.** `README.md`, `about.md`, and `producthunt.md` name Indeed and JobStreet
   only. The landing page's source strip lists LinkedIn SEA, LinkedIn EMEA, Indeed, and
-  JobStreet, which matches §5.
+  JobStreet — it leaves out the four API boards in §5 (Remote OK must stay off it anyway:
+  no logo without written permission).
 - **"Choose Indeed or JobStreet."** `about.md` and the pitch deck say the user picks a
   source. They don't — one search fans out to every source automatically.
 - **Model name.** `about.md`, `producthunt.md`, and the pitch deck say "GPT-4o". The model is
   configurable and may change; marketing should say "AI", never a model name.
-- **Pricing is not linked from the landing page.** There is no pricing section and no FAQ.
-  The plans page and its API are technically reachable without signing in, but nothing links
-  to them from the public pages.
+- **Pricing and FAQ are on the landing page** since 2026-10-31 (live plans from the public
+  plans API). The privacy policy (`/privasi`) and T&C (`/syarat`) pages exist as drafts
+  awaiting the founder's review against UU PDP.
 
 ---
 

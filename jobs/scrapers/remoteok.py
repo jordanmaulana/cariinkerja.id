@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import html
 import logging
-import re
 from typing import Iterator
 from urllib.parse import parse_qsl, urlparse
 
@@ -27,7 +26,7 @@ from curl_cffi import requests as cffi_requests
 
 from jobs.consts import RemoteOption
 from jobs.scrapers.dealls import _request_json, build_client
-from jobs.scrapers.filters import is_blocked_company
+from jobs.scrapers.filters import is_blocked_company, title_words
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ def crawl(
     https://remoteok.com/api?search=software+engineer
     """
     query = dict(parse_qsl(urlparse(url).query)).get("search", "")
-    words = [w for w in re.split(r"\W+", query.lower()) if len(w) > 1]
+    words = title_words(query)
     if not words:
         logger.warning("no search in remoteok crawl url: %s", url)
         return

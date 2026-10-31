@@ -8,3 +8,4 @@ Disallow: /plans
 Disallow: /login
 
 Sitemap: https://cariinkerja.id/sitemap.xml
+Sitemap: https://cariinkerja.id/skill/sitemap.xml

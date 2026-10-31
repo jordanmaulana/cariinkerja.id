@@ -1,6 +1,6 @@
 # Product Knowledge — cariinkerja.id
 
-*Last verified against code and with the founder: 2026-10-22.*
+*Last verified against code: 2026-10-31 (founder-confirmed facts: 2026-10-22).*
 
 **Who this is for:** AI agents (and people) planning social media posts, ads, launch copy,
 or any other non-code work for cariinkerja.id. Read this folder before writing anything
@@ -31,7 +31,8 @@ the code (or ask the founder) and add it here.
 | **Language** | Bahasa Indonesia UI and copy, casual "kamu". Job/tech terms stay English (apply, skill gap). |
 | **Business model** | **Paid-only. No free tier, no trial.** The first crawl happens after payment. |
 | **Pricing** | **Rp 49.000 / 30 days → 1 search (job title)** · **Rp 99.000 / 30 days → 3 searches**. Payment via Mayar (Indonesian gateway). |
-| **Job sources (live)** | Indeed Indonesia, JobStreet Indonesia, LinkedIn Southeast Asia, LinkedIn EMEA (remote roles only). Kalibrr + Kitalulus are on an unmerged branch; **don't announce them**. |
+| **Job sources (live)** | Indeed Indonesia, JobStreet Indonesia, LinkedIn Southeast Asia, LinkedIn EMEA (remote roles only), Himalayas, Jobicy, Workable, Remote OK. **Don't announce Kalibrr or Kitalulus** (not live). |
+| **Skill Map** | Public pages at `https://cariinkerja.id/skill/`: most-requested skills per job title, from crawled jobs, refreshed weekly. No login. Good link target for stats-report posts. |
 | **Sign-up** | Google sign-in only. Four honesty checkboxes must be ticked first (see brand-voice.md). |
 | **Team** | Solo founder: **Jordan (Jordan Maulana)**, who builds, runs, and markets it. |
 | **Open source** | AGPL-3.0, public repo: https://github.com/jordanmaulana/cariinkerja.id |

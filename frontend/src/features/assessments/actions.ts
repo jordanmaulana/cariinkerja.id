@@ -10,7 +10,7 @@ export type Action = {
 export const REJECT_CONFIRM = {
   title: "Tolak kecocokan ini?",
   description:
-    "Setelah ditolak, loker ini disembunyiin dari antreanmu dan cuma bisa dikembalikan oleh support. Yakin?",
+    "Loker ini pindah ke status Ditolak dan statusnya nggak bisa kamu ubah lagi. Kamu tetap bisa lihat lewat filter status Ditolak. Yakin?",
   confirmLabel: "Ya, tolak",
 };
 

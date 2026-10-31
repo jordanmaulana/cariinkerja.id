@@ -11,7 +11,7 @@ import { tokenAtom, userAtom } from "@/features/auth/state";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 // Reachable by everyone, logged in or not, with no redirects.
-const OPEN_PATHS = new Set(["/compliance"]);
+const OPEN_PATHS = new Set(["/compliance", "/privasi", "/syarat"]);
 const FULL_BLEED_PATHS = new Set([...PUBLIC_PATHS, ...OPEN_PATHS, "/onboarding"]);
 
 export function AuthGate() {

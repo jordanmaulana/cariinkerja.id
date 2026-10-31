@@ -22,6 +22,16 @@ export function BottomCta() {
             </Link>
           </Button>
         </div>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Penasaran skill apa yang paling dicari?{" "}
+          {/* Served by Django via the reverse proxy, not the SPA. */}
+          <a
+            href="/skill/"
+            className="font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            Lihat Skill Map
+          </a>
+        </p>
       </div>
     </section>
   );
