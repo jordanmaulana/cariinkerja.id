@@ -1675,6 +1675,48 @@ class SkillMapCommandTests(TestCase):
         )
         self.assertEqual(line.split()[:3], ["3", "1", "✓"])
 
+    def test_create_makes_live_pages_only_for_titles_with_enough_jobs(self):
+        from profiles.models import Preference, Profile
+
+        profile = Profile.objects.create()
+        Preference.objects.create(profile=profile, title="data analyst")
+        Preference.objects.create(profile=profile, title="Data Analyst")
+        Preference.objects.create(profile=profile, title="iOS Engineer")
+        for i in range(2):
+            _job(i, "Data Analyst", ["SQL"])
+        SkillMapPage.objects.create(slug="ios-engineer", title="iOS Engineer")
+
+        out = io.StringIO()
+        args = ("skill_map_candidates", "--create", "--min-jobs", "2")
+        call_command(*args, stdout=out)
+
+        page = SkillMapPage.objects.get(slug="data-analyst")
+        self.assertEqual(page.title, "Data Analyst")
+        self.assertTrue(page.is_published)
+        self.assertEqual(page.min_jobs, 2)
+        self.assertEqual(page.latest_snapshot().job_count, 2)
+        self.assertEqual(SkillMapPage.objects.count(), 2)  # existing one untouched
+        self.assertIn("created 1 page(s)", out.getvalue())
+
+        # Running again creates nothing new.
+        call_command(*args, stdout=io.StringIO())
+        self.assertEqual(SkillMapPage.objects.count(), 2)
+
+    def test_create_draft_leaves_pages_unpublished(self):
+        from profiles.models import Preference, Profile
+
+        Preference.objects.create(profile=Profile.objects.create(), title="Backend")
+        _job(1, "Backend", ["Go"])
+        call_command(
+            "skill_map_candidates",
+            "--create",
+            "--draft",
+            "--min-jobs",
+            "1",
+            stdout=io.StringIO(),
+        )
+        self.assertFalse(SkillMapPage.objects.get(slug="backend").is_published)
+
     def test_backfill_filters_and_dry_run(self):
         _job(1, "A", source="workable")
         _job(2, "B", source="indeed")

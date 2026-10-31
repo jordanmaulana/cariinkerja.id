@@ -65,7 +65,7 @@ uv run manage.py crawl_dealls    "<listing-url>" [...]
 
 Defaults: `--max-pages 1`, `--limit 20`, `--sleep` from each scraper's `DEFAULT_SLEEP` (Indeed/LinkedIn 2.5s, JobStreet/Dealls 1.5s).
 
-Other commands: `backfill_job_skills [--source S] [--since-days N] [--dry-run] [--sync]`, `backfill_jobstreet_urls --dry-run`, `skill_map_candidates [--limit N] [--min-jobs N]` (most-searched Preference titles × matching skill-tagged job count — use it to pick Skill Map pages).
+Other commands: `backfill_job_skills [--source S] [--since-days N] [--dry-run] [--sync]`, `backfill_jobstreet_urls --dry-run`, `skill_map_candidates [--limit N] [--min-jobs N] [--create [--draft]]` (most-searched Preference titles × matching skill-tagged job count; `--create` makes, publishes and snapshots a Skill Map page for every title with ≥ `--min-jobs` jobs that has no page yet, `--draft` leaves them unpublished).
 
 **Gotcha:** two apps define `crawl_linkedin` — `jobs/` (listing-URL job crawler) and `profiles/` (Apify *profile* ingest, takes a `profile_id`). Django resolves the name to **`jobs`** (earlier in `INSTALLED_APPS` wins), so the profiles one is unreachable via `manage.py`; call `profiles.methods.crawl_and_ingest_linkedin` or the `crawl_linkedin_for_profile` task instead. Rename one if you touch this area.
 
