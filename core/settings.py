@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -221,6 +222,12 @@ APIFY_TOKEN = os.environ.get("APIFY_TOKEN", "")
 HIMALAYAS_API_KEY = os.environ.get("HIMALAYAS_API_KEY", "")
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000").rstrip("/")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+# The frontend container forwards FRONTEND_URL/skill/ here with the frontend's
+# Host header (frontend/nginx.conf), so Django must accept that host too.
+_frontend_host = urlparse(FRONTEND_URL).hostname
+if _frontend_host and _frontend_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_frontend_host)
 
 # --- Email (SMTP) ---
 # cariinkerja.id mailbox is hosted on mailspace.id. The TLS cert at

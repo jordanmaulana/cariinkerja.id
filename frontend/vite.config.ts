@@ -16,6 +16,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": { target: "http://localhost:8000", changeOrigin: true },
+      // Skill Map pages are rendered by Django (frontend/nginx.conf in prod).
+      "/skill": { target: "http://localhost:8000", changeOrigin: true },
     },
   },
 });
