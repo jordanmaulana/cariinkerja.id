@@ -34,12 +34,16 @@
         "name": "Workable",
         "permission_urls": [
             {
+                "url": "https://jobs.workable.com/robots.txt",
+                "statement": "robots.txt does not disallow /api/ (only the /search?... HTML pages); site signals \"Content-Signal: search=yes, ai-input=yes, ai-train=no\". The search API is undocumented; no formal licence text."
+            },
+            {
                 "url": "https://help.workable.com/hc/en-us/articles/4420464031767-Utilizing-the-XML-Job-Feed",
-                "statement": "Public XML feed of all customers' published jobs; offered for \"a job board/partner we don't integrate with\". Keep job URLs unchanged. No formal licence text."
+                "statement": "Workable's rule for its job data: keep job URLs unchanged (candidate attribution)."
             }
         ],
         "api_endpoints": [
-            "https://www.workable.com/boards/workable.xml"
+            "https://jobs.workable.com/api/v1/jobs?query=<title>&location=Indonesia"
         ]
     },
     {

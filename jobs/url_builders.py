@@ -204,22 +204,16 @@ def build_jobicy_url(title: str | None) -> str | None:
     return f"{JOBICY_API}?{urlencode(query)}"
 
 
-def build_workable_url(
-    title: str | None,
-    remote_options: list[str] | None = None,
-) -> str | None:
+def build_workable_url(title: str | None) -> str | None:
     """Workable crawl URL for a Preference title.
 
-    Workable's human search page, but the scraper only reads ``query`` /
-    ``location`` and matches them against the synced feed (no network).
-    Without ``location=Indonesia`` the APAC remote pool is matched too — only
-    for remote seekers, same rule as the EMEA LinkedIn URL.
+    Workable's human search page, so admins can click it; the scraper sends
+    its ``query`` to the search API, always limited to Indonesia (that already
+    includes remote jobs open to Indonesia).
     """
     if not title or not title.strip():
         return None
-    query = [("query", title.strip())]
-    if not (remote_options and RemoteOption.REMOTE.value in remote_options):
-        query.append(("location", "Indonesia"))
+    query = [("query", title.strip()), ("location", "Indonesia")]
     return f"{WORKABLE_SEARCH}?{urlencode(query)}"
 
 
@@ -265,7 +259,7 @@ def build_crawl_urls(
     jc = build_jobicy_url(title)
     if jc:
         urls.append(jc)
-    wk = build_workable_url(title, remote_options)
+    wk = build_workable_url(title)
     if wk:
         urls.append(wk)
     rok = build_remoteok_url(title)

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Skill Map — How It Works</title>
+<!-- Render: weasyprint _docs/skill-map.html _docs/skill-map.pdf -->
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 18mm 20mm;
+    @bottom-left { content: "cariinkerja.id · Skill Map — operator guide"; font: 8pt Helvetica; color: #8a948e; }
+    @bottom-right { content: counter(page) " / " counter(pages); font: 8pt Helvetica; color: #8a948e; }
+  }
+  :root {
+    --ink: #17201b;
+    --muted: #5d6862;
+    --line: #dfe5e1;
+    --soft: #f3f7f5;
+    --green: #0f9d6b;
+    --green-soft: #e3f4ec;
+    --amber: #b7791f;
+    --amber-soft: #fbf1df;
+    --red: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body { font: 10pt/1.5 Helvetica, Arial, sans-serif; color: var(--ink); margin: 0; }
+  h1 { font: 600 26pt/1.15 Georgia, serif; margin: 0 0 4mm; }
+  h2 {
+    font: 600 15pt/1.2 Georgia, serif; margin: 9mm 0 3mm; padding-top: 3mm;
+    border-top: 2px solid var(--green); break-after: avoid;
+  }
+  h2 .num { color: var(--green); margin-right: 2mm; }
+  h3 { font-size: 11pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  code, .mono { font-family: Menlo, "SF Mono", monospace; font-size: 8.6pt; }
+  code { background: var(--soft); padding: 0 1mm; border-radius: 2px; }
+  pre {
+    font: 8.4pt/1.45 Menlo, "SF Mono", monospace; background: #17201b; color: #e9efe9;
+    padding: 3mm 4mm; border-radius: 3px; margin: 0 0 3mm; white-space: pre-wrap; break-inside: avoid;
+  }
+  pre .c { color: #8fb3a0; }
+  .kicker { font-size: 8.5pt; letter-spacing: .12em; text-transform: uppercase; color: var(--green); font-weight: 700; margin-bottom: 2mm; }
+  .lede { font-size: 11.5pt; color: var(--muted); max-width: 150mm; }
+  .meta { font-size: 8.5pt; color: var(--muted); margin-top: 3mm; }
+
+  .box { border: 1px solid var(--line); border-radius: 4px; padding: 3mm 4mm; margin: 0 0 3mm; break-inside: avoid; }
+  .box.green { background: var(--green-soft); border-color: #bfe3d2; }
+  .box.amber { background: var(--amber-soft); border-color: #efd6a8; }
+  .box h3 { margin-top: 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0 0 3mm; font-size: 9pt; break-inside: avoid; }
+  th, td { text-align: left; vertical-align: top; padding: 1.6mm 2mm; border-bottom: 1px solid var(--line); }
+  th { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1.5px solid var(--ink); }
+  td:first-child { white-space: nowrap; }
+  table.ref td:first-child { white-space: normal; width: 34%; }
+
+  /* flow diagram */
+  .flow { margin: 2mm 0 4mm; }
+  .lane { display: flex; align-items: stretch; gap: 0; margin-bottom: 0; }
+  .node {
+    flex: 1; border: 1.3px solid var(--ink); border-radius: 4px; padding: 2mm 2.5mm;
+    background: #fff; font-size: 8.6pt; line-height: 1.35;
+  }
+  .node b { display: block; font-size: 9.2pt; margin-bottom: .6mm; }
+  .node .who { font-size: 7.4pt; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .node.g { border-color: var(--green); background: var(--green-soft); }
+  .node.a { border-color: var(--amber); background: var(--amber-soft); }
+  .arrow { width: 7mm; display: flex; align-items: center; justify-content: center; color: var(--green); font-size: 13pt; font-weight: 700; }
+  .down { text-align: right; padding-right: 12%; color: var(--green); font-size: 13pt; font-weight: 700; line-height: 1; margin: 1mm 0; }
+
+  /* steps */
+  .step { display: flex; gap: 4mm; margin: 0 0 4mm; break-inside: avoid; }
+  .step .n {
+    flex: 0 0 8mm; height: 8mm; border-radius: 50%; background: var(--green); color: #fff;
+    font: 700 11pt/8mm Helvetica; text-align: center;
+  }
+  .step .body { flex: 1; }
+  .step .body h3 { margin-top: 1mm; }
+
+  .two { display: flex; gap: 5mm; }
+  .two > div { flex: 1; }
+  .yes { color: var(--green); font-weight: 700; }
+  .no { color: var(--red); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="kicker">cariinkerja.id · operator guide</div>
+<h1>Skill Map — how it works</h1>
+<p class="lede">
+  Public pages that show which skills employers ask for most, per job title, counted from the jobs we already crawl.
+  This guide covers where the numbers come from, how to add a page, and what to check when a page doesn’t show.
+</p>
+<p class="meta">Written 1 Nov 2026 against <code>main</code> @ 4842638. Re-render: <code>weasyprint _docs/skill-map.html _docs/skill-map.pdf</code></p>
+
+<h2><span class="num">1</span>What it is</h2>
+<div class="two">
+  <div>
+    <p>
+      <code>cariinkerja.id/skill/</code> lists every live page. Each page, e.g. <code>/skill/data-analyst/</code>, shows for one job title:
+    </p>
+    <ul>
+      <li>top <b>15 hard skills</b> and top <b>8 soft skills</b>, each with the % of postings that ask for it;</li>
+      <li>the remote / on-site / hybrid mix and the job-type mix;</li>
+      <li>the date window and the job count behind the numbers;</li>
+      <li>a CTA with the price, linking to <code>/login?ref=skillmap-&lt;slug&gt;</code>.</li>
+    </ul>
+    <p>
+      No login. It’s a top-of-funnel tool for search and social posts. It shows the market, never the visitor’s own score, so it is not a free tier.
+    </p>
+  </div>
+  <div>
+    <div class="box green">
+      <h3>Rules that never bend</h3>
+      <ul>
+        <li><b>Only aggregate counts go public.</b> No postings, no company names, no JobPosting schema. Himalayas’ API terms forbid passing its jobs on.</li>
+        <li><b>Every number is dated.</b> Each page states its window and job count.</li>
+        <li><b>Thin pages stay hidden.</b> Under <code>min_jobs</code> (default 30) jobs, the page returns 404 and is left out of the sitemap.</li>
+        <li>Copy is casual Bahasa (“kamu”), says “AI”, never a model name.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h2><span class="num">2</span>Where the numbers come from</h2>
+<p>Nothing new gets crawled for Skill Map. It reuses the skills the pipeline already extracts from every job.</p>
+
+<div class="flow">
+  <div class="lane">
+    <div class="node"><span class="who">daily · Celery</span><b>Crawls</b>Paid preferences crawl 8 boards. Workable feed sync runs every ~6h.</div>
+    <div class="arrow">→</div>
+    <div class="node"><span class="who">database</span><b><code>Job</code> rows</b>title, company, description, remote option, job type</div>
+    <div class="arrow">→</div>
+    <div class="node a"><span class="who">Celery · 1 cheap AI call / job</span><b><code>extract_job_skills</code></b>fills <code>hard_skills</code> + <code>soft_skills</code></div>
+  </div>
+  <div class="down">↓</div>
+  <div class="lane">
+    <div class="node"><span class="who">visitor</span><b>Reads page → CTA</b>Umami event <code>skillmap-cta</code>, sign-in tagged <code>ref=skillmap-&lt;slug&gt;</code></div>
+    <div class="arrow">←</div>
+    <div class="node"><span class="who">nginx → Django</span><b><code>/skill/&lt;slug&gt;/</code></b>Server-rendered HTML, cached 1h. nginx forwards <code>/skill/</code> to the backend.</div>
+    <div class="arrow">←</div>
+    <div class="node g"><span class="who">weekly beat · or admin button</span><b><code>SkillMapSnapshot</code></b>Counts for one page on one day, stored as JSON. Old rows kept.</div>
+  </div>
+</div>
+
+<p>Two things to keep in mind:</p>
+<ul>
+  <li><b>The page shows the latest snapshot, not live data.</b> Between refreshes, the numbers don’t move.</li>
+  <li><b>A job without extracted skills is invisible to Skill Map.</b> Jobs touched by a preference crawl get skills automatically. Workable-synced jobs don’t until you backfill them (step 2 below).</li>
+</ul>
+
+<h2><span class="num">3</span>Adding a page, step by step</h2>
+
+<div class="step"><div class="n">1</div><div class="body">
+  <h3>Find titles worth a page</h3>
+  <pre><span class="c"># defaults shown</span>
+uv run manage.py skill_map_candidates --limit 40 --min-jobs 30 --window-days 90</pre>
+  <p>Lists the job titles users search most, and how many jobs a page for that title would count today. Example output (made-up numbers):</p>
+  <pre>searches   jobs  ok  title  [slug]
+      14     212  ✓   Data Analyst  [data-analyst] (page exists)
+       9      87  ✓   Frontend Developer  [frontend-developer]
+       6      12      UI UX Designer  [ui-ux-designer]</pre>
+  <table>
+    <tr><th>Column</th><th>Meaning</th></tr>
+    <tr><td><code>searches</code></td><td>How many preferences use this title. Case and extra spaces are merged (“data  analyst” = “Data Analyst”). Counts <b>every</b> preference, including unpaid and expired ones.</td></tr>
+    <tr><td><code>jobs</code></td><td>Jobs a page with this title would count right now, using the same matching as the real page (section 4).</td></tr>
+    <tr><td><code>ok</code></td><td><span class="yes">✓</span> when <code>jobs</code> ≥ <code>--min-jobs</code>, so the page would be visible once published.</td></tr>
+    <tr><td><code>title</code></td><td>The most common spelling users typed.</td></tr>
+    <tr><td><code>[slug]</code></td><td>The URL slug the page would get. <code>(page exists)</code> = you already made it.</td></tr>
+  </table>
+  <p><b>Pick:</b> high <code>searches</code> + <span class="yes">✓</span> + no page yet.</p>
+</div></div>
+
+<div class="step"><div class="n">2</div><div class="body">
+  <h3>Optional: give Workable jobs their skills</h3>
+  <pre><span class="c"># see how many jobs (= AI calls) first, then run for real</span>
+uv run manage.py backfill_job_skills --source workable --since-days 90 --dry-run
+uv run manage.py backfill_job_skills --source workable --since-days 90</pre>
+  <p>Queues one cheap AI call per job to Celery (add <code>--sync</code> to run inline without a worker). Re-run <code>skill_map_candidates</code> afterwards: the <code>jobs</code> counts go up.</p>
+</div></div>
+
+<div class="step"><div class="n">3</div><div class="body">
+  <h3>Create the page in Django admin</h3>
+  <p><b>Admin → Jobs → Skill map pages → Add.</b></p>
+  <table>
+    <tr><th>Field</th><th>What to put</th></tr>
+    <tr><td><code>title</code></td><td>Shown on the page, e.g. “Data Analyst”.</td></tr>
+    <tr><td><code>slug</code></td><td>Auto-filled from the title. Becomes <code>/skill/&lt;slug&gt;/</code>. Don’t change it after publishing, or old links break.</td></tr>
+    <tr><td><code>match_words</code></td><td>Leave empty to match on the title. Fill it when the title is too narrow or too wide (e.g. title “Frontend Developer”, match words “frontend”).</td></tr>
+    <tr><td><code>exclude_words</code></td><td>Any job title containing one of these is dropped, e.g. “senior lead manager” for an entry-level page.</td></tr>
+    <tr><td><code>min_jobs</code></td><td>Default 30. Below this the page stays hidden.</td></tr>
+    <tr><td><code>is_published</code></td><td>Leave off until you’ve checked the count in step 4.</td></tr>
+  </table>
+</div></div>
+
+<div class="step"><div class="n">4</div><div class="body">
+  <h3>Compute the first snapshot</h3>
+  <p>In the page list, tick the page → action <b>“Refresh snapshot now”</b>. The message shows the job count, and the <b>jobs (latest)</b> column updates. Too few jobs? Loosen <code>match_words</code> / <code>exclude_words</code> and refresh again.</p>
+</div></div>
+
+<div class="step"><div class="n">5</div><div class="body">
+  <h3>Publish</h3>
+  <p>Tick <code>is_published</code> and save. The page and the <code>/skill/</code> index are cached for 1 hour, so a new page can take up to an hour to appear.</p>
+</div></div>
+
+<div class="step"><div class="n">6</div><div class="body">
+  <h3>One-time setup: the weekly refresh</h3>
+  <p><b>Admin → Periodic tasks → Add:</b> task <code>jobs.tasks.refresh_skill_maps</code>, weekly. It refreshes <b>every</b> page, published or not. Without it, pages keep showing their first snapshot forever.</p>
+</div></div>
+
+<h2><span class="num">4</span>How the numbers are counted</h2>
+<p>All of this lives in <code>jobs/skill_map.py</code>. For one page, on refresh:</p>
+
+<h3>a. Which jobs count</h3>
+<ol>
+  <li><b>Window:</b> jobs added to our database in the last <b>90 days</b> (by when we crawled them, not when they were posted).</li>
+  <li><b>Has skills:</b> jobs with no extracted hard skills are skipped.</li>
+  <li><b>Title match:</b> every match word must <i>start</i> a word in the job title. Case doesn’t matter.
+    <table>
+      <tr><th>Match words</th><th>Job title</th><th>Counted?</th></tr>
+      <tr><td>analyst</td><td>Data Analysts</td><td class="yes">yes — “analyst” starts “Analysts”</td></tr>
+      <tr><td>data analyst</td><td>Analyst, Data &amp; Insights</td><td class="yes">yes — word order doesn’t matter</td></tr>
+      <tr><td>ui</td><td>Build Engineer</td><td class="no">no — “ui” is inside “Build”, not at its start</td></tr>
+      <tr><td>frontend</td><td>Front End Developer</td><td class="no">no — “front” and “end” are separate words</td></tr>
+      <tr><td>analyst <small>(exclude: senior)</small></td><td>Senior Data Analyst</td><td class="no">no — excluded word present</td></tr>
+    </table>
+  </li>
+  <li><b>Duplicates:</b> the same company + same title from two job boards counts once.</li>
+</ol>
+
+<h3>b. How skills are ranked</h3>
+<ul>
+  <li><b>Once per job.</b> A posting that says “SQL” five times still adds 1 to SQL.</li>
+  <li><b>Spellings merge.</b> “SQL”, “sql” and “ SQL ” are one skill. Fixed aliases also merge:
+    <span class="mono">ms excel / microsoft excel → excel · ms office → microsoft office · reactjs / react.js → react · nodejs / node → node.js · vuejs / vue → vue.js · postgres → postgresql · golang → go · js → javascript · ts → typescript</span>.
+    The page shows the most common original spelling.</li>
+  <li><b>% = jobs that ask for the skill ÷ all counted jobs.</b> 60% SQL means 6 in 10 postings mention SQL. The percentages don’t add up to 100.</li>
+  <li>Top 15 hard and top 8 soft are kept. Ties are sorted alphabetically.</li>
+</ul>
+
+<h3>c. Work-style mix</h3>
+<p>Remote / on-site / hybrid and full-time / part-time / contract / internship are shares of the same counted jobs. Many postings don’t state them, so these don’t add up to 100% either. The page says “Sisanya ga nyebut di lokernya” for that reason.</p>
+
+<h3>d. Snapshots</h3>
+<p>One snapshot per page per day. Refreshing twice on the same day overwrites that day’s row. Older snapshots are kept (for trends later). The page always shows the newest one.</p>
+
+<h2><span class="num">5</span>When something looks wrong</h2>
+<table class="ref">
+  <tr><th>Symptom</th><th>Cause → fix</th></tr>
+  <tr><td>Page gives 404</td><td><code>is_published</code> is off, there is no snapshot yet, <b>or</b> the newest snapshot has fewer than <code>min_jobs</code> jobs. Check the <b>jobs (latest)</b> column. A page can disappear on its own after a weekly refresh if jobs dried up.</td></tr>
+  <tr><td>Page live but numbers old</td><td>Weekly beat task not registered (step 6), or the 1-hour cache. Run “Refresh snapshot now” and wait up to an hour.</td></tr>
+  <tr><td>Fewer jobs than <code>skill_map_candidates</code> said</td><td>The command matches on the bare title only. It ignores your <code>match_words</code> and <code>exclude_words</code>. Trust the admin refresh count.</td></tr>
+  <tr><td>Two names for one skill</td><td>e.g. “Power BI” vs “PowerBI”. Add an alias to <code>SKILL_ALIASES</code> in <code>jobs/skill_map.py</code> (a code change + deploy), then refresh.</td></tr>
+  <tr><td>Job count lower than expected</td><td>Jobs without skills don’t count. Backfill (step 2). Also check spelling variants the title rule misses, like “Front End” vs “Frontend”.</td></tr>
+  <tr><td>Index page empty</td><td>No page is both published and above <code>min_jobs</code>.</td></tr>
+</table>
+
+<div class="box amber">
+  <h3>Don’t</h3>
+  <ul>
+    <li>Add company names, job links, or any single posting to the templates. Aggregates only.</li>
+    <li>Rename a published slug. Old links and search rankings break.</li>
+    <li>Lower <code>min_jobs</code> to force a page live. A page built on 8 jobs gives misleading percentages.</li>
+  </ul>
+</div>
+
+<h2><span class="num">6</span>Where things live</h2>
+<table class="ref">
+  <tr><th>File</th><th>What’s there</th></tr>
+  <tr><td><code>jobs/skill_map.py</code></td><td>Matching, ranking, aliases, snapshot write, visibility rules. Constants: <code>WINDOW_DAYS=90</code>, <code>TOP_HARD=15</code>, <code>TOP_SOFT=8</code>.</td></tr>
+  <tr><td><code>jobs/models.py</code></td><td><code>SkillMapPage</code> (config), <code>SkillMapSnapshot</code> (counts as JSON).</td></tr>
+  <tr><td><code>jobs/admin.py</code></td><td>Page admin, “Refresh snapshot now” action, <b>jobs (latest)</b> column.</td></tr>
+  <tr><td><code>jobs/tasks.py</code></td><td><code>refresh_skill_maps</code> (weekly), <code>extract_job_skills</code> (per job).</td></tr>
+  <tr><td><code>jobs/management/commands/</code></td><td><code>skill_map_candidates.py</code>, <code>backfill_job_skills.py</code>.</td></tr>
+  <tr><td><code>jobs/skill_map_views.py</code><br><code>jobs/skill_map_urls.py</code></td><td>Index, detail, <code>sitemap.xml</code> views. 1-hour cache. Price taken from the cheapest active plan.</td></tr>
+  <tr><td><code>templates/skillmap/</code></td><td>Page HTML with inline CSS, the CTA and the “Cara kita ngitung” section.</td></tr>
+  <tr><td><code>frontend/nginx.conf</code></td><td>Forwards <code>/skill/</code> from the SPA container to Django. In dev, Vite proxies it to :8000.</td></tr>
+</table>
+
+</body>
+</html>

@@ -674,7 +674,7 @@ class BuildCrawlUrlsTests(TestCase):
                 [
                     build_himalayas_url("Mobile Developer", [JobType.FULL_TIME]),
                     build_jobicy_url("Mobile Developer"),
-                    build_workable_url("Mobile Developer", ros),
+                    build_workable_url("Mobile Developer"),
                     build_remoteok_url("Mobile Developer"),
                 ],
             )
@@ -1222,243 +1222,114 @@ class IndeedCloudflareResilienceTests(TestCase):
         self.assertEqual(detail.get("Referer"), INDEED_URL)
 
 
-# --- Workable (XML feed, synced into Job) -----------------------------------
+# --- Workable (search JSON API) ---------------------------------------------
+
+WK_URL = "https://jobs.workable.com/search?query=Backend+Engineer&location=Indonesia"
 
 
-def _wk_job(
-    ref, *, title, country, remote="false", days_ago=1, company="Acme", **extra
-):
-    posted = timezone.now() - timedelta(days=days_ago)
-    fields = {
+def _wk_job(jid, title="Backend Engineer", days_ago=1, **overrides):
+    """Trimmed shape of a real job from jobs.workable.com/api/v1/jobs."""
+    created = timezone.now() - timedelta(days=days_ago)
+    job = {
+        "id": jid,
         "title": title,
-        "date": posted.strftime("%a, %d %b %Y %H:%M:%S UTC"),
-        "referencenumber": ref,
-        "url": f"https://apply.workable.com/j/{ref}",
-        "company": company,
-        "city": "",
-        "state": "",
-        "country": country,
-        "remote": remote,
-        "description": "<p>Build <strong>things</strong>.</p>",
-        "jobtype": "Full-time",
-        "experience": "",
-        **extra,
+        "description": "<p>Build <b>things</b>.</p>",
+        "requirementsSection": "<ul><li>Python</li></ul>",
+        "benefitsSection": "",
+        "employmentType": "Full-time",
+        "workplace": "hybrid",
+        "url": f"https://jobs.workable.com/view/{jid}/backend-engineer",
+        "location": {
+            "city": "Jakarta",
+            "subregion": "Jakarta",
+            "countryName": "Indonesia",
+        },
+        "created": created.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "company": {"title": "Acme"},
     }
-    inner = "".join(f"<{k}><![CDATA[{v}]]></{k}>" for k, v in fields.items())
-    return f"<job>{inner}</job>"
+    job.update(overrides)
+    return job
 
 
-def _wk_feed(*jobs):
-    return (
-        '<?xml version="1.0" encoding="utf-8"?><source>'
-        "<publisher>Workable</publisher>" + "".join(jobs) + "</source>"
-    ).encode()
-
-
-class _FakeFeedClient:
-    """Stands in for the curl_cffi session; streams the body in small chunks."""
-
-    def __init__(self, body):
-        self.body = body
-        self.kwargs = None
-
-    def get(self, url, **kwargs):
-        self.kwargs = kwargs
-        body = self.body
-
-        class _Resp:
-            def raise_for_status(self):
-                pass
-
-            def iter_content(self):
-                for i in range(0, len(body), 50):
-                    yield body[i : i + 50]
-
-            def close(self):
-                pass
-
-        return _Resp()
-
-
-WK_FEED = _wk_feed(
-    _wk_job("AAA", title="Backend Engineer", country="ID", city="Jakarta", state="DKI Jakarta"),
-    # Same remote posting cloned per country: one row survives.
-    _wk_job("BBB", title="Video Editor", country="PH", remote="true", jobtype="Contract"),
-    _wk_job("CCC", title="Video Editor", country="SG", remote="true", jobtype="Contract"),
-    # The Indonesia clone wins over a later APAC one.
-    _wk_job("DDD", title="Data Analyst", country="ID", remote="true", city="Bandung"),
-    _wk_job("EEE", title="Data Analyst", country="PH", remote="true"),
-    _wk_job("FFF", title="Remote Dev", country="US", remote="true"),
-    _wk_job("GGG", title="Old Job", country="ID", days_ago=200),
-    _wk_job("HHH", title="Tagger", country="ID", company="Mindrift"),
-    _wk_job("III", title="Marketing Intern", country="ID", jobtype="", experience="Internship"),
-)  # fmt: skip
-
-
-class WorkableSyncTests(TestCase):
-    def _sync(self, body=WK_FEED):
-        client = _FakeFeedClient(body)
-        return workable.sync_feed(client=client), client
-
-    def test_keeps_indonesia_and_apac_remote(self):
-        result, client = self._sync()
-
-        self.assertTrue(client.kwargs["stream"])
-        urls = set(Job.objects.values_list("url", flat=True))
-        refs = {u.rsplit("/", 1)[1] for u in urls}
-        self.assertEqual(refs, {"AAA", "CCC", "DDD", "III"})
-        self.assertEqual(result["in_feed"], 9)
-        self.assertEqual(result["upserted"], 4)
-
-        a = Job.objects.get(url__endswith="/AAA")
-        self.assertEqual(a.source, "workable")
-        self.assertEqual(a.location, "Jakarta, DKI Jakarta, Indonesia")
-        self.assertIsNone(a.remote_option)
-        self.assertEqual(a.job_type, JobType.FULL_TIME)
-        self.assertEqual(a.description, "Build\nthings\n.")
-        c = Job.objects.get(url__endswith="/CCC")
-        self.assertIsNone(c.location)  # anchor country is not a residency rule
-        self.assertEqual(c.remote_option, RemoteOption.REMOTE)
-        self.assertEqual(c.job_type, JobType.CONTRACT)
-        self.assertEqual(
-            Job.objects.get(url__endswith="/DDD").location, "Bandung, Indonesia"
+class WorkableParseJobTests(TestCase):
+    def test_maps_fields(self):
+        out = workable.parse_job(
+            _wk_job("A", workplace="remote", employmentType="Contract")
         )
         self.assertEqual(
-            Job.objects.get(url__endswith="/III").job_type, JobType.INTERNSHIP
+            out["url"], "https://jobs.workable.com/view/A/backend-engineer"
         )
+        self.assertEqual(out["company"], "Acme")
+        self.assertEqual(out["location"], "Jakarta, Indonesia")
+        self.assertEqual(out["job_type"], JobType.CONTRACT)
+        self.assertEqual(out["remote_option"], RemoteOption.REMOTE)
+        self.assertEqual(out["description"], "Build\nthings\n.\nPython")
 
-    def test_expires_jobs_gone_from_feed(self):
-        past = timezone.now() - timedelta(days=3)
-        gone = Job.objects.create(
-            url="https://apply.workable.com/j/ZZZ",
-            title="t",
-            description="d",
-            source="workable",
-        )
-        back = Job.objects.create(
-            url="https://apply.workable.com/j/AAA",
-            title="t",
-            description="d",
-            source="workable",
-            expires_at=past,
-        )
-        stale = Job.objects.create(
-            url="https://apply.workable.com/j/GGG",
-            title="t",
-            description="d",
-            source="workable",
-        )
-        other = Job.objects.create(
-            url="https://jobicy.com/jobs/1", title="t", description="d", source="jobicy"
-        )
-        result, _ = self._sync()
+    def test_unknown_values_are_none(self):
+        out = workable.parse_job(_wk_job("A", workplace="", employmentType="Other"))
+        self.assertIsNone(out["job_type"])
+        self.assertIsNone(out["remote_option"])
 
-        self.assertEqual(result["expired"], 1)
-        for job in (gone, back, stale, other):
-            job.refresh_from_db()
-        self.assertIsNotNone(gone.expires_at)
-        self.assertIsNone(back.expires_at)  # republished
-        self.assertIsNone(stale.expires_at)  # too old to import, but still in the feed
-        self.assertIsNone(other.expires_at)  # other sources untouched
-        self.assertEqual(back.title, "Backend Engineer")  # refreshed by the upsert
-
-    def test_resync_is_idempotent(self):
-        self._sync()
-        result, _ = self._sync()
-        self.assertEqual(result["expired"], 0)
-        self.assertEqual(Job.objects.count(), 4)
-
-    def test_truncated_feed_writes_nothing(self):
-        from lxml import etree
-
-        gone = Job.objects.create(
-            url="https://apply.workable.com/j/ZZZ",
-            title="t",
-            description="d",
-            source="workable",
-        )
-        with self.assertRaises(etree.XMLSyntaxError):
-            self._sync(WK_FEED[: len(WK_FEED) // 2])
-        self.assertEqual(Job.objects.count(), 1)
-        gone.refresh_from_db()
-        self.assertIsNone(gone.expires_at)
+    def test_missing_description_returns_none(self):
+        job = _wk_job("A", description="", requirementsSection="")
+        self.assertIsNone(workable.parse_job(job))
 
 
 class WorkableCrawlTests(TestCase):
-    URL = "https://jobs.workable.com/search?query=Backend+Engineer"
+    def _crawl(self, pages, url=WK_URL, **kwargs):
+        with patch.object(workable, "_request_json", side_effect=pages) as req:
+            out = list(workable.crawl(url, client=object(), sleep=0, **kwargs))
+        return [p["url"].split("/")[4] for p in out], req
 
-    def setUp(self):
-        def make(
-            ref, title, location, remote=None, expires_at=None, source="workable", age=0
-        ):
-            job = Job.objects.create(
-                url=f"https://apply.workable.com/j/{ref}",
-                title=title,
-                description="d",
-                location=location,
-                remote_option=remote,
-                source=source,
-                expires_at=expires_at,
-            )
-            Job.objects.filter(pk=job.pk).update(
-                created_on=timezone.now() - timedelta(hours=age)
-            )
-            return job
+    def test_filters_and_paginates(self):
+        page1 = {
+            "jobs": [
+                _wk_job("A", "Senior Backend Engineer"),
+                _wk_job("A", "Senior Backend Engineer"),  # duplicate
+                _wk_job("B", "Business Development"),  # fuzzy hit, wrong words
+                _wk_job("C", "Backend Engineer", days_ago=200),  # stale
+                _wk_job("D", "Backend Engineer", company={"title": "Mindrift"}),
+            ],
+            "nextPageToken": "tok1",
+        }
+        page2 = {"jobs": [_wk_job("E", "Backend Engineer II")], "nextPageToken": None}
+        ids, req = self._crawl([page1, page2])
+        self.assertEqual(ids, ["A", "E"])
+        first, second = (c.args[1] for c in req.call_args_list)
+        self.assertIn("query=Backend+Engineer&location=Indonesia", first)
+        self.assertNotIn("pageToken", first)
+        self.assertIn("pageToken=tok1", second)
 
-        self.local = make("L", "Senior Backend Engineer", "Jakarta, Indonesia", age=5)
-        self.remote = make("R", "Backend Engineer", None, RemoteOption.REMOTE, age=1)
-        make(
-            "X", "Backend Engineer II", "Bandung, Indonesia", expires_at=timezone.now()
+    def test_always_searches_indonesia(self):
+        _, req = self._crawl(
+            [{"jobs": []}], url="https://jobs.workable.com/search?query=Dev"
         )
-        make("F", "Frontend Engineer", "Jakarta, Indonesia")
-        make("O", "Backend Engineer", "Jakarta, Indonesia", source="jobicy")
+        self.assertIn("location=Indonesia", req.call_args.args[1])
 
-    def _crawl(self, url, **kw):
-        return [p["url"] for p in workable.crawl(url, **kw)]
+    def test_limit_and_max_pages(self):
+        page = {"jobs": [_wk_job("A"), _wk_job("B")], "nextPageToken": "t"}
+        ids, _ = self._crawl([page], limit=1)
+        self.assertEqual(ids, ["A"])
+        _, req = self._crawl([page, page, page], max_pages=2)
+        self.assertEqual(req.call_count, 2)
 
-    def test_matches_every_word_newest_first(self):
-        self.assertEqual(self._crawl(self.URL), [self.remote.url, self.local.url])
+    def test_fetch_error_logs_and_stops(self):
+        with self.assertLogs("jobs.scrapers.workable", level="ERROR"):
+            ids, _ = self._crawl(RuntimeError("boom"))
+        self.assertEqual(ids, [])
 
-    def test_location_indonesia_drops_remote_pool(self):
-        self.assertEqual(
-            self._crawl(self.URL + "&location=Indonesia"), [self.local.url]
-        )
-
-    def test_limit_and_posting_shape(self):
-        postings = list(workable.crawl(self.URL, limit=1))
-        self.assertEqual(len(postings), 1)
-        self.assertEqual(
-            set(postings[0]),
-            {
-                "url",
-                "title",
-                "company",
-                "description",
-                "location",
-                "job_type",
-                "remote_option",
-            },
-        )
-
-    def test_warns_when_nothing_synced(self):
-        Job.objects.filter(source="workable").delete()
+    def test_no_query_warns(self):
         with self.assertLogs("jobs.scrapers.workable", level="WARNING"):
-            self.assertEqual(self._crawl(self.URL), [])
+            ids, req = self._crawl([], url="https://jobs.workable.com/search")
+        self.assertEqual(ids, [])
+        req.assert_not_called()
 
 
 class WorkableUrlTests(TestCase):
-    def test_build_url_location_rule(self):
+    def test_build_url_always_indonesia(self):
         self.assertEqual(
             build_workable_url("Mobile Developer"),
             "https://jobs.workable.com/search?query=Mobile+Developer&location=Indonesia",
-        )
-        self.assertEqual(
-            build_workable_url("Dev", [RemoteOption.ON_SITE]),
-            "https://jobs.workable.com/search?query=Dev&location=Indonesia",
-        )
-        self.assertEqual(
-            build_workable_url("Dev", [RemoteOption.REMOTE, RemoteOption.HYBRID]),
-            "https://jobs.workable.com/search?query=Dev",
         )
         self.assertIsNone(build_workable_url("  "))
 

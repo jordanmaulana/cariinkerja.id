@@ -103,18 +103,6 @@ def _format_report(results):
 
 
 @shared_task
-def sync_workable_feed() -> dict:
-    """Pull Workable's full XML feed into Job rows. Beat: every ~6h."""
-    try:
-        return workable.sync_feed()
-    except Exception as exc:
-        send_discord_message(
-            f"❌ Workable feed sync failed: {type(exc).__name__}: {exc}"
-        )
-        raise
-
-
-@shared_task
 def refresh_skill_maps() -> dict:
     """Write this week's Skill Map snapshot for every page. Beat: weekly."""
     from jobs.models import SkillMapPage

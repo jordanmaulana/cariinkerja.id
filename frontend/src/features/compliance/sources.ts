@@ -33,9 +33,13 @@ export const JOB_SOURCES: JobSource[] = [
     name: "Workable",
     permissions: [
       {
-        url: "https://help.workable.com/hc/en-us/articles/4420464031767-Utilizing-the-XML-Job-Feed",
+        url: "https://jobs.workable.com/robots.txt",
         statement:
-          'Public XML feed of all customers\' published jobs; offered for "a job board/partner we don\'t integrate with". Keep job URLs unchanged. No formal licence text.',
+          'robots.txt does not disallow the job search API (/api/); the site signals "search=yes, ai-input=yes, ai-train=no". No formal licence text.',
+      },
+      {
+        url: "https://help.workable.com/hc/en-us/articles/4420464031767-Utilizing-the-XML-Job-Feed",
+        statement: "Keep job URLs unchanged (candidate attribution).",
       },
     ],
   },
