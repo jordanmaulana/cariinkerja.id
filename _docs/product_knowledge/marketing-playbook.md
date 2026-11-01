@@ -108,7 +108,7 @@ Hard rules. Breaking one makes the post wrong or off-brand.
 - Never say **gratis / free / trial / coba gratis / coba dulu**. The product is paid-only.
 - Quote prices only from [product.md §6](product.md#6-business-model) (Rp 49.000 → 1 search, Rp 99.000 → 3 searches, 30 days).
 - Open-to-Work discount is OK to promote: "Open to Work" on LinkedIn → 1-search plan Rp 34.000 (normally Rp 49.000). Only the cheapest plan; upgrades are full price.
-- Name only live job sources (Indeed, JobStreet, LinkedIn, Himalayas, Jobicy, Workable, Remote OK — check `jobs/url_builders.py`). **Don't announce Kalibrr/Kitalulus**: they are not live. Never use the Remote OK logo. Safest wording: "dari berbagai job board".
+- Name only live job sources (LinkedIn, Himalayas, Jobicy, Workable, Remote OK — check `jobs/url_builders.py`). **Don't announce Kalibrr/Kitalulus**: they are not live. Never use the Remote OK logo. Safest wording: "dari berbagai job board".
 - Never name the AI model. Say "AI".
 - Every traction number carries its date.
 - **Never promise jobs, interviews, callbacks or hiring speed.** The product finds fit; the user still has to land the interview.
@@ -136,9 +136,9 @@ Hard rules. Breaking one makes the post wrong or off-brand.
 
 | Where | Stale claim | Truth |
 |---|---|---|
-| `about.md` | Free tier ("get your footing first"); Indeed + JobStreet only; user picks a source; GPT-4o; full-time vs freelance only | Paid-only; 4 live sources, auto fan-out; no model name; job types are full-time / part-time / contract / internship, remote options are remote / on-site / hybrid |
-| `producthunt.md` | Free tier ~20 assessments; "crawls Indeed + JobStreet"; GPT-4o; struggling-user warning "on the landing page" | Paid-only; 4 sources; no model name; the warning lives in the sign-in checklist |
-| `README.md` (repo root) | Crawler watches "Indeed & JobStreet" | 4 live sources |
+| `about.md` | Free tier ("get your footing first"); Indeed + JobStreet only; user picks a source; GPT-4o; full-time vs freelance only | Paid-only; LinkedIn + 4 remote boards (no Indeed/JobStreet since 2026-11-01), auto fan-out; no model name; job types are full-time / part-time / contract / internship, remote options are remote / on-site / hybrid |
+| `producthunt.md` | Free tier ~20 assessments; "crawls Indeed + JobStreet"; GPT-4o; struggling-user warning "on the landing page" | Paid-only; LinkedIn + 4 remote boards; no model name; the warning lives in the sign-in checklist |
+| `README.md` (repo root) | ~~Crawler watches "Indeed & JobStreet"~~ fixed 2026-11-01 | LinkedIn + 4 remote boards |
 | `_docs/pitch/pitch-deck.*` | "Prove the signal free", Rp 0 tier; source names; old prices | Paid-only; current prices in product.md §6 |
 | `beforeyoubuy.md` | 3 items, "Jangan beli…" | The app shows 4 items (adds "Ini layanan berbayar lho ga pake trial."), worded "Jangan daftar…" |
 | Older videos (*GADA TRIAL*, *cariinkerja_short*) | Name Indeed / JobStreet; "belasan user" | Still OK as dated content; don't re-cut them as current claims |

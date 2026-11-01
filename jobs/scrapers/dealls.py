@@ -1,6 +1,6 @@
 """JSON-API scraper for Dealls Indonesia (dealls.com, formerly SejutaCita).
 
-Unlike the Indeed/Jobstreet/LinkedIn scrapers (which parse HTML), Dealls is a
+Unlike the LinkedIn scraper (which parses HTML), Dealls is a
 Next.js SPA backed by a public, unauthenticated JSON API at ``api.sejutacita.id``.
 Two-phase like the others: a listing call yields job slugs + pagination, then a
 per-slug detail call carries the description.

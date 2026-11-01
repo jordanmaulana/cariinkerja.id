@@ -110,13 +110,16 @@ Searches can only be deleted while unpaid.
 
 ### Sources
 
-Every search automatically covers **Indeed Indonesia**, **JobStreet Indonesia**, **LinkedIn
-Southeast Asia**, **LinkedIn EMEA**, and four remote-friendly boards with public APIs or
+Every search automatically covers **LinkedIn Southeast Asia**, **LinkedIn EMEA**, and four remote-friendly boards with public APIs or
 feeds that allow reuse: **Himalayas**, **Jobicy**, **Workable** (Indonesia jobs plus
 APAC-remote), and **Remote OK**. Their terms and the credit each needs are listed on the
 public `/compliance` page. **Dealls** also has a working crawler, but it is
 never added automatically — it only runs when an admin pastes a Dealls URL into a search by
 hand, so don't market it as a source.
+
+**Indeed and JobStreet were removed on 2026-11-01.** Both had been blocked by Cloudflare
+since September and were returning zero jobs. Jobs users already got from them stay in their
+history. Don't name them as sources anywhere.
 
 LinkedIn EMEA is only searched for *remote* roles — an on-site European or Middle Eastern
 job is unreachable for an Indonesian candidate, so including it would be noise.
@@ -125,7 +128,8 @@ Certain staffing and crowdwork brands are filtered out of results entirely as lo
 listings.
 
 **Not live — do not announce.** A `migrate-portal` branch once planned to swap in
-**Kalibrr** and **Kitalulus** and retire Indeed, JobStreet, and LinkedIn. As of 2026-10-31
+**Kalibrr** and **Kitalulus** and retire Indeed, JobStreet, and LinkedIn (Indeed and
+JobStreet have since been removed on main; LinkedIn stays). As of 2026-10-31
 that branch is not on GitHub. If sources ever change, this section, the landing-page source
 strip, and every source mention in this folder must change together.
 
@@ -297,10 +301,10 @@ Recorded as fact, not as a task list. Verify against the code before repeating a
   by payment. The sign-in checklist already tells users the truth.
 - **Prices.** Every older doc (`about.md`, pitch deck, earlier versions of this file) shows
   outdated prices. Only §6 is current.
-- **Source names.** `README.md`, `about.md`, and `producthunt.md` name Indeed and JobStreet
-  only. The landing page's source strip lists LinkedIn SEA, LinkedIn EMEA, Indeed, and
-  JobStreet — it leaves out the four API boards in §5 (Remote OK must stay off it anyway:
-  no logo without written permission).
+- **Source names.** `about.md` and `producthunt.md` name Indeed and JobStreet only — both
+  removed on 2026-11-01. The landing page's source strip lists LinkedIn SEA, LinkedIn EMEA,
+  Himalayas, Jobicy, and Workable (letter tiles, no logos); Remote OK stays off it (no logo
+  without written permission).
 - **"Choose Indeed or JobStreet."** `about.md` and the pitch deck say the user picks a
   source. They don't — one search fans out to every source automatically.
 - **Model name.** `about.md`, `producthunt.md`, and the pitch deck say "GPT-4o". The model is

@@ -7,7 +7,7 @@ fragments with no login and no JS:
 - listing: ``/jobs-guest/jobs/api/seeMoreJobPostings/search?<search params>&start=N``
 - detail:  ``/jobs-guest/jobs/api/jobPosting/<jobId>``
 
-Two-phase like the Indeed scraper: parse the listing for job cards (which
+Two-phase: parse the listing for job cards (which
 already carry title/company/location), then fetch each guest detail fragment
 for the description + employment type.
 

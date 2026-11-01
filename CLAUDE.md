@@ -54,18 +54,16 @@ Frontend-only (no Make target): `cd frontend && pnpm run lint` (eslint), `cd fro
 
 ### Management commands
 
-Ad-hoc one-shot crawls (recurring crawls run through the Celery pipeline below). All four take the same flags and upsert `Job` rows by `url` inside `transaction.atomic`:
+Ad-hoc one-shot crawls (recurring crawls run through the Celery pipeline below). Both take the same flags and upsert `Job` rows by `url` inside `transaction.atomic`:
 
 ```sh
-uv run manage.py crawl_indeed    "<listing-url>" [--max-pages N] [--limit N] [--sleep S] [--dry-run]
-uv run manage.py crawl_jobstreet "<listing-url>" [...]
-uv run manage.py crawl_linkedin  "<listing-url>" [...]
-uv run manage.py crawl_dealls    "<listing-url>" [...]
+uv run manage.py crawl_linkedin "<listing-url>" [--max-pages N] [--limit N] [--sleep S] [--dry-run]
+uv run manage.py crawl_dealls   "<listing-url>" [...]
 ```
 
-Defaults: `--max-pages 1`, `--limit 20`, `--sleep` from each scraper's `DEFAULT_SLEEP` (Indeed/LinkedIn 2.5s, JobStreet/Dealls 1.5s).
+Defaults: `--max-pages 1`, `--limit 20`, `--sleep` from each scraper's `DEFAULT_SLEEP` (LinkedIn 2.5s, Dealls 1.5s).
 
-Other commands: `backfill_job_skills [--source S] [--since-days N] [--dry-run] [--sync]`, `backfill_jobstreet_urls --dry-run`, `skill_map_candidates [--limit N] [--min-jobs N] [--create [--draft]]` (most-searched Preference titles × matching skill-tagged job count; `--create` makes, publishes and snapshots a Skill Map page for every title with ≥ `--min-jobs` jobs that has no page yet, `--draft` leaves them unpublished).
+Other commands: `backfill_job_skills [--source S] [--since-days N] [--dry-run] [--sync]`, `skill_map_candidates [--limit N] [--min-jobs N] [--create [--draft]]` (most-searched Preference titles × matching skill-tagged job count; `--create` makes, publishes and snapshots a Skill Map page for every title with ≥ `--min-jobs` jobs that has no page yet, `--draft` leaves them unpublished).
 
 **Gotcha:** two apps define `crawl_linkedin` — `jobs/` (listing-URL job crawler) and `profiles/` (Apify *profile* ingest, takes a `profile_id`). Django resolves the name to **`jobs`** (earlier in `INSTALLED_APPS` wins), so the profiles one is unreachable via `manage.py`; call `profiles.methods.crawl_and_ingest_linkedin` or the `crawl_linkedin_for_profile` task instead. Rename one if you touch this area.
 
@@ -92,7 +90,7 @@ Directional flow: **Profile + LinkedIn → Apify ingest → Preference (auto-fil
 
 ### Crawl-source routing — `jobs/scrapers/`
 
-Eight scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`, `himalayas.py`, `jobicy.py`, `workable.py`, `remoteok.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts.
+Six scrapers: `linkedin.py`, `dealls.py`, `himalayas.py`, `jobicy.py`, `workable.py`, `remoteok.py`. Each exposes `crawl(url, max_pages=, limit=, sleep=)` as a generator of posting dicts. Indeed and JobStreet were removed on 2026-11-01 (both Cloudflare-blocked since 2026-09); their old `Job` rows and Assessments are kept, and migration `profiles/0019` stripped their URLs from stored `crawl_urls`.
 
 `jobs/scrapers/__init__.py:scraper_for_url(url)` resolves `(module, Source value)` **by hostname** and returns `(None, None)` for unknown URLs. A Preference therefore never names its source — the URL does. Adding a board = one hostname branch here + a `profiles.consts.Source` member + a `CrawlHealthTarget.SOURCE_*` entry.
 
@@ -106,7 +104,7 @@ Eight scrapers: `indeed.py`, `jobstreet.py`, `linkedin.py`, `dealls.py`, `himala
 
 `jobs/scrapers/filters.py` drops postings from staffing/crowdwork brands (`BLOCKED_COMPANY_SUBSTRINGS = ("mindrift", "toloka")`) at each scraper's yield point, and holds `title_words(query)`, the shared word-splitter for title matching (Workable, Remote OK, Skill Map).
 
-`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): an Indeed query URL, a JobStreet URL (path slugs + `worktype`/`workarrangement` params), a LinkedIn SEA URL (geoId `91000014`), and — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia — and, **always, last**, a Himalayas API URL (`build_himalayas_url`, title + job types only) followed by a Jobicy API URL (`build_jobicy_url`, title only), a Workable search URL (`build_workable_url`, title only, always `location=Indonesia`), and a Remote OK URL (`build_remoteok_url`, title only).
+`jobs/url_builders.py` builds the standard `crawl_urls` set for a Preference (`build_crawl_urls(title, job_types, remote_options)`): a LinkedIn SEA URL (geoId `91000014`), and — **only when `remote` is among the remote options** — a second LinkedIn EMEA URL (geoId `91000007`) force-filtered to remote, since an on-site EMEA role is unreachable from Indonesia — and, **always, last**, a Himalayas API URL (`build_himalayas_url`, title + job types only) followed by a Jobicy API URL (`build_jobicy_url`, title only), a Workable search URL (`build_workable_url`, title only, always `location=Indonesia`), and a Remote OK URL (`build_remoteok_url`, title only).
 
 ### Skill Map — public SEO pages (`jobs/skill_map/`)
 

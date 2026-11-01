@@ -473,7 +473,7 @@ class PrepareForPaymentTests(TestCase):
         )
 
     @patch("assessment.tasks.crawl_and_assess_preference")
-    def test_appends_indeed_and_jobstreet_urls(self, crawl_and_assess_preference):
+    def test_appends_linkedin_and_remote_board_urls(self, crawl_and_assess_preference):
         pref = Preference.objects.create(
             profile=self.profile,
             title="Mobile Developer",
@@ -483,14 +483,10 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 7)
-        self.assertIn("id.indeed.com/jobs?q=Mobile+Developer", pref.crawl_urls[0])
-        self.assertEqual(
-            pref.crawl_urls[1],
-            "https://id.jobstreet.com/mobile-developer-jobs/full-time/on-site",
-        )
-        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
-        self.assertIn("keywords=Mobile+Developer", pref.crawl_urls[2])
+        self.assertEqual(len(pref.crawl_urls), 5)
+        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[0])
+        self.assertIn("keywords=Mobile+Developer", pref.crawl_urls[0])
+        self.assertIn("f_JT=F", pref.crawl_urls[0])
         # Free crawl disabled: pref advances to WAITING_PAYMENT, no crawl queued.
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
         crawl_and_assess_preference.delay.assert_not_called()
@@ -504,12 +500,12 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 8)
-        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[3])
-        self.assertIn("geoId=91000007", pref.crawl_urls[3])
+        self.assertEqual(len(pref.crawl_urls), 6)
+        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[1])
+        self.assertIn("geoId=91000007", pref.crawl_urls[1])
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
-    def test_no_filters_yields_base_jobstreet_url(self):
+    def test_no_filters_yields_base_urls(self):
         pref = Preference.objects.create(
             profile=self.profile,
             title="Developer",
@@ -517,9 +513,8 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 7)
-        self.assertEqual(pref.crawl_urls[1], "https://id.jobstreet.com/developer-jobs")
-        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[2])
+        self.assertEqual(len(pref.crawl_urls), 5)
+        self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[0])
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
     def test_require_full_profile_false_advances_without_full_profile(self):
@@ -962,3 +957,45 @@ class RealDataRegressionTests(TestCase):
             ],
         )
         self.assertTrue(out.endswith(self.STORED_TAIL))
+
+
+class DropIndeedJobstreetMigrationTests(TestCase):
+    """profiles/0019 strips the removed boards' URLs from stored crawl_urls."""
+
+    def _run(self, urls):
+        from importlib import import_module
+
+        from django.apps import apps
+
+        migration = import_module(
+            "profiles.migrations.0019_drop_indeed_jobstreet_crawl_urls"
+        )
+        profile = Profile.objects.create(full_name="Migrated")
+        pref = Preference.objects.create(
+            profile=profile,
+            title="Mobile Developer",
+            status=Status.RUNNING,
+            crawl_urls=urls,
+        )
+        migration.drop_removed_urls(apps, None)
+        pref.refresh_from_db()
+        return pref.crawl_urls
+
+    def test_keeps_other_hosts(self):
+        linkedin = "https://www.linkedin.com/jobs/search/?keywords=x"
+        custom = "https://dealls.com/?location=remote"
+        urls = self._run(
+            [
+                "https://id.indeed.com/jobs?q=x",
+                "https://id.jobstreet.com/x-jobs",
+                linkedin,
+                custom,
+            ]
+        )
+        self.assertEqual(urls, [linkedin, custom])
+
+    def test_refills_when_nothing_left(self):
+        urls = self._run(
+            ["https://id.indeed.com/jobs?q=x", "https://id.jobstreet.com/x-jobs"]
+        )
+        self.assertEqual(urls, build_crawl_urls("Mobile Developer"))

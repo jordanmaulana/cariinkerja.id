@@ -10,9 +10,7 @@ from jobs.models import CrawlHealthTarget, Job
 from jobs.scrapers import (
     dealls,
     himalayas,
-    indeed,
     jobicy,
-    jobstreet,
     linkedin,
     remoteok,
     workable,
@@ -42,8 +40,6 @@ class _LogCapture(logging.Handler):
 
 
 SCRAPERS = {
-    CrawlHealthTarget.SOURCE_INDEED: indeed.crawl,
-    CrawlHealthTarget.SOURCE_JOBSTREET: jobstreet.crawl,
     CrawlHealthTarget.SOURCE_LINKEDIN: linkedin.crawl,
     CrawlHealthTarget.SOURCE_DEALLS: dealls.crawl,
     CrawlHealthTarget.SOURCE_HIMALAYAS: himalayas.crawl,

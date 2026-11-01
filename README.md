@@ -9,7 +9,7 @@ Cari kerja di Indonesia itu melelahkan. Buka Indeed, buka JobStreet, scroll ratu
 ## Cara kerja
 
 1. **Set profil + preferensi.** Sambungin LinkedIn, isi tipe kerjaan yang kamu mau (title, remote/onsite, sumber).
-2. **Bot kerja buat kamu.** Crawler kami pantau Indeed & JobStreet sesuai preferensi, ambil lowongan baru tiap hari.
+2. **Bot kerja buat kamu.** Crawler kami pantau LinkedIn, Himalayas, Jobicy, Workable, dan Remote OK sesuai preferensi, ambil lowongan baru tiap hari.
 3. **AI nilai tiap lowongan.** Tiap posting di-assess pake LLM: skor kecocokan 0-100, daftar skill yang match, skill yang masih kurang, plus verdict singkat kenapa cocok atau engga.
 4. **Kamu tinggal lihat yang skornya tinggi.** Fokus apply ke 5-10 lowongan yang beneran fit, bukan 200 yang random.
 

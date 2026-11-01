@@ -14,9 +14,7 @@ from jobs.models import Job
 from jobs.scrapers import (
     dealls,
     himalayas,
-    indeed,
     jobicy,
-    jobstreet,
     linkedin,
     remoteok,
     scraper_for_url,
@@ -27,167 +25,14 @@ from jobs.url_builders import (
     build_crawl_urls,
     build_himalayas_url,
     build_jobicy_url,
-    build_jobstreet_url,
     build_linkedin_url,
     build_remoteok_url,
     build_workable_url,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures_html"
-LISTING_HTML = (FIXTURES / "listing.html").read_text()
-DETAIL_HTML = (FIXTURES / "detail.html").read_text()
 LI_LISTING_HTML = (FIXTURES / "linkedin_listing.html").read_text()
 LI_DETAIL_HTML = (FIXTURES / "linkedin_detail.html").read_text()
-DETAIL_URL = (
-    "https://id.jobstreet.com/id/job/91819691?type=standard&ref=search-standalone"
-)
-
-
-class IterListingPagesTests(TestCase):
-    def test_first_page_is_input_url(self):
-        pages = list(
-            jobstreet.iter_listing_pages(
-                "https://id.jobstreet.com/id/mobile-jobs/part-time/remote", 1
-            )
-        )
-        self.assertEqual(
-            pages, ["https://id.jobstreet.com/id/mobile-jobs/part-time/remote"]
-        )
-
-    def test_appends_page_query_param(self):
-        pages = list(
-            jobstreet.iter_listing_pages(
-                "https://id.jobstreet.com/id/mobile-jobs/part-time/remote", 3
-            )
-        )
-        self.assertEqual(len(pages), 3)
-        self.assertIn("page=2", pages[1])
-        self.assertIn("page=3", pages[2])
-
-    def test_replaces_existing_page_param(self):
-        pages = list(
-            jobstreet.iter_listing_pages(
-                "https://id.jobstreet.com/id/mobile-jobs/part-time/remote?page=5&q=foo",
-                2,
-            )
-        )
-        self.assertIn("q=foo", pages[1])
-        self.assertIn("page=2", pages[1])
-        self.assertNotIn("page=5", pages[1])
-
-
-class ParseListingTests(TestCase):
-    def test_extracts_unique_job_urls(self):
-        urls = jobstreet.parse_listing(LISTING_HTML)
-        self.assertGreater(len(urls), 0)
-        self.assertEqual(len(urls), len(set(urls)))
-        for u in urls:
-            self.assertTrue(u.startswith("https://id.jobstreet.com/id/job/"))
-
-    def test_extracts_link_with_new_path_format(self):
-        # Regression: JobStreet listings now serve /job/<id> (no /id/ prefix).
-        html = '<a href="/job/12345?type=standard&origin=cardTitle">Job</a>'
-        urls = jobstreet.parse_listing(html)
-        self.assertEqual(
-            urls,
-            [
-                "https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"
-            ],
-        )
-
-    def test_extracts_link_with_legacy_path_format(self):
-        html = '<a href="/id/job/12345?type=standard">Job</a>'
-        urls = jobstreet.parse_listing(html)
-        self.assertEqual(
-            urls,
-            [
-                "https://id.jobstreet.com/id/job/12345?type=standard&ref=search-standalone"
-            ],
-        )
-
-
-class ParseDetailTests(TestCase):
-    def test_returns_expected_fields(self):
-        result = jobstreet.parse_detail(DETAIL_HTML, DETAIL_URL)
-        self.assertIsNotNone(result)
-        self.assertEqual(result["url"], DETAIL_URL)
-        self.assertEqual(result["title"], "Freelance Mandarin Curriculum Developer")
-        self.assertIn("Mandarin", result["description"])
-        self.assertEqual(result["location"], "Jakarta Barat, Jakarta Raya")
-        self.assertEqual(result["job_type"], JobType.PART_TIME)
-        self.assertEqual(result["remote_option"], RemoteOption.REMOTE)
-
-    def test_returns_none_for_non_detail_page(self):
-        self.assertIsNone(jobstreet.parse_detail("<html></html>", DETAIL_URL))
-
-
-class LabelMappersTests(TestCase):
-    def test_job_type_indonesian_and_english(self):
-        self.assertEqual(jobstreet._map_job_type("Paruh waktu"), JobType.PART_TIME)
-        self.assertEqual(jobstreet._map_job_type("Full Time"), JobType.FULL_TIME)
-        self.assertEqual(jobstreet._map_job_type("Magang"), JobType.INTERNSHIP)
-        self.assertIsNone(jobstreet._map_job_type("nonsense label"))
-
-    def test_remote_from_location_paren(self):
-        self.assertEqual(
-            jobstreet._map_remote_option("Jakarta (Jarak jauh)", ""),
-            RemoteOption.REMOTE,
-        )
-        self.assertEqual(
-            jobstreet._map_remote_option("Jakarta (Hibrid)", ""),
-            RemoteOption.HYBRID,
-        )
-        self.assertIsNone(jobstreet._map_remote_option("Jakarta", ""))
-
-
-class _StubResp:
-    def __init__(self, text):
-        self.text = text
-        self.status_code = 200
-        self.request = None
-
-    def raise_for_status(self):
-        pass
-
-
-def _stub_get(self, url, *args, **kwargs):
-    if "/id/job/" in url:
-        return _StubResp(DETAIL_HTML)
-    return _StubResp(LISTING_HTML)
-
-
-class CommandTests(TestCase):
-    URL = "https://id.jobstreet.com/id/mobile-jobs/part-time/remote"
-
-    @patch("httpx.Client.get", new=_stub_get)
-    @patch("jobs.scrapers.jobstreet.time.sleep", lambda *_: None)
-    def test_dry_run_does_not_write(self):
-        out = io.StringIO()
-        call_command(
-            "crawl_jobstreet",
-            self.URL,
-            "--max-pages",
-            "1",
-            "--limit",
-            "2",
-            "--dry-run",
-            stdout=out,
-        )
-        self.assertEqual(Job.objects.count(), 0)
-        self.assertIn("Freelance Mandarin Curriculum Developer", out.getvalue())
-
-    @patch("httpx.Client.get", new=_stub_get)
-    @patch("jobs.scrapers.jobstreet.time.sleep", lambda *_: None)
-    def test_writes_and_is_idempotent(self):
-        call_command("crawl_jobstreet", self.URL, "--max-pages", "1", "--limit", "2")
-        first_count = Job.objects.count()
-        self.assertGreater(first_count, 0)
-        job = Job.objects.first()
-        self.assertEqual(job.job_type, JobType.PART_TIME)
-        self.assertEqual(job.remote_option, RemoteOption.REMOTE)
-
-        call_command("crawl_jobstreet", self.URL, "--max-pages", "1", "--limit", "2")
-        self.assertEqual(Job.objects.count(), first_count)
 
 
 class LinkedInGuestSearchUrlTests(TestCase):
@@ -306,15 +151,12 @@ class LinkedInCommandTests(TestCase):
 
 
 class ScraperForUrlTests(TestCase):
-    def test_indeed_host(self):
-        scraper, source = scraper_for_url("https://id.indeed.com/jobs?q=python")
-        self.assertIs(scraper, indeed)
-        self.assertEqual(source, "indeed")
-
-    def test_jobstreet_host(self):
-        scraper, source = scraper_for_url("https://id.jobstreet.com/jobs/foo")
-        self.assertIs(scraper, jobstreet)
-        self.assertEqual(source, "jobstreet")
+    def test_removed_indeed_and_jobstreet_hosts_are_unknown(self):
+        for url in (
+            "https://id.indeed.com/jobs?q=python",
+            "https://id.jobstreet.com/jobs/foo",
+        ):
+            self.assertEqual(scraper_for_url(url), (None, None))
 
     def test_linkedin_host(self):
         for url in (
@@ -454,149 +296,6 @@ class DeallsParseDetailTests(TestCase):
         self.assertIsNone(dealls.parse_detail(barren))
 
 
-class BuildJobstreetUrlTests(TestCase):
-    BASE = "https://id.jobstreet.com/mobile-developer-jobs"
-
-    def test_title_only(self):
-        self.assertEqual(build_jobstreet_url("Mobile Developer"), self.BASE)
-
-    def test_single_full_time(self):
-        self.assertEqual(
-            build_jobstreet_url("Mobile Developer", [JobType.FULL_TIME]),
-            f"{self.BASE}/full-time",
-        )
-
-    def test_single_part_time(self):
-        self.assertEqual(
-            build_jobstreet_url("Mobile Developer", [JobType.PART_TIME]),
-            f"{self.BASE}/part-time",
-        )
-
-    def test_single_contract_uses_temp_slug(self):
-        self.assertEqual(
-            build_jobstreet_url("Mobile Developer", [JobType.CONTRACT]),
-            f"{self.BASE}/contract-temp",
-        )
-
-    def test_single_internship_uses_casual_vacation_slug(self):
-        self.assertEqual(
-            build_jobstreet_url("Mobile Developer", [JobType.INTERNSHIP]),
-            f"{self.BASE}/casual-vacation",
-        )
-
-    def test_multi_job_type_uses_worktype_query_param(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer", [JobType.FULL_TIME, JobType.PART_TIME]
-            ),
-            f"{self.BASE}?worktype=242%2C243",
-        )
-
-    def test_remote_only_uses_workarrangement_query_param(self):
-        self.assertEqual(
-            build_jobstreet_url("Mobile Developer", None, [RemoteOption.ON_SITE]),
-            f"{self.BASE}?workarrangement=2",
-        )
-
-    def test_multi_remote_only(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer",
-                None,
-                [RemoteOption.HYBRID, RemoteOption.ON_SITE],
-            ),
-            f"{self.BASE}?workarrangement=1%2C2",
-        )
-
-    def test_single_jt_single_ro(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer", [JobType.FULL_TIME], [RemoteOption.ON_SITE]
-            ),
-            f"{self.BASE}/full-time/on-site",
-        )
-
-    def test_single_jt_multi_ro(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer",
-                [JobType.FULL_TIME],
-                [RemoteOption.HYBRID, RemoteOption.ON_SITE],
-            ),
-            f"{self.BASE}/full-time?workarrangement=1%2C2",
-        )
-
-    def test_multi_jt_single_ro(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer",
-                [JobType.FULL_TIME, JobType.PART_TIME],
-                [RemoteOption.ON_SITE],
-            ),
-            f"{self.BASE}?worktype=242%2C243&workarrangement=2",
-        )
-
-    def test_multi_jt_multi_ro(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer",
-                [JobType.FULL_TIME, JobType.CONTRACT],
-                [RemoteOption.REMOTE, RemoteOption.HYBRID],
-            ),
-            f"{self.BASE}?worktype=242%2C244&workarrangement=3%2C1",
-        )
-
-    def test_empty_title_returns_none(self):
-        self.assertIsNone(build_jobstreet_url(""))
-        self.assertIsNone(build_jobstreet_url(None))
-        self.assertIsNone(build_jobstreet_url("   "))
-
-    def test_emoji_only_title_returns_none(self):
-        self.assertIsNone(build_jobstreet_url("🚀✨"))
-
-    def test_non_ascii_title_is_normalized(self):
-        self.assertEqual(
-            build_jobstreet_url("Sénior Developer"),
-            "https://id.jobstreet.com/senior-developer-jobs",
-        )
-
-    def test_unknown_values_are_dropped(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer", ["bogus", JobType.FULL_TIME], ["unknown"]
-            ),
-            f"{self.BASE}/full-time",
-        )
-
-    def test_duplicates_are_deduped_preserving_order(self):
-        self.assertEqual(
-            build_jobstreet_url(
-                "Mobile Developer",
-                [JobType.PART_TIME, JobType.FULL_TIME, JobType.PART_TIME],
-            ),
-            f"{self.BASE}?worktype=243%2C242",
-        )
-
-    def test_long_title_is_truncated_on_hyphen(self):
-        title = "Senior " * 30 + "Developer"
-        url = build_jobstreet_url(title)
-        slug = url.removeprefix("https://id.jobstreet.com/").removesuffix("-jobs")
-        self.assertLessEqual(len(slug), 80)
-        self.assertFalse(slug.endswith("-"))
-
-    def test_round_trips_through_scraper_for_url(self):
-        for jts, ros in [
-            (None, None),
-            ([JobType.FULL_TIME], None),
-            ([JobType.FULL_TIME, JobType.PART_TIME], [RemoteOption.HYBRID]),
-            (None, [RemoteOption.REMOTE]),
-        ]:
-            url = build_jobstreet_url("Mobile Developer", jts, ros)
-            scraper, source = scraper_for_url(url)
-            self.assertIs(scraper, jobstreet)
-            self.assertEqual(source, "jobstreet")
-
-
 class BuildLinkedInUrlTests(TestCase):
     def test_title_only(self):
         url = build_linkedin_url("Mobile Developer")
@@ -634,15 +333,13 @@ class BuildLinkedInUrlTests(TestCase):
 
 
 class BuildCrawlUrlsTests(TestCase):
-    def test_includes_indeed_jobstreet_and_linkedin(self):
+    def test_includes_linkedin_and_remote_boards(self):
         urls = build_crawl_urls("Mobile Developer")
-        self.assertEqual(len(urls), 7)
+        self.assertEqual(len(urls), 5)
         hosts = [scraper_for_url(u)[1] for u in urls]
         self.assertEqual(
             hosts,
             [
-                "indeed",
-                "jobstreet",
                 "linkedin",
                 "himalayas",
                 "jobicy",
@@ -653,13 +350,13 @@ class BuildCrawlUrlsTests(TestCase):
 
     def test_non_remote_preference_omits_emea(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.ON_SITE])
-        self.assertEqual(len(urls), 7)
+        self.assertEqual(len(urls), 5)
         self.assertNotIn("geoId=91000007", " ".join(urls))
 
     def test_remote_preference_appends_emea_linkedin(self):
         urls = build_crawl_urls("Mobile Developer", None, [RemoteOption.REMOTE])
-        self.assertEqual(len(urls), 8)
-        emea = urls[3]
+        self.assertEqual(len(urls), 6)
+        emea = urls[1]
         self.assertIn("geoId=91000007", emea)
         self.assertIn("f_WT=2", emea)
         scraper, source = scraper_for_url(emea)
@@ -1102,124 +799,6 @@ class ExtractJobSkillsTaskTests(TestCase):
 
         self.assertEqual(result, "skipped")
         mock_extract.assert_not_called()
-
-
-# --- Indeed Cloudflare resilience -------------------------------------------
-
-INDEED_URL = "https://id.indeed.com/jobs?q=mobile+developer"
-
-# CF interstitial: detection is <title>-based, so the marker is all that matters.
-CF_HTML = "<html><head><title>Security check</title></head><body>blocked</body></html>"
-# Minimal parseable detail page (JSON-LD JobPosting → title + description).
-GOOD_DETAIL_HTML = (
-    '<html><head><script type="application/ld+json">'
-    '{"@type":"JobPosting","title":"Mobile Developer",'
-    '"description":"<p>Build great apps</p>",'
-    '"hiringOrganization":{"name":"Acme"}}'
-    "</script></head><body></body></html>"
-)
-
-
-def _indeed_listing(*jks: str) -> str:
-    cards = "".join(f'<a data-jk="{jk}"></a>' for jk in jks)
-    return f"<html><body>{cards}</body></html>"
-
-
-class _IndeedResp:
-    def __init__(self, text):
-        self.text = text
-        self.status_code = 200
-
-    def raise_for_status(self):
-        pass
-
-
-def _make_indeed_stub(listing_html, detail_plan, calls):
-    """Build a curl_cffi Session.get replacement for Indeed crawl tests.
-
-    ``detail_plan(url) -> "cf" | "ok"`` decides each /viewjob response (may be
-    stateful). Non-detail URLs return the homepage warm-up or listing page.
-    Every call appends ``(url, headers)`` to ``calls`` for assertions.
-    """
-
-    def _get(self, url, *args, **kwargs):
-        calls.append((url, kwargs.get("headers") or {}))
-        if "/viewjob" in url:
-            return _IndeedResp(
-                CF_HTML if detail_plan(url) == "cf" else GOOD_DETAIL_HTML
-            )
-        if url == indeed.BASE_URL:
-            return _IndeedResp("<html><head><title>Indeed</title></head></html>")
-        return _IndeedResp(listing_html)
-
-    return _get
-
-
-class IndeedCloudflareResilienceTests(TestCase):
-    def _crawl(self, listing_html, detail_plan):
-        calls: list[tuple[str, dict]] = []
-        stub = _make_indeed_stub(listing_html, detail_plan, calls)
-        with (
-            patch("curl_cffi.requests.Session.get", new=stub),
-            patch("jobs.scrapers.indeed.time.sleep", lambda *_: None),
-        ):
-            jobs = list(indeed.crawl(INDEED_URL, max_pages=1, sleep=0, limit=5))
-        return jobs, calls
-
-    @staticmethod
-    def _detail_calls(calls):
-        return [url for url, _ in calls if "/viewjob" in url]
-
-    def test_detail_cf_then_recovers_on_rotation(self):
-        # First GET of the detail is gated; the rotated fingerprint clears it.
-        counts: dict[str, int] = {}
-
-        def plan(url):
-            n = counts.get(url, 0)
-            counts[url] = n + 1
-            return "cf" if n == 0 else "ok"
-
-        jobs, calls = self._crawl(_indeed_listing("AAA"), plan)
-
-        self.assertEqual(len(jobs), 1)
-        self.assertEqual(jobs[0]["title"], "Mobile Developer")
-        # The same detail URL was retried under a second fingerprint.
-        self.assertGreaterEqual(len(self._detail_calls(calls)), 2)
-
-    def test_one_gated_detail_does_not_abort_crawl(self):
-        # Detail AAA is permanently gated; BBB is fine. The crawl must skip AAA
-        # and still yield BBB instead of returning 0.
-        def plan(url):
-            return "cf" if "jk=AAA" in url else "ok"
-
-        jobs, calls = self._crawl(_indeed_listing("AAA", "BBB"), plan)
-
-        self.assertEqual(len(jobs), 1)
-        detail_calls = self._detail_calls(calls)
-        self.assertTrue(any("jk=AAA" in u for u in detail_calls))
-        self.assertTrue(any("jk=BBB" in u for u in detail_calls))
-
-    def test_aborts_after_consecutive_cf_threshold(self):
-        # Every detail is gated: abort after CF_ABORT_THRESHOLD consecutive
-        # gated details, not after exhausting all cards.
-        listing = _indeed_listing("AAA", "BBB", "CCC", "DDD", "EEE")
-        with self.assertLogs("jobs.scrapers.indeed", level="ERROR"):
-            jobs, calls = self._crawl(listing, lambda url: "cf")
-
-        self.assertEqual(len(jobs), 0)
-        attempted = {u.split("jk=")[1].split("&")[0] for u in self._detail_calls(calls)}
-        self.assertEqual(attempted, {"AAA", "BBB", "CCC"})
-        self.assertNotIn("DDD", attempted)
-        self.assertNotIn("EEE", attempted)
-
-    def test_referer_chain_is_set(self):
-        jobs, calls = self._crawl(_indeed_listing("AAA"), lambda url: "ok")
-
-        self.assertEqual(len(jobs), 1)
-        serp = next(h for u, h in calls if u == INDEED_URL)
-        self.assertEqual(serp.get("Referer"), indeed.BASE_URL)
-        detail = next(h for u, h in calls if "/viewjob" in u)
-        self.assertEqual(detail.get("Referer"), INDEED_URL)
 
 
 # --- Workable (search JSON API) ---------------------------------------------

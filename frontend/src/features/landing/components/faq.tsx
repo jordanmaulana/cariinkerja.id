@@ -15,7 +15,7 @@ const ITEMS: Item[] = [
   },
   {
     q: "Lokernya dari mana aja?",
-    a: "Dari berbagai job board: Indeed, JobStreet, LinkedIn, Himalayas, Jobicy, Workable, dan Remote OK. Kamu nggak perlu milih, satu pencarian otomatis dicari di semuanya.",
+    a: "Dari berbagai job board: LinkedIn, Himalayas, Jobicy, Workable, dan Remote OK. Kamu nggak perlu milih, satu pencarian otomatis dicari di semuanya.",
   },
   {
     q: "Skornya dihitung gimana?",

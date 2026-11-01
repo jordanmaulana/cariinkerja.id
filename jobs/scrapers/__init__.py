@@ -6,9 +6,7 @@ from urllib.parse import urlparse
 from jobs.scrapers import (
     dealls,
     himalayas,
-    indeed,
     jobicy,
-    jobstreet,
     linkedin,
     remoteok,
     workable,
@@ -29,10 +27,6 @@ def scraper_for_url(url: str) -> tuple[ModuleType | None, str | None]:
         return (None, None)
     if not host:
         return (None, None)
-    if host == "indeed.com" or host.endswith(".indeed.com"):
-        return (indeed, Source.INDEED.value)
-    if host == "jobstreet.com" or host.endswith(".jobstreet.com"):
-        return (jobstreet, Source.JOBSTREET.value)
     if host == "linkedin.com" or host.endswith(".linkedin.com"):
         return (linkedin, Source.LINKEDIN.value)
     if host == "dealls.com" or host.endswith(".dealls.com"):

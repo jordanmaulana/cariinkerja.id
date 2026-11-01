@@ -1,7 +1,6 @@
 import {
-  IndeedMark,
-  JobStreetMark,
   LinkedinMark,
+  MonogramMark,
 } from "@/features/landing/components/brand-marks";
 import { useInView } from "@/features/landing/hooks";
 import { cn } from "@/lib/utils";
@@ -15,8 +14,9 @@ type Source = {
 const SOURCES: Source[] = [
   { name: "LinkedIn SEA", Mark: LinkedinMark, note: "Southeast Asia" },
   { name: "LinkedIn EMEA", Mark: LinkedinMark, note: "Europe Middle East Africa" },
-  { name: "Indeed", Mark: IndeedMark },
-  { name: "JobStreet", Mark: JobStreetMark },
+  { name: "Himalayas", Mark: (p) => <MonogramMark letter="H" {...p} /> },
+  { name: "Jobicy", Mark: (p) => <MonogramMark letter="J" {...p} /> },
+  { name: "Workable", Mark: (p) => <MonogramMark letter="W" {...p} /> },
 ];
 
 export function SourceStrip() {

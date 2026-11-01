@@ -5,8 +5,6 @@ from jobs.consts import JobType, RemoteOption
 
 
 class CrawlHealthTarget(BaseModel):
-    SOURCE_INDEED = "indeed"
-    SOURCE_JOBSTREET = "jobstreet"
     SOURCE_LINKEDIN = "linkedin"
     SOURCE_DEALLS = "dealls"
     SOURCE_HIMALAYAS = "himalayas"
@@ -14,8 +12,6 @@ class CrawlHealthTarget(BaseModel):
     SOURCE_WORKABLE = "workable"
     SOURCE_REMOTEOK = "remoteok"
     SOURCE_CHOICES = [
-        (SOURCE_INDEED, "Indeed"),
-        (SOURCE_JOBSTREET, "Jobstreet"),
         (SOURCE_LINKEDIN, "LinkedIn"),
         (SOURCE_DEALLS, "Dealls"),
         (SOURCE_HIMALAYAS, "Himalayas"),
@@ -39,7 +35,7 @@ class CrawlHealthTarget(BaseModel):
 
 class Job(models.Model):
     id = models.CharField(primary_key=True, default=make_object_id, editable=False)
-    url = models.URLField(unique=True)
+    url = models.URLField(max_length=2000, unique=True)
     title = models.CharField(max_length=255)
     company = models.CharField(max_length=255, null=True, blank=True)
     description = models.TextField()
