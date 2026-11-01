@@ -1347,7 +1347,7 @@ from django.test import override_settings  # noqa: E402
 from billing.models import Plan  # noqa: E402
 from jobs.models import SkillMapPage, SkillMapSnapshot  # noqa: E402
 from jobs.scrapers.filters import title_words  # noqa: E402
-from jobs.skill_map import (  # noqa: E402
+from jobs.skill_map.services import (  # noqa: E402
     compute_snapshot,
     format_date_id,
     refresh_page,

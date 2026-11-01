@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from jobs.models import Job, SkillMapPage, SkillMapSnapshot
-from jobs.skill_map import refresh_page
+from jobs.skill_map.services import refresh_page
 
 
 @admin.register(Job)

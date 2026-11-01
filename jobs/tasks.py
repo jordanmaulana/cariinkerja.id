@@ -106,7 +106,7 @@ def _format_report(results):
 def refresh_skill_maps() -> dict:
     """Write this week's Skill Map snapshot for every page. Beat: weekly."""
     from jobs.models import SkillMapPage
-    from jobs.skill_map import refresh_page
+    from jobs.skill_map.services import refresh_page
 
     return {p.slug: refresh_page(p).job_count for p in SkillMapPage.objects.all()}
 

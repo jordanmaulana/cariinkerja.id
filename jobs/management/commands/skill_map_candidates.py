@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from jobs.models import SkillMapPage
-from jobs.skill_map import WINDOW_DAYS, matching_jobs, refresh_page
+from jobs.skill_map.services import WINDOW_DAYS, matching_jobs, refresh_page
 from profiles.models import Preference
 
 TITLE_MAX = SkillMapPage._meta.get_field("title").max_length

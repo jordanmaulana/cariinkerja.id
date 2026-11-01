@@ -114,6 +114,6 @@ urlpatterns = [
     path("jobs/", include("jobs.urls")),
     path("api/v1/", include("api.v1.urls")),
     # Public Skill Map pages (routed from cariinkerja.id by the reverse proxy).
-    path("skill/", include("jobs.skill_map_urls")),
+    path("skill/", include("jobs.skill_map.urls")),
     path("", RedirectView.as_view(url="/dashboard/", permanent=False), name="home"),
 ]

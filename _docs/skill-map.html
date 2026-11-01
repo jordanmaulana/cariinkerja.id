@@ -202,16 +202,11 @@ uv run manage.py backfill_job_skills --source workable --since-days 90</pre>
 
 <div class="step"><div class="n">5</div><div class="body">
   <h3>Publish</h3>
-  <p>Tick <code>is_published</code> and save. The page and the <code>/skill/</code> index are cached for 1 hour, so a new page can take up to an hour to appear.</p>
-</div></div>
-
-<div class="step"><div class="n">6</div><div class="body">
-  <h3>One-time setup: the weekly refresh</h3>
-  <p><b>Admin → Periodic tasks → Add:</b> task <code>jobs.tasks.refresh_skill_maps</code>, weekly. It refreshes <b>every</b> page, published or not. Without it, pages keep showing their first snapshot forever.</p>
+  <p>Tick <code>is_published</code> and save. The page and the <code>/skill/</code> index are cached for 5 minutes, so a new page can take up to 5 minutes to appear.</p>
 </div></div>
 
 <h2><span class="num">4</span>How the numbers are counted</h2>
-<p>All of this lives in <code>jobs/skill_map.py</code>. For one page, on refresh:</p>
+<p>All of this lives in <code>jobs/skill_map/services.py</code>. For one page, on refresh:</p>
 
 <h3>a. Which jobs count</h3>
 <ol>
@@ -244,15 +239,15 @@ uv run manage.py backfill_job_skills --source workable --since-days 90</pre>
 <p>Remote / on-site / hybrid and full-time / part-time / contract / internship are shares of the same counted jobs. Many postings don’t state them, so these don’t add up to 100% either. The page says “Sisanya ga nyebut di lokernya” for that reason.</p>
 
 <h3>d. Snapshots</h3>
-<p>One snapshot per page per day. Refreshing twice on the same day overwrites that day’s row. Older snapshots are kept (for trends later). The page always shows the newest one.</p>
+<p>The <code>jobs.tasks.refresh_skill_maps</code> beat task refreshes <b>every</b> page, published or not, each Monday 07:00 WIB. Migration <code>jobs/0020</code> schedules it, so there is nothing to register; change the time in Admin → Periodic tasks. One snapshot per page per day. Refreshing twice on the same day overwrites that day’s row. Older snapshots are kept (for trends later). The page always shows the newest one.</p>
 
 <h2><span class="num">5</span>When something looks wrong</h2>
 <table class="ref">
   <tr><th>Symptom</th><th>Cause → fix</th></tr>
   <tr><td>Page gives 404</td><td><code>is_published</code> is off, there is no snapshot yet, <b>or</b> the newest snapshot has fewer than <code>min_jobs</code> jobs. Check the <b>jobs (latest)</b> column. A page can disappear on its own after a weekly refresh if jobs dried up.</td></tr>
-  <tr><td>Page live but numbers old</td><td>Weekly beat task not registered (step 6), or the 1-hour cache. Run “Refresh snapshot now” and wait up to an hour.</td></tr>
+  <tr><td>Page live but numbers old</td><td>Weekly beat task disabled in Admin → Periodic tasks, or the 5-minute cache. Run “Refresh snapshot now” and wait up to 5 minutes.</td></tr>
   <tr><td>Fewer jobs than <code>skill_map_candidates</code> said</td><td>The command matches on the bare title only. It ignores your <code>match_words</code> and <code>exclude_words</code>. Trust the admin refresh count.</td></tr>
-  <tr><td>Two names for one skill</td><td>e.g. “Power BI” vs “PowerBI”. Add an alias to <code>SKILL_ALIASES</code> in <code>jobs/skill_map.py</code> (a code change + deploy), then refresh.</td></tr>
+  <tr><td>Two names for one skill</td><td>e.g. “Power BI” vs “PowerBI”. Add an alias to <code>SKILL_ALIASES</code> in <code>jobs/skill_map/services.py</code> (a code change + deploy), then refresh.</td></tr>
   <tr><td>Job count lower than expected</td><td>Jobs without skills don’t count. Backfill (step 2). Also check spelling variants the title rule misses, like “Front End” vs “Frontend”.</td></tr>
   <tr><td>Index page empty</td><td>No page is both published and above <code>min_jobs</code>.</td></tr>
 </table>
@@ -269,12 +264,12 @@ uv run manage.py backfill_job_skills --source workable --since-days 90</pre>
 <h2><span class="num">6</span>Where things live</h2>
 <table class="ref">
   <tr><th>File</th><th>What’s there</th></tr>
-  <tr><td><code>jobs/skill_map.py</code></td><td>Matching, ranking, aliases, snapshot write, visibility rules. Constants: <code>WINDOW_DAYS=90</code>, <code>TOP_HARD=15</code>, <code>TOP_SOFT=8</code>.</td></tr>
+  <tr><td><code>jobs/skill_map/services.py</code></td><td>Matching, ranking, aliases, snapshot write, visibility rules. Constants: <code>WINDOW_DAYS=90</code>, <code>TOP_HARD=15</code>, <code>TOP_SOFT=8</code>.</td></tr>
   <tr><td><code>jobs/models.py</code></td><td><code>SkillMapPage</code> (config), <code>SkillMapSnapshot</code> (counts as JSON).</td></tr>
   <tr><td><code>jobs/admin.py</code></td><td>Page admin, “Refresh snapshot now” action, <b>jobs (latest)</b> column.</td></tr>
   <tr><td><code>jobs/tasks.py</code></td><td><code>refresh_skill_maps</code> (weekly), <code>extract_job_skills</code> (per job).</td></tr>
   <tr><td><code>jobs/management/commands/</code></td><td><code>skill_map_candidates.py</code>, <code>backfill_job_skills.py</code>.</td></tr>
-  <tr><td><code>jobs/skill_map_views.py</code><br><code>jobs/skill_map_urls.py</code></td><td>Index, detail, <code>sitemap.xml</code> views. 1-hour cache. Price taken from the cheapest active plan.</td></tr>
+  <tr><td><code>jobs/skill_map/views.py</code><br><code>jobs/skill_map/urls.py</code></td><td>Index, detail, <code>sitemap.xml</code> views. 5-minute cache. Price taken from the cheapest active plan.</td></tr>
   <tr><td><code>templates/skillmap/</code></td><td>Page HTML with inline CSS, the CTA and the “Cara kita ngitung” section.</td></tr>
   <tr><td><code>frontend/nginx.conf</code></td><td>Forwards <code>/skill/</code> from the SPA container to Django. In dev, Vite proxies it to :8000.</td></tr>
 </table>

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from jobs.skill_map_views import skill_map_detail, skill_map_index, skill_map_sitemap
+from jobs.skill_map.views import skill_map_detail, skill_map_index, skill_map_sitemap
 
 urlpatterns = [
     path("", skill_map_index, name="skill_map_index"),

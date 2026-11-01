@@ -12,7 +12,7 @@ from django.views.decorators.cache import cache_page
 
 from billing.models import Plan
 from jobs.models import SkillMapPage
-from jobs.skill_map import format_date_id, visible_pages, visible_snapshot
+from jobs.skill_map.services import format_date_id, visible_pages, visible_snapshot
 
 # Short on purpose: the cache is per gunicorn worker (no shared CACHES), so a
 # page published in admin shows up everywhere within this window. The views
