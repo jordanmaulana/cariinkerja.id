@@ -131,8 +131,7 @@ A page aggregates `Job.hard_skills`/`soft_skills` over jobs created in the last 
 `jobs/tasks.py`:
 
 - `extract_job_skills(job_id)` — fills `Job.hard_skills`/`soft_skills` from the description via `jobs.services.extract_skills`. Idempotent (skips if either list is non-empty).
-- `refresh_skill_maps()` — writes this week's `SkillMapSnapshot` for every `SkillMapPage`. Scheduled Mondays 04:00 Asia/Jakarta by data migration `jobs/0020_schedule_refresh_skill_maps` (same pattern as the other beat migrations; edit the time in admin).
-- `sync_workable_feed()` — pulls the Workable feed into `Job` rows (see Workable above); Discord ping + re-raise on failure. Register in beat at ≥ 1h (6h recommended).
+- `refresh_skill_maps()` — writes this week's `SkillMapSnapshot` for every `SkillMapPage`. Scheduled Mondays 07:00 Asia/Jakarta by data migration `jobs/0020_schedule_skill_map_refresh` (same pattern as the other beat migrations; edit the time in admin).
 - `crawl_health_check()` — probes every active `CrawlHealthTarget` with a 5-item, 1-page crawl and posts a Discord report. Note `jobs.tasks.SCRAPERS` maps `CrawlHealthTarget.SOURCE_*` → `crawl` callables and is used **only** by this task; the production pipeline routes through `scraper_for_url`. Because the scrapers log-and-`break` on blocks rather than raising, `_probe` installs a temporary log handler on the `jobs.scrapers` logger so a zero-yield probe reports the real reason instead of a bare ❌.
 
 `profiles/tasks.py`:
