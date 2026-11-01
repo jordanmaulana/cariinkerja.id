@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
+from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status as PrefStatus
 from profiles.models import Preference, Profile
 
@@ -50,14 +51,37 @@ class PreferenceCrawlNowViewTests(TestCase):
         )
         m.assert_called_once_with(self.pref.id, reassess_existing=True)
 
-    def test_empty_crawl_urls_does_not_queue(self):
+    def test_empty_crawl_urls_and_title_does_not_queue(self):
         self.pref.crawl_urls = []
-        self.pref.save(update_fields=["crawl_urls", "updated_on"])
+        self.pref.title = ""
+        self.pref.save(update_fields=["crawl_urls", "title", "updated_on"])
         self.client.force_login(self.admin)
         with patch("core.views.crawl_and_assess_preference.delay") as m:
             resp = self.client.post(self.url, follow=True)
         m.assert_not_called()
         self.assertContains(resp, "no crawl_urls")
+
+    def test_merges_built_urls_keeping_manual(self):
+        built = build_crawl_urls("Senior Dev")
+        manual = "https://listing.test/q=dev"
+        self.pref.crawl_urls = [manual, built[0]]
+        self.pref.save(update_fields=["crawl_urls", "updated_on"])
+        self.client.force_login(self.admin)
+        with patch("core.views.crawl_and_assess_preference.delay") as m:
+            self.client.post(self.url)
+        self.pref.refresh_from_db()
+        self.assertEqual(self.pref.crawl_urls, [manual, *built])
+        m.assert_called_once_with(self.pref.id, reassess_existing=True)
+
+    def test_empty_urls_with_title_fills_and_queues(self):
+        self.pref.crawl_urls = []
+        self.pref.save(update_fields=["crawl_urls", "updated_on"])
+        self.client.force_login(self.admin)
+        with patch("core.views.crawl_and_assess_preference.delay") as m:
+            self.client.post(self.url)
+        self.pref.refresh_from_db()
+        self.assertEqual(self.pref.crawl_urls, build_crawl_urls("Senior Dev"))
+        m.assert_called_once_with(self.pref.id, reassess_existing=True)
 
     def test_requires_superuser(self):
         self.client.force_login(

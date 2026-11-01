@@ -379,16 +379,29 @@ class PreferenceDetailView(SuperuserRequiredMixin, View):
 class PreferenceCrawlNowView(SuperuserRequiredMixin, View):
     def post(self, request, pk):
         pref = get_object_or_404(Preference, pk=pk)
+        # Merge in the standard URL set (boards added since the preference was
+        # created) while keeping any hand-added URLs. Saved before .delay() so
+        # the worker reads the merged list.
+        saved = pref.crawl_urls or []
+        added = [
+            u
+            for u in build_crawl_urls(pref.title, pref.job_type, pref.remote_option)
+            if u not in saved
+        ]
+        if added:
+            pref.crawl_urls = saved + added
+            pref.save(update_fields=["crawl_urls", "updated_on"])
         if not pref.crawl_urls:
             messages.error(
                 request,
-                "Preference has no crawl_urls — fill them first.",
+                "Preference has no crawl_urls and no title — fill one first.",
             )
         else:
             crawl_and_assess_preference.delay(pref.id, reassess_existing=True)
+            note = f" (added {len(added)} new crawl URL(s))" if added else ""
             messages.success(
                 request,
-                f"Queued crawl + assessment for {pref}. "
+                f"Queued crawl + assessment for {pref}{note}. "
                 "Jobs already assessed for this preference will be re-assessed.",
             )
         return redirect("preference_detail", pk=pref.pk)
