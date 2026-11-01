@@ -925,7 +925,7 @@ from django.test import override_settings  # noqa: E402
 
 from billing.models import Plan  # noqa: E402
 from jobs.models import SkillMapPage, SkillMapSnapshot  # noqa: E402
-from jobs.scrapers.filters import title_words  # noqa: E402
+from jobs.scrapers.filters import title_has_words, title_words  # noqa: E402
 from jobs.skill_map.services import (  # noqa: E402
     compute_snapshot,
     format_date_id,
@@ -953,6 +953,22 @@ class TitleWordsTests(TestCase):
         self.assertEqual(title_words("UI/UX Designer"), ["ui", "ux", "designer"])
         self.assertEqual(title_words("C Developer"), ["developer"])
         self.assertEqual(title_words(None), [])
+
+    def test_title_has_words_tolerates_plural_and_al(self):
+        hits = [
+            ("Operations Intern (E-Commerce Logistic)", ["logistic", "operational"]),
+            ("Logistics Manager", ["logistics"]),
+            ("Senior Data Analysts", ["data", "analyst"]),
+        ]
+        misses = [
+            ("Business Development", ["developer"]),
+            ("Warehouse & Logistic Officer", ["logistic", "operational"]),
+            ("Portfolio Manager", ["ios"]),
+        ]
+        for title, words in hits:
+            self.assertTrue(title_has_words(title, words), title)
+        for title, words in misses:
+            self.assertFalse(title_has_words(title, words), title)
 
     def test_title_matches_word_starts_and_exclusions(self):
         self.assertTrue(title_matches("Senior Data Analysts", ["data", "analyst"], []))

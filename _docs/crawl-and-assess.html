@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Crawl &amp; Assess — How It Works</title>
+<!-- Render: weasyprint _docs/crawl-and-assess.html _docs/crawl-and-assess.pdf -->
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 18mm 20mm;
+    @bottom-left { content: "cariinkerja.id · Crawl & Assess — operator guide"; font: 8pt Helvetica; color: #8a948e; }
+    @bottom-right { content: counter(page) " / " counter(pages); font: 8pt Helvetica; color: #8a948e; }
+  }
+  :root {
+    --ink: #17201b;
+    --muted: #5d6862;
+    --line: #dfe5e1;
+    --soft: #f3f7f5;
+    --green: #0f9d6b;
+    --green-soft: #e3f4ec;
+    --amber: #b7791f;
+    --amber-soft: #fbf1df;
+    --red: #b42318;
+  }
+  * { box-sizing: border-box; }
+  body { font: 10pt/1.5 Helvetica, Arial, sans-serif; color: var(--ink); margin: 0; }
+  h1 { font: 600 26pt/1.15 Georgia, serif; margin: 0 0 4mm; }
+  h2 {
+    font: 600 15pt/1.2 Georgia, serif; margin: 9mm 0 3mm; padding-top: 3mm;
+    border-top: 2px solid var(--green); break-after: avoid;
+  }
+  h2 .num { color: var(--green); margin-right: 2mm; }
+  h3 { font-size: 11pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  code, .mono { font-family: Menlo, "SF Mono", monospace; font-size: 8.6pt; }
+  code { background: var(--soft); padding: 0 1mm; border-radius: 2px; }
+  pre {
+    font: 8.4pt/1.45 Menlo, "SF Mono", monospace; background: #17201b; color: #e9efe9;
+    padding: 3mm 4mm; border-radius: 3px; margin: 0 0 3mm; white-space: pre-wrap; break-inside: avoid;
+  }
+  pre .c { color: #8fb3a0; }
+  .kicker { font-size: 8.5pt; letter-spacing: .12em; text-transform: uppercase; color: var(--green); font-weight: 700; margin-bottom: 2mm; }
+  .lede { font-size: 11.5pt; color: var(--muted); max-width: 150mm; }
+  .meta { font-size: 8.5pt; color: var(--muted); margin-top: 3mm; }
+
+  .box { border: 1px solid var(--line); border-radius: 4px; padding: 3mm 4mm; margin: 0 0 3mm; break-inside: avoid; }
+  .box.green { background: var(--green-soft); border-color: #bfe3d2; }
+  .box.amber { background: var(--amber-soft); border-color: #efd6a8; }
+  .box h3 { margin-top: 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0 0 3mm; font-size: 9pt; break-inside: avoid; }
+  th, td { text-align: left; vertical-align: top; padding: 1.6mm 2mm; border-bottom: 1px solid var(--line); }
+  th { font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1.5px solid var(--ink); }
+  td:first-child { white-space: nowrap; }
+  table.ref td:first-child { white-space: normal; width: 34%; }
+
+  /* flow diagram */
+  .flow { margin: 2mm 0 4mm; }
+  .lane { display: flex; align-items: stretch; gap: 0; margin-bottom: 0; }
+  .node {
+    flex: 1; border: 1.3px solid var(--ink); border-radius: 4px; padding: 2mm 2.5mm;
+    background: #fff; font-size: 8.6pt; line-height: 1.35;
+  }
+  .node b { display: block; font-size: 9.2pt; margin-bottom: .6mm; }
+  .node .who { font-size: 7.4pt; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .node.g { border-color: var(--green); background: var(--green-soft); }
+  .node.a { border-color: var(--amber); background: var(--amber-soft); }
+  .arrow { width: 7mm; display: flex; align-items: center; justify-content: center; color: var(--green); font-size: 13pt; font-weight: 700; }
+  .down { text-align: right; padding-right: 12%; color: var(--green); font-size: 13pt; font-weight: 700; line-height: 1; margin: 1mm 0; }
+
+  /* steps */
+  .step { display: flex; gap: 4mm; margin: 0 0 4mm; break-inside: avoid; }
+  .step .n {
+    flex: 0 0 8mm; height: 8mm; border-radius: 50%; background: var(--green); color: #fff;
+    font: 700 11pt/8mm Helvetica; text-align: center;
+  }
+  .step .body { flex: 1; }
+  .step .body h3 { margin-top: 1mm; }
+
+  .two { display: flex; gap: 5mm; }
+  .two > div { flex: 1; }
+  .yes { color: var(--green); font-weight: 700; }
+  .no { color: var(--red); font-weight: 700; }
+  /* additions for this doc */
+  table.wrap td:first-child { white-space: normal; }
+  pre { overflow-wrap: anywhere; }
+  td code { overflow-wrap: anywhere; }
+  .num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="kicker">cariinkerja.id · operator guide</div>
+<h1>Crawl &amp; Assess — how it works</h1>
+<p class="lede">
+  How a paid preference turns into scored jobs: where its crawl URLs come from, what each job board
+  returns, how job titles are matched, and what to check when a preference only gets LinkedIn results.
+</p>
+<p class="meta">Written 1 Nov 2026 against main @ a9e701d plus the uncommitted title-matching fix (<code>title_has_words</code>).
+Re-render: <code>weasyprint _docs/crawl-and-assess.html _docs/crawl-and-assess.pdf</code></p>
+
+<!-- ───────────────────────── 1 ───────────────────────── -->
+<h2><span class="num">1</span>What it is</h2>
+<p>One Celery task, <code>crawl_and_assess_preference</code> (<code>assessment/tasks.py</code>), does the work for one preference: it crawls every URL in <code>Preference.crawl_urls</code> and queues an AI assessment for each job it finds. Three things start it:</p>
+<table class="wrap">
+  <tr><th style="width:30%">Trigger</th><th>When it runs</th><th style="width:22%">Re-scores jobs already assessed?</th></tr>
+  <tr><td>Beat sweep<br><code>crawl_running_preferences</code></td>
+      <td>On the schedule set in Django admin (keep it ≥ 1 h apart: Jobicy's terms). Only preferences with status <code>RUNNING</code>, non-empty <code>crawl_urls</code>, and an <code>ACTIVE</code>, unexpired subscription <b>or</b> <code>profile.whitelist</code>. This check is the paywall.</td>
+      <td><span class="no">No</span></td></tr>
+  <tr><td>Payment<br><code>activate_subscription</code></td>
+      <td>Right after a subscription turns <code>ACTIVE</code>. Fills <code>crawl_urls</code> first if they are missing. It is the only crawl a new user gets on day one.</td>
+      <td><span class="no">No</span></td></tr>
+  <tr><td>Admin button<br>“Crawl &amp; Assess Now”</td>
+      <td>When you click it on <code>/preferences/&lt;id&gt;/</code>. Adds any missing standard URLs first (section 2). It does not check the paywall.</td>
+      <td><span class="yes">Yes</span>, 2 extra AI calls per job already seen</td></tr>
+</table>
+
+<!-- ───────────────────────── 2 ───────────────────────── -->
+<h2 style="break-before: page"><span class="num">2</span>Where crawl URLs come from</h2>
+<p><code>build_crawl_urls(title, job_types, remote_options)</code> in <code>jobs/url_builders.py</code> builds the standard list, in this order:</p>
+<table class="wrap">
+  <tr><th style="width:22%">Board</th><th>URL shape</th><th style="width:30%">Filters it carries</th></tr>
+  <tr><td>LinkedIn SEA</td><td><code>linkedin.com/jobs/search/?keywords=&lt;title&gt;&amp;geoId=91000014</code></td><td>job type <code>f_JT</code>, workplace <code>f_WT</code></td></tr>
+  <tr><td>LinkedIn EMEA<br><span class="mono" style="color:var(--muted)">only if “remote” is chosen</span></td><td><code>…&amp;geoId=91000007&amp;f_WT=2</code></td><td>always remote (an on-site EMEA job is out of reach from Indonesia)</td></tr>
+  <tr><td>Himalayas</td><td><code>himalayas.app/jobs/api/search?q=&lt;title&gt;</code></td><td>job type <code>employment_type</code></td></tr>
+  <tr><td>Jobicy</td><td><code>jobicy.com/api/jobs?geo=apac&amp;tag=&lt;title&gt;&amp;count=20</code></td><td>none</td></tr>
+  <tr><td>Workable</td><td><code>jobs.workable.com/search?query=&lt;title&gt;&amp;location=Indonesia</code></td><td>none (the scraper always searches Indonesia)</td></tr>
+  <tr><td>Remote OK</td><td><code>remoteok.com/api?search=&lt;title&gt;</code></td><td>none (<code>search</code> is our own param; the API ignores it)</td></tr>
+</table>
+
+<div class="box">
+  <h3>Example: “Logistic Operational”, full-time, hybrid</h3>
+  <p>Not remote, so no EMEA URL. Five URLs:</p>
+<pre>https://www.linkedin.com/jobs/search/?keywords=Logistic+Operational&amp;geoId=91000014&amp;f_JT=F&amp;f_WT=3
+https://himalayas.app/jobs/api/search?q=Logistic+Operational&amp;employment_type=Full+Time
+https://jobicy.com/api/jobs?geo=apac&amp;tag=Logistic+Operational&amp;count=20
+https://jobs.workable.com/search?query=Logistic+Operational&amp;location=Indonesia
+https://remoteok.com/api?search=Logistic+Operational</pre>
+</div>
+
+<h3>Two admin buttons, two behaviours</h3>
+<div class="two">
+  <div class="box">
+    <h3>Regenerate URLs</h3>
+    <p><b>Replaces</b> <code>crawl_urls</code> with the fresh standard list. URLs you added by hand are lost. It does not crawl.</p>
+  </div>
+  <div class="box green">
+    <h3>Crawl &amp; Assess Now</h3>
+    <p><b>Merges:</b> keeps the saved URLs in their order, appends any standard URL that is missing, saves, <i>then</i> queues the crawl. Hand-added URLs survive. The flash message says “added N new crawl URL(s)”. Enabled when the preference has a title or URLs.</p>
+  </div>
+</div>
+<div class="box amber">
+  <p style="margin:0">Merging never removes anything. If a URL builder changes (say, a new parameter), the old variant stays next to the new one until you click Regenerate. That is harmless: jobs are de-duplicated by <code>url</code>, so it only costs one extra request.</p>
+</div>
+
+<!-- ───────────────────────── 3 ───────────────────────── -->
+<h2><span class="num">3</span>What one crawl does</h2>
+<div class="flow">
+  <div class="lane">
+    <div class="node"><span class="who">database</span><b>Preference.crawl_urls</b>The list from section 2, read fresh when the task starts.</div>
+    <div class="arrow">→</div>
+    <div class="node"><span class="who">jobs/scrapers/__init__.py</span><b>scraper_for_url</b>Picks the scraper by hostname. An unknown host is logged and skipped.</div>
+    <div class="arrow">→</div>
+    <div class="node g"><span class="who">one per board</span><b>scraper.crawl(url, limit=10)</b>At most 10 jobs per URL per pass (<code>CRAWL_ITEM_LIMIT</code>).</div>
+  </div>
+  <div class="down">↓</div>
+  <div class="lane">
+    <div class="node"><span class="who">database</span><b>Job upsert by url</b>Title, company, description, location, job type, remote option, source.</div>
+    <div class="arrow">→</div>
+    <div class="node a"><span class="who">Celery · 1 cheap AI call</span><b>extract_job_skills</b>Only when the job has no skills yet.</div>
+    <div class="arrow">→</div>
+    <div class="node g"><span class="who">Celery · per job</span><b>assess_job</b>or <code>reassess_assessment</code> when the admin button re-scores a job already assessed.</div>
+  </div>
+</div>
+<ul>
+  <li>Each URL and each job is wrapped in its own error handler. A failure is logged and skipped; it never stops the other boards.</li>
+  <li>Scrapers never raise. On a block or timeout they log and stop for this pass.</li>
+  <li>Upper bound per pass: 10 jobs × number of URLs (50 for five URLs).</li>
+</ul>
+
+<!-- ───────────────────────── 4 ───────────────────────── -->
+<h2><span class="num">4</span>What each board returns</h2>
+<table class="wrap">
+  <tr><th style="width:13%">Board</th><th style="width:29%">How its search works</th><th style="width:30%">Extra filters in our scraper</th><th>Typical gaps</th></tr>
+  <tr><td><b>LinkedIn</b></td><td>Loose: returns related titles too.</td><td>Fetches each job's detail page.</td><td>Bot blocks stop the board for that pass.</td></tr>
+  <tr><td><b>Himalayas</b></td><td>Server-side; every word must match.</td><td>Skips expired jobs, stores <code>expires_at</code>.</td><td>Remote-only, worldwide. Many jobs are locked to other countries, so the relevance gate drops them.</td></tr>
+  <tr><td><b>Jobicy</b></td><td>Loose tag match, <code>geo=apac</code> (also includes “Anywhere” jobs).</td><td>—</td><td>Only the last 7 days. Few non-tech roles.</td></tr>
+  <tr><td><b>Workable</b></td><td>Fuzzy; always <code>location=Indonesia</code> (includes remote jobs open to Indonesia).</td><td>Posted ≤ 60 days ago, title rule (section 5), up to 3 pages of 20.</td><td>The API is undocumented.</td></tr>
+  <tr><td><b>Remote OK</b></td><td>No search: one feed of the ~100 newest jobs.</td><td>Title rule (section 5).</td><td>Mostly tech; a small pool.</td></tr>
+</table>
+<p>Every scraper also drops jobs from blocked staffing/crowdwork brands (<code>mindrift</code>, <code>toloka</code>).</p>
+
+<!-- ───────────────────────── 5 ───────────────────────── -->
+<h2><span class="num">5</span>Title matching rule (Workable, Remote OK)</h2>
+<p>Workable's search is fuzzy (“developer” also returns “Business Development”) and Remote OK has no search at all, so for these two boards we keep a job only if its title contains every word of the preference title. The code is in <code>jobs/scrapers/filters.py</code>.</p>
+
+<div class="step"><div class="n">1</div><div class="body">
+  <h3>Split the preference title</h3>
+  <p><code>title_words("Logistic Operational")</code> → <code>["logistic", "operational"]</code>. Lowercase, split on anything that isn't a letter or digit, drop one-letter fragments (“C Developer” → <code>["developer"]</code>).</p>
+</div></div>
+<div class="step"><div class="n">2</div><div class="body">
+  <h3>Trim each word to its stem</h3>
+  <ul>
+    <li><b>-al after -ion or -ic is dropped:</b> operational → operation, logistical → logistic, technical → technic.</li>
+    <li><b>A trailing -s is dropped</b> on words longer than 4 letters, but not -ss: logistics → logistic, analysts → analyst. “ios” and “aws” stay as they are.</li>
+  </ul>
+</div></div>
+<div class="step"><div class="n">3</div><div class="body">
+  <h3>Every stem must appear in the job title</h3>
+  <p>A plain substring check on the lowercase job title, so “operation” is found inside “Operations”.</p>
+</div></div>
+
+<pre><span class="c"># jobs/scrapers/filters.py</span>
+def _stem(word):
+    if word.endswith("al") and word[:-2].endswith(("ion", "ic")):
+        return word[:-2]
+    if len(word) &gt; 4 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
+
+def title_has_words(title, words):
+    t = title.lower()
+    return all(_stem(w) in t for w in words)</pre>
+
+<table class="wrap">
+  <tr><th style="width:36%">Job title</th><th style="width:20%">Preference words</th><th style="width:8%">Kept?</th><th>Why</th></tr>
+  <tr><td>Operations Intern (E-Commerce Logistic)</td><td>logistic operational</td><td><span class="yes">✓</span></td><td>“operation” is in “Operations”, “logistic” is in the title</td></tr>
+  <tr><td>Logistics Manager</td><td>logistics</td><td><span class="yes">✓</span></td><td>stem “logistic”</td></tr>
+  <tr><td>Senior Data Analysts</td><td>data analyst</td><td><span class="yes">✓</span></td><td>both words present</td></tr>
+  <tr><td>Warehouse &amp; Logistic Officer</td><td>logistic operational</td><td><span class="no">✗</span></td><td>no “operation”</td></tr>
+  <tr><td>Business Development</td><td>developer</td><td><span class="no">✗</span></td><td>“developer” has no suffix to trim and isn't in “development”</td></tr>
+  <tr><td>Portfolio Manager</td><td>ios</td><td><span class="no">✗</span></td><td>short word, not trimmed; “ios” isn't in the title</td></tr>
+</table>
+
+<div class="box amber">
+  <h3>Limits</h3>
+  <ul style="margin:0">
+    <li>No synonyms: “Mobile Developer” misses “Flutter Engineer”, “Operational” misses “Ops”.</li>
+    <li>Substring match: “sales” → “sale” also matches “Wholesale”.</li>
+    <li>Before 1 Nov 2026 the rule had no stemming, so “Operational” matched no “Operations” title.</li>
+    <li>Skill Map pages use their own word-start rule (<code>title_matches</code>) and were not changed.</li>
+  </ul>
+</div>
+
+<!-- ───────────────────────── 6 ───────────────────────── -->
+<h2><span class="num">6</span>After the crawl: relevance check, then score</h2>
+<p><code>assess_job</code> runs once per job and preference (retried up to 3 times on errors):</p>
+<ol>
+  <li><b>Already assessed?</b> Skipped. (The admin button re-scores those through <code>reassess_assessment</code> instead.)</li>
+  <li><b>Relevance gate</b> <code>check_relevance</code>, a cheap AI call. It rejects a field mismatch, or a job not open to applicants based in Indonesia (residency-restricted, or needs a foreign work permit). The residency flag is ignored for explicit on-site/hybrid jobs, since the candidate may relocate. A rejected job gets an Assessment with <code>is_relevant=False</code>, score 0, verdict “Filtered as irrelevant: …”.</li>
+  <li><b>Score</b> <code>assess()</code>: skill match and gap lists, a 0–100 score, and a short verdict in casual Bahasa (“kamu”). A job type or remote-option mismatch caps the score (about 30 for one, about 15 for both).</li>
+  <li><b>Push</b>: a new Assessment is sent to the user's open browser tab (Redis → SSE).</li>
+</ol>
+<div class="box amber">
+  <p style="margin:0"><b>Users only see relevant assessments</b> (<code>is_relevant=True</code>) in the app. The admin preference page lists every assessment, filtered ones included. So “the user only sees LinkedIn jobs” can also mean the other boards did return jobs and the gate filtered them. Look for verdicts that start with “Filtered as irrelevant”.</p>
+</div>
+
+<!-- ───────────────────────── 7 ───────────────────────── -->
+<h2><span class="num">7</span>Troubleshooting: “only LinkedIn results”</h2>
+<h3>Case study: “Logistic Operational”, full-time, hybrid</h3>
+<p>Live test on 1 Nov 2026, each URL from section 2 crawled with <code>limit=10</code>, nothing saved:</p>
+<table class="wrap">
+  <tr><th style="width:14%">Board</th><th style="width:11%">Before fix</th><th style="width:11%">After fix</th><th>Why</th></tr>
+  <tr><td>LinkedIn</td><td class="num-cell">10</td><td class="num-cell">10</td><td>Loose search finds related titles across SEA (Singapore, Malaysia, Indonesia…).</td></tr>
+  <tr><td>Himalayas</td><td class="num-cell">0</td><td class="num-cell">0</td><td>No job title contains “Operational”. Even “Logistics Operations” only returns jobs locked to US/UK/PH/DE/PK, which the gate would reject.</td></tr>
+  <tr><td>Jobicy</td><td class="num-cell">0</td><td class="num-cell">0</td><td>No logistics jobs at all in the APAC feed for the last 7 days.</td></tr>
+  <tr><td>Workable</td><td class="num-cell">0</td><td class="num-cell"><b>2</b></td><td>The API returned Indonesian logistics jobs; the old exact-word rule dropped them because their titles say “Operations”. Fixed by stemming (section 5).</td></tr>
+  <tr><td>Remote OK</td><td class="num-cell">0</td><td class="num-cell">0</td><td>The ~100-job feed had no logistics operations role.</td></tr>
+</table>
+<div class="box green">
+  <p style="margin:0"><b>Takeaway.</b> The remote boards carry mostly tech jobs and match words strictly. For on-site or hybrid non-tech roles, LinkedIn and Workable bring most of the results. Zero from a board is often normal, not a bug.</p>
+</div>
+
+<h3>Checklist</h3>
+<div class="step"><div class="n">1</div><div class="body">
+  <h3>Are all boards in <code>crawl_urls</code>?</h3>
+  <p>Open the preference page. If a board is missing, click Crawl &amp; Assess Now (merges it in) or Regenerate URLs (replaces the list).</p>
+</div></div>
+<div class="step"><div class="n">2</div><div class="body">
+  <h3>Did the gate filter them?</h3>
+  <p>In “Latest assessments”, check the Source column and look for verdicts that start with “Filtered as irrelevant”.</p>
+</div></div>
+<div class="step"><div class="n">3</div><div class="body">
+  <h3>Did a board fail?</h3>
+  <p>Search the worker logs for <code>crawl failed for preference=</code> or <code>listing fetch failed</code>. The <code>crawl_health_check</code> Discord report shows each board's health and the reason for a zero.</p>
+</div></div>
+<div class="step"><div class="n">4</div><div class="body">
+  <h3>Is the worker running the new code?</h3>
+  <p>After deploying scraper changes, restart the Celery worker. It keeps running the code it loaded at startup.</p>
+</div></div>
+<div class="step"><div class="n">5</div><div class="body">
+  <h3>Probe each URL directly</h3>
+  <p>Sends real requests (LinkedIn waits about 2.5 s per job) but saves nothing:</p>
+<pre>uv run manage.py shell
+&gt;&gt;&gt; from profiles.models import Preference
+&gt;&gt;&gt; from jobs.scrapers import scraper_for_url
+&gt;&gt;&gt; pref = Preference.objects.get(id="&lt;preference id&gt;")
+&gt;&gt;&gt; for url in pref.crawl_urls:
+...     mod, src = scraper_for_url(url)
+...     print(src, len(list(mod.crawl(url, limit=10))))</pre>
+</div></div>
+<div class="step"><div class="n">6</div><div class="body">
+  <h3>Is the title worded like real job ads?</h3>
+  <p>Unusual wording finds little on the strict boards. Suggest the title that ads actually use, e.g. “Logistics Operations” or “Logistics Staff” instead of “Logistic Operational”.</p>
+</div></div>
+
+<!-- ───────────────────────── 8 ───────────────────────── -->
+<h2><span class="num">8</span>Reference</h2>
+<table class="ref">
+  <tr><th>File · function</th><th>What it does</th></tr>
+  <tr><td><code>assessment/tasks.py</code> · <code>crawl_running_preferences</code></td><td>Beat sweep with the paywall check.</td></tr>
+  <tr><td><code>assessment/tasks.py</code> · <code>crawl_and_assess_preference</code></td><td>Crawls every URL, upserts <code>Job</code>, queues skill extraction and assessment. <code>CRAWL_ITEM_LIMIT = 10</code>.</td></tr>
+  <tr><td><code>assessment/tasks.py</code> · <code>assess_job</code>, <code>reassess_assessment</code></td><td>Relevance gate + scoring; retried up to 3 times.</td></tr>
+  <tr><td><code>assessment/services.py</code> · <code>check_relevance</code>, <code>assess</code></td><td>The two AI prompts.</td></tr>
+  <tr><td><code>core/views.py</code> · <code>PreferenceCrawlNowView</code></td><td>Admin button: merges URLs, then queues the crawl with re-scoring.</td></tr>
+  <tr><td><code>core/views.py</code> · <code>PreferenceRegenerateUrlsView</code>, <code>…AllUrlsView</code></td><td>Replaces <code>crawl_urls</code> for one or all preferences.</td></tr>
+  <tr><td><code>core/payments/subscriptions.py</code> · <code>activate_subscription</code></td><td>On-payment crawl.</td></tr>
+  <tr><td><code>jobs/url_builders.py</code> · <code>build_crawl_urls</code></td><td>The standard URL set.</td></tr>
+  <tr><td><code>jobs/scrapers/__init__.py</code> · <code>scraper_for_url</code></td><td>Hostname → scraper module.</td></tr>
+  <tr><td><code>jobs/scrapers/filters.py</code> · <code>title_words</code>, <code>title_has_words</code>, <code>is_blocked_company</code></td><td>Shared filters used by the scrapers.</td></tr>
+  <tr><td><code>jobs/scrapers/&lt;board&gt;.py</code> · <code>crawl</code></td><td>One scraper per board.</td></tr>
+  <tr><td><code>jobs/tasks.py</code> · <code>extract_job_skills</code>, <code>crawl_health_check</code></td><td>Skill extraction; the Discord board-health report.</td></tr>
+</table>
+
+</body>
+</html>

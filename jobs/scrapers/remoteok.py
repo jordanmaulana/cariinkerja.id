@@ -26,7 +26,7 @@ from curl_cffi import requests as cffi_requests
 
 from jobs.consts import RemoteOption
 from jobs.scrapers.dealls import _request_json, build_client
-from jobs.scrapers.filters import is_blocked_company, title_words
+from jobs.scrapers.filters import is_blocked_company, title_has_words, title_words
 
 logger = logging.getLogger(__name__)
 
@@ -99,10 +99,8 @@ def crawl(
             if not isinstance(job, dict) or not job.get("id") or job["id"] in seen:
                 continue
             seen.add(job["id"])
-            # ponytail: every title word must appear, no synonyms (same rule
-            # as workable.crawl). Move to fuzzier matching if recall is poor.
-            title = html.unescape(job.get("position") or "").lower()
-            if not all(w in title for w in words):
+            # Same title rule as workable.crawl.
+            if not title_has_words(html.unescape(job.get("position") or ""), words):
                 continue
             parsed = parse_job(job)
             if parsed is None or is_blocked_company(parsed["company"]):

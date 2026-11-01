@@ -29,7 +29,7 @@ from curl_cffi import requests as cffi_requests
 
 from jobs.consts import JobType, RemoteOption
 from jobs.scrapers.dealls import _request_json
-from jobs.scrapers.filters import is_blocked_company, title_words
+from jobs.scrapers.filters import is_blocked_company, title_has_words, title_words
 
 logger = logging.getLogger(__name__)
 
@@ -140,10 +140,7 @@ def crawl(
                 created = _created(job)
                 if created is None or created < cutoff:
                     continue
-                # ponytail: every title word must appear, no synonyms ("Mobile
-                # Developer" misses "Flutter Engineer"). Loosen if recall is poor.
-                title = (job.get("title") or "").lower()
-                if not all(w in title for w in words):
+                if not title_has_words(job.get("title") or "", words):
                     continue
                 parsed = parse_job(job)
                 if parsed is None or is_blocked_company(parsed["company"]):
