@@ -50,7 +50,7 @@ Live Jev prompt check (opt-in, ~50 real API calls, skipped in the normal run): `
 
 Frontend-only (no Make target): `cd frontend && pnpm run lint` (eslint), `cd frontend && pnpm run build` (`tsc -b && vite build`).
 
-`update.sh` is the prod deploy script: `git pull` → `docker compose build` → `up -d` → wait for postgres healthy → `manage.py migrate`. The Docker image runs `docker/backend-entrypoint.sh`, which waits for Postgres then branches on `ROLE` env (`web` runs `migrate` + `collectstatic` before exec'ing CMD; `worker` and `beat` skip those). Compose services: `postgres`, `redis`, `backend`, `worker`, `beat`, `frontend` (nginx: serves the built SPA on :3000 and proxies `/skill/` to `backend`, see `frontend/nginx.conf`).
+`update.sh` is the prod deploy script: `git pull --ff-only origin main` → `docker compose build` (old containers keep serving) → one-off `run --rm -e ROLE=migrate backend … migrate` with the new image **before** the swap → `up -d --wait` (on failure, prints the backend health log and exits 1) → `docker image prune -f` filtered to this compose project's label (only its own untagged old builds; other projects' images and all tagged images are untouched). The Docker image runs `docker/backend-entrypoint.sh`, which waits for Postgres then branches on `ROLE` env (`web` runs `migrate` + `collectstatic` before exec'ing CMD; any other role — `worker`, `beat`, `migrate` — skips those). Compose services: `postgres`, `redis`, `backend`, `worker`, `beat`, `frontend` (nginx: serves the built SPA on :3000 and proxies `/skill/` to `backend`, see `frontend/nginx.conf`).
 
 ### Management commands
 
