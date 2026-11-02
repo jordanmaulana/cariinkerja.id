@@ -21,7 +21,7 @@ export function AuthGate() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // Unmatched URL: let the root notFoundComponent render instead of bouncing to /login.
   const isNotFound = useRouterState({
-    select: (s) => s.matches.some((m) => m.globalNotFound),
+    select: (s) => s.matches.some((m) => m._notFound),
   });
   const sessionExpiredFiredRef = useRef(false);
   const onboardingNudgeFiredRef = useRef(false);

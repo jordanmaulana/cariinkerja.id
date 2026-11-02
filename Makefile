@@ -4,6 +4,8 @@ upgrade:
 	uv sync
 	uv lock --upgrade
 	uv sync --frozen --no-install-project
+	cd frontend && pnpm run upgrade
+	cd frontend && pnpm run build
 
 audit:
 	cd frontend && pnpm audit fix

@@ -9,60 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SyaratRouteImport } from './routes/syarat'
-import { Route as PrivasiRouteImport } from './routes/privasi'
-import { Route as PreferencesRouteImport } from './routes/preferences'
-import { Route as PlansRouteImport } from './routes/plans'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ComplianceRouteImport } from './routes/compliance'
-import { Route as AssessmentsRouteImport } from './routes/assessments'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PreferencesIndexRouteImport } from './routes/preferences.index'
-import { Route as PlansIndexRouteImport } from './routes/plans.index'
+import { Route as AssessmentsRouteImport } from './routes/assessments'
+import { Route as ComplianceRouteImport } from './routes/compliance'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PlansRouteImport } from './routes/plans'
+import { Route as PreferencesRouteImport } from './routes/preferences'
+import { Route as PrivasiRouteImport } from './routes/privasi'
+import { Route as SyaratRouteImport } from './routes/syarat'
 import { Route as AssessmentsIndexRouteImport } from './routes/assessments.index'
-import { Route as PreferencesIdRouteImport } from './routes/preferences.$id'
 import { Route as AssessmentsIdRouteImport } from './routes/assessments.$id'
+import { Route as PlansIndexRouteImport } from './routes/plans.index'
+import { Route as PreferencesIndexRouteImport } from './routes/preferences.index'
+import { Route as PreferencesIdRouteImport } from './routes/preferences.$id'
 
-const SyaratRoute = SyaratRouteImport.update({
-  id: '/syarat',
-  path: '/syarat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivasiRoute = PrivasiRouteImport.update({
-  id: '/privasi',
-  path: '/privasi',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PreferencesRoute = PreferencesRouteImport.update({
-  id: '/preferences',
-  path: '/preferences',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlansRoute = PlansRouteImport.update({
-  id: '/plans',
-  path: '/plans',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ComplianceRoute = ComplianceRouteImport.update({
-  id: '/compliance',
-  path: '/compliance',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentsRoute = AssessmentsRouteImport.update({
@@ -70,35 +35,70 @@ const AssessmentsRoute = AssessmentsRouteImport.update({
   path: '/assessments',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ComplianceRoute = ComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PreferencesIndexRoute = PreferencesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PreferencesRoute,
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PlansIndexRoute = PlansIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PlansRoute,
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlansRoute = PlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreferencesRoute = PreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivasiRoute = PrivasiRouteImport.update({
+  id: '/privasi',
+  path: '/privasi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SyaratRoute = SyaratRouteImport.update({
+  id: '/syarat',
+  path: '/syarat',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentsIndexRoute = AssessmentsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AssessmentsRoute,
 } as any)
-const PreferencesIdRoute = PreferencesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => PreferencesRoute,
-} as any)
 const AssessmentsIdRoute = AssessmentsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AssessmentsRoute,
+} as any)
+const PlansIndexRoute = PlansIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlansRoute,
+} as any)
+const PreferencesIndexRoute = PreferencesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PreferencesRoute,
+} as any)
+const PreferencesIdRoute = PreferencesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PreferencesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -216,60 +216,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/syarat': {
-      id: '/syarat'
-      path: '/syarat'
-      fullPath: '/syarat'
-      preLoaderRoute: typeof SyaratRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privasi': {
-      id: '/privasi'
-      path: '/privasi'
-      fullPath: '/privasi'
-      preLoaderRoute: typeof PrivasiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/preferences': {
-      id: '/preferences'
-      path: '/preferences'
-      fullPath: '/preferences'
-      preLoaderRoute: typeof PreferencesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plans': {
-      id: '/plans'
-      path: '/plans'
-      fullPath: '/plans'
-      preLoaderRoute: typeof PlansRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compliance': {
-      id: '/compliance'
-      path: '/compliance'
-      fullPath: '/compliance'
-      preLoaderRoute: typeof ComplianceRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessments': {
@@ -279,26 +230,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssessmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/compliance': {
+      id: '/compliance'
+      path: '/compliance'
+      fullPath: '/compliance'
+      preLoaderRoute: typeof ComplianceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/preferences/': {
-      id: '/preferences/'
-      path: '/'
-      fullPath: '/preferences/'
-      preLoaderRoute: typeof PreferencesIndexRouteImport
-      parentRoute: typeof PreferencesRoute
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/plans/': {
-      id: '/plans/'
-      path: '/'
-      fullPath: '/plans/'
-      preLoaderRoute: typeof PlansIndexRouteImport
-      parentRoute: typeof PlansRoute
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plans': {
+      id: '/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof PlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preferences': {
+      id: '/preferences'
+      path: '/preferences'
+      fullPath: '/preferences'
+      preLoaderRoute: typeof PreferencesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privasi': {
+      id: '/privasi'
+      path: '/privasi'
+      fullPath: '/privasi'
+      preLoaderRoute: typeof PrivasiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/syarat': {
+      id: '/syarat'
+      path: '/syarat'
+      fullPath: '/syarat'
+      preLoaderRoute: typeof SyaratRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/assessments/': {
       id: '/assessments/'
@@ -307,19 +293,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssessmentsIndexRouteImport
       parentRoute: typeof AssessmentsRoute
     }
-    '/preferences/$id': {
-      id: '/preferences/$id'
-      path: '/$id'
-      fullPath: '/preferences/$id'
-      preLoaderRoute: typeof PreferencesIdRouteImport
-      parentRoute: typeof PreferencesRoute
-    }
     '/assessments/$id': {
       id: '/assessments/$id'
       path: '/$id'
       fullPath: '/assessments/$id'
       preLoaderRoute: typeof AssessmentsIdRouteImport
       parentRoute: typeof AssessmentsRoute
+    }
+    '/plans/': {
+      id: '/plans/'
+      path: '/'
+      fullPath: '/plans/'
+      preLoaderRoute: typeof PlansIndexRouteImport
+      parentRoute: typeof PlansRoute
+    }
+    '/preferences/': {
+      id: '/preferences/'
+      path: '/'
+      fullPath: '/preferences/'
+      preLoaderRoute: typeof PreferencesIndexRouteImport
+      parentRoute: typeof PreferencesRoute
+    }
+    '/preferences/$id': {
+      id: '/preferences/$id'
+      path: '/$id'
+      fullPath: '/preferences/$id'
+      preLoaderRoute: typeof PreferencesIdRouteImport
+      parentRoute: typeof PreferencesRoute
     }
   }
 }
