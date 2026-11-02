@@ -12,7 +12,6 @@ LINKEDIN_GEOID_EMEA = "91000007"
 HIMALAYAS_SEARCH = "https://himalayas.app/jobs/api/search"
 JOBICY_API = "https://jobicy.com/api/jobs"
 WORKABLE_SEARCH = "https://jobs.workable.com/search"
-REMOTEOK_API = "https://remoteok.com/api"
 
 # LinkedIn search filter codes.
 LINKEDIN_JT_CODE: dict[str, str] = {
@@ -128,23 +127,12 @@ def build_workable_url(title: str | None) -> str | None:
     return f"{WORKABLE_SEARCH}?{urlencode(query)}"
 
 
-def build_remoteok_url(title: str | None) -> str | None:
-    """Remote OK crawl URL for a Preference title.
-
-    The API has no free-text search; ``search`` is our own param, read by the
-    scraper to filter the feed locally (the API ignores it).
-    """
-    if not title or not title.strip():
-        return None
-    return f"{REMOTEOK_API}?{urlencode([('search', title.strip())])}"
-
-
 def build_crawl_urls(
     title: str | None,
     job_types: list[str] | None = None,
     remote_options: list[str] | None = None,
 ) -> list[str]:
-    """Standard LinkedIn SEA (+ EMEA) + Himalayas + Jobicy + Workable + Remote OK URLs."""
+    """Standard LinkedIn SEA (+ EMEA) + Himalayas + Jobicy + Workable URLs."""
     if not title or not title.strip():
         return []
     urls: list[str] = []
@@ -170,7 +158,4 @@ def build_crawl_urls(
     wk = build_workable_url(title)
     if wk:
         urls.append(wk)
-    rok = build_remoteok_url(title)
-    if rok:
-        urls.append(rok)
     return urls

@@ -483,7 +483,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 5)
+        self.assertEqual(len(pref.crawl_urls), 4)
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[0])
         self.assertIn("keywords=Mobile+Developer", pref.crawl_urls[0])
         self.assertIn("f_JT=F", pref.crawl_urls[0])
@@ -500,7 +500,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 6)
+        self.assertEqual(len(pref.crawl_urls), 5)
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[1])
         self.assertIn("geoId=91000007", pref.crawl_urls[1])
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
@@ -513,7 +513,7 @@ class PrepareForPaymentTests(TestCase):
         )
         pref.refresh_from_db()
 
-        self.assertEqual(len(pref.crawl_urls), 5)
+        self.assertEqual(len(pref.crawl_urls), 4)
         self.assertIn("www.linkedin.com/jobs/search/", pref.crawl_urls[0])
         self.assertEqual(pref.status, Status.WAITING_PAYMENT)
 
@@ -999,3 +999,25 @@ class DropIndeedJobstreetMigrationTests(TestCase):
             ["https://id.indeed.com/jobs?q=x", "https://id.jobstreet.com/x-jobs"]
         )
         self.assertEqual(urls, build_crawl_urls("Mobile Developer"))
+
+
+class DropRemoteOkMigrationTests(TestCase):
+    """profiles/0020 strips Remote OK URLs from stored crawl_urls."""
+
+    def test_strips_remoteok_keeps_others(self):
+        from importlib import import_module
+
+        from django.apps import apps
+
+        migration = import_module("profiles.migrations.0020_drop_remoteok_crawl_urls")
+        linkedin = "https://www.linkedin.com/jobs/search/?keywords=x"
+        workable = "https://jobs.workable.com/search?query=x&location=Indonesia"
+        pref = Preference.objects.create(
+            profile=Profile.objects.create(full_name="Migrated"),
+            title="Mobile Developer",
+            status=Status.RUNNING,
+            crawl_urls=[linkedin, workable, "https://remoteok.com/api?search=x"],
+        )
+        migration.drop_removed_urls(apps, None)
+        pref.refresh_from_db()
+        self.assertEqual(pref.crawl_urls, [linkedin, workable])

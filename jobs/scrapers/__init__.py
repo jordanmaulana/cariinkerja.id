@@ -8,7 +8,6 @@ from jobs.scrapers import (
     himalayas,
     jobicy,
     linkedin,
-    remoteok,
     workable,
 )
 from profiles.consts import Source
@@ -37,6 +36,4 @@ def scraper_for_url(url: str) -> tuple[ModuleType | None, str | None]:
         return (jobicy, Source.JOBICY.value)
     if host == "workable.com" or host.endswith(".workable.com"):
         return (workable, Source.WORKABLE.value)
-    if host == "remoteok.com" or host.endswith(".remoteok.com"):
-        return (remoteok, Source.REMOTEOK.value)
     return (None, None)

@@ -108,7 +108,7 @@ Hard rules. Breaking one makes the post wrong or off-brand.
 - Never say **gratis / free / trial / coba gratis / coba dulu**. The product is paid-only.
 - Quote prices only from [product.md §6](product.md#6-business-model) (Rp 49.000 → 1 search, Rp 99.000 → 3 searches, 30 days).
 - Open-to-Work discount is OK to promote: "Open to Work" on LinkedIn → 1-search plan Rp 34.000 (normally Rp 49.000). Only the cheapest plan; upgrades are full price.
-- Name only live job sources (LinkedIn, Himalayas, Jobicy, Workable, Remote OK — check `jobs/url_builders.py`). **Don't announce Kalibrr/Kitalulus**: they are not live. Never use the Remote OK logo. Safest wording: "dari berbagai job board".
+- Name only live job sources (LinkedIn, Himalayas, Jobicy, Workable — check `jobs/url_builders.py`). **Don't announce Kalibrr/Kitalulus**: they are not live. Remote OK was removed 2026-11-02; don't name it. Safest wording: "dari berbagai job board".
 - Never name the AI model. Say "AI".
 - Every traction number carries its date.
 - **Never promise jobs, interviews, callbacks or hiring speed.** The product finds fit; the user still has to land the interview.

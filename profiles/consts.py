@@ -14,4 +14,3 @@ class Source(models.TextChoices):
     HIMALAYAS = "himalayas", "Himalayas"
     JOBICY = "jobicy", "Jobicy"
     WORKABLE = "workable", "Workable"
-    REMOTEOK = "remoteok", "Remote OK"

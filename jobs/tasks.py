@@ -12,7 +12,6 @@ from jobs.scrapers import (
     himalayas,
     jobicy,
     linkedin,
-    remoteok,
     workable,
 )
 from jobs.services import extract_skills
@@ -45,7 +44,6 @@ SCRAPERS = {
     CrawlHealthTarget.SOURCE_HIMALAYAS: himalayas.crawl,
     CrawlHealthTarget.SOURCE_JOBICY: jobicy.crawl,
     CrawlHealthTarget.SOURCE_WORKABLE: workable.crawl,
-    CrawlHealthTarget.SOURCE_REMOTEOK: remoteok.crawl,
 }
 
 

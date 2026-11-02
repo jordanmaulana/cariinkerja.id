@@ -110,9 +110,9 @@ Searches can only be deleted while unpaid.
 
 ### Sources
 
-Every search automatically covers **LinkedIn Southeast Asia**, **LinkedIn EMEA**, and four remote-friendly boards with public APIs or
-feeds that allow reuse: **Himalayas**, **Jobicy**, **Workable** (Indonesia jobs plus
-APAC-remote), and **Remote OK**. Their terms and the credit each needs are listed on the
+Every search automatically covers **LinkedIn Southeast Asia**, **LinkedIn EMEA**, and three boards with public APIs or
+feeds that allow reuse: **Himalayas**, **Jobicy**, and **Workable** (Indonesia jobs plus
+APAC-remote). Their terms and the credit each needs are listed on the
 public `/compliance` page. **Dealls** also has a working crawler, but it is
 never added automatically — it only runs when an admin pastes a Dealls URL into a search by
 hand, so don't market it as a source.
@@ -120,6 +120,10 @@ hand, so don't market it as a source.
 **Indeed and JobStreet were removed on 2026-11-01.** Both had been blocked by Cloudflare
 since September and were returning zero jobs. Jobs users already got from them stay in their
 history. Don't name them as sources anywhere.
+
+**Remote OK was removed on 2026-11-02.** Its job pages make the applicant pay before
+applying. Jobs users already got from it stay in their history (still credited "via Remote
+OK"). Don't name it as a source.
 
 LinkedIn EMEA is only searched for *remote* roles — an on-site European or Middle Eastern
 job is unreachable for an Indonesian candidate, so including it would be noise.
@@ -303,8 +307,7 @@ Recorded as fact, not as a task list. Verify against the code before repeating a
   outdated prices. Only §6 is current.
 - **Source names.** `about.md` and `producthunt.md` name Indeed and JobStreet only — both
   removed on 2026-11-01. The landing page's source strip lists LinkedIn SEA, LinkedIn EMEA,
-  Himalayas, Jobicy, and Workable (letter tiles, no logos); Remote OK stays off it (no logo
-  without written permission).
+  Himalayas, Jobicy, and Workable (letter tiles, no logos).
 - **"Choose Indeed or JobStreet."** `about.md` and the pitch deck say the user picks a
   source. They don't — one search fans out to every source automatically.
 - **Model name.** `about.md`, `producthunt.md`, and the pitch deck say "GPT-4o". The model is

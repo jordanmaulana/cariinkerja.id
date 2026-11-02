@@ -31,7 +31,7 @@ the code (or ask the founder) and add it here.
 | **Language** | Bahasa Indonesia UI and copy, casual "kamu". Job/tech terms stay English (apply, skill gap). |
 | **Business model** | **Paid-only. No free tier, no trial.** The first crawl happens after payment. |
 | **Pricing** | **Rp 49.000 / 30 days → 1 search (job title)** · **Rp 99.000 / 30 days → 3 searches**. Payment via Mayar (Indonesian gateway). |
-| **Job sources (live)** | LinkedIn Southeast Asia, LinkedIn EMEA (remote roles only), Himalayas, Jobicy, Workable, Remote OK. Indeed and JobStreet were removed 2026-11-01. **Don't announce Kalibrr or Kitalulus** (not live). |
+| **Job sources (live)** | LinkedIn Southeast Asia, LinkedIn EMEA (remote roles only), Himalayas, Jobicy, Workable. Indeed and JobStreet were removed 2026-11-01, Remote OK on 2026-11-02 (applicants had to pay to apply). **Don't announce Kalibrr or Kitalulus** (not live). |
 | **Skill Map** | Public pages at `https://cariinkerja.id/skill/`: most-requested skills per job title, from crawled jobs, refreshed weekly. No login. Good link target for stats-report posts. |
 | **Sign-up** | Google sign-in only. Four honesty checkboxes must be ticked first (see brand-voice.md). |
 | **Team** | Solo founder: **Jordan (Jordan Maulana)**, who builds, runs, and markets it. |

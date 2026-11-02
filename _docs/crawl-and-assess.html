@@ -127,17 +127,15 @@ Re-render: <code>weasyprint _docs/crawl-and-assess.html _docs/crawl-and-assess.p
   <tr><td>Himalayas</td><td><code>himalayas.app/jobs/api/search?q=&lt;title&gt;</code></td><td>job type <code>employment_type</code></td></tr>
   <tr><td>Jobicy</td><td><code>jobicy.com/api/jobs?geo=apac&amp;tag=&lt;title&gt;&amp;count=20</code></td><td>none</td></tr>
   <tr><td>Workable</td><td><code>jobs.workable.com/search?query=&lt;title&gt;&amp;location=Indonesia</code></td><td>none (the scraper always searches Indonesia)</td></tr>
-  <tr><td>Remote OK</td><td><code>remoteok.com/api?search=&lt;title&gt;</code></td><td>none (<code>search</code> is our own param; the API ignores it)</td></tr>
 </table>
 
 <div class="box">
   <h3>Example: “Logistic Operational”, full-time, hybrid</h3>
-  <p>Not remote, so no EMEA URL. Five URLs:</p>
+  <p>Not remote, so no EMEA URL. Four URLs:</p>
 <pre>https://www.linkedin.com/jobs/search/?keywords=Logistic+Operational&amp;geoId=91000014&amp;f_JT=F&amp;f_WT=3
 https://himalayas.app/jobs/api/search?q=Logistic+Operational&amp;employment_type=Full+Time
 https://jobicy.com/api/jobs?geo=apac&amp;tag=Logistic+Operational&amp;count=20
-https://jobs.workable.com/search?query=Logistic+Operational&amp;location=Indonesia
-https://remoteok.com/api?search=Logistic+Operational</pre>
+https://jobs.workable.com/search?query=Logistic+Operational&amp;location=Indonesia</pre>
 </div>
 
 <h3>Two admin buttons, two behaviours</h3>
@@ -177,7 +175,7 @@ https://remoteok.com/api?search=Logistic+Operational</pre>
 <ul>
   <li>Each URL and each job is wrapped in its own error handler. A failure is logged and skipped; it never stops the other boards.</li>
   <li>Scrapers never raise. On a block or timeout they log and stop for this pass.</li>
-  <li>Upper bound per pass: 10 jobs × number of URLs (50 for five URLs).</li>
+  <li>Upper bound per pass: 10 jobs × number of URLs (40 for four URLs).</li>
 </ul>
 
 <!-- ───────────────────────── 4 ───────────────────────── -->
@@ -188,13 +186,12 @@ https://remoteok.com/api?search=Logistic+Operational</pre>
   <tr><td><b>Himalayas</b></td><td>Server-side; every word must match.</td><td>Skips expired jobs, stores <code>expires_at</code>.</td><td>Remote-only, worldwide. Many jobs are locked to other countries, so the relevance gate drops them.</td></tr>
   <tr><td><b>Jobicy</b></td><td>Loose tag match, <code>geo=apac</code> (also includes “Anywhere” jobs).</td><td>—</td><td>Only the last 7 days. Few non-tech roles.</td></tr>
   <tr><td><b>Workable</b></td><td>Fuzzy; always <code>location=Indonesia</code> (includes remote jobs open to Indonesia).</td><td>Posted ≤ 60 days ago, title rule (section 5), up to 3 pages of 20.</td><td>The API is undocumented.</td></tr>
-  <tr><td><b>Remote OK</b></td><td>No search: one feed of the ~100 newest jobs.</td><td>Title rule (section 5).</td><td>Mostly tech; a small pool.</td></tr>
 </table>
 <p>Every scraper also drops jobs from blocked staffing/crowdwork brands (<code>mindrift</code>, <code>toloka</code>).</p>
 
 <!-- ───────────────────────── 5 ───────────────────────── -->
-<h2><span class="num">5</span>Title matching rule (Workable, Remote OK)</h2>
-<p>Workable's search is fuzzy (“developer” also returns “Business Development”) and Remote OK has no search at all, so for these two boards we keep a job only if its title contains every word of the preference title. The code is in <code>jobs/scrapers/filters.py</code>.</p>
+<h2><span class="num">5</span>Title matching rule (Workable)</h2>
+<p>Workable's search is fuzzy (“developer” also returns “Business Development”), so for Workable we keep a job only if its title contains every word of the preference title. The code is in <code>jobs/scrapers/filters.py</code>.</p>
 
 <div class="step"><div class="n">1</div><div class="body">
   <h3>Split the preference title</h3>
