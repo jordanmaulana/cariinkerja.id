@@ -10,6 +10,7 @@ from api.v1.serializers import AssessmentSerializer, AssessmentStatusUpdateSeria
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
 from core.realtime import publish, user_channel
+from jobs.consts import JobType, RemoteOption
 
 
 def _user_assessments(user):
@@ -31,6 +32,18 @@ def list(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         qs = qs.filter(status__in=status_values)
+    for param, lookup, allowed in (
+        ("job_type", "job__job_type__in", JobType.values),
+        ("remote_option", "job__remote_option__in", RemoteOption.values),
+    ):
+        values = request.query_params.getlist(param)
+        if any(v not in allowed for v in values):
+            return Response(
+                {"detail": f"Invalid {param}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if values:
+            qs = qs.filter(**{lookup: values})
     min_score_param = request.query_params.get("min_score")
     if min_score_param:
         try:

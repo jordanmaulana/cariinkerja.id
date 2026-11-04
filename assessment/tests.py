@@ -27,13 +27,14 @@ from profiles.models import Preference, Profile
 User = get_user_model()
 
 
-def _make_job(slug: str, title: str = "Senior Dev") -> Job:
+def _make_job(slug: str, title: str = "Senior Dev", **fields) -> Job:
     return Job.objects.create(
         url=f"https://job.test/{slug}",
         title=title,
         description="x",
         location="Jakarta",
         source="jobstreet",
+        **fields,
     )
 
 
@@ -73,6 +74,43 @@ class AssessmentListApiTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.data["count"], 1)
         self.assertEqual(res.data["results"][0]["id"], kept.id)
+
+    def test_job_type_and_remote_option_filters(self):
+        user = User.objects.create_user(username="u1", email="u1@example.com")
+        pref = Preference.objects.create(profile=Profile.objects.create(user=user))
+        jobs = {
+            "full-remote": _make_job("a", job_type="full-time", remote_option="remote"),
+            "contract-onsite": _make_job(
+                "b", job_type="contract", remote_option="on-site"
+            ),
+            "unknown": _make_job("c"),
+        }
+        ids = {
+            key: Assessment.objects.create(
+                job=job, preference=pref, score=80, is_relevant=True
+            ).id
+            for key, job in jobs.items()
+        }
+        client = APIClient()
+        client.force_authenticate(user)
+        url = reverse("api-v1-assessment-list")
+
+        def result_ids(params):
+            res = client.get(url, params)
+            self.assertEqual(res.status_code, 200)
+            return {r["id"] for r in res.data["results"]}
+
+        self.assertEqual(result_ids({"job_type": "contract"}), {ids["contract-onsite"]})
+        self.assertEqual(
+            result_ids({"remote_option": ["remote", "on-site"]}),
+            {ids["full-remote"], ids["contract-onsite"]},
+        )
+        self.assertEqual(
+            result_ids({"job_type": "full-time", "remote_option": "on-site"}), set()
+        )
+        self.assertEqual(len(result_ids({})), 3)
+        self.assertEqual(client.get(url, {"job_type": "gig"}).status_code, 400)
+        self.assertEqual(client.get(url, {"remote_option": "mars"}).status_code, 400)
 
 
 @override_settings(

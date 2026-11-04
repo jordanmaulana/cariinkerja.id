@@ -12,6 +12,8 @@ export async function listAssessments(
   const search = new URLSearchParams();
   if (params.statuses)
     for (const s of params.statuses) search.append("status", s);
+  for (const t of params.jobTypes ?? []) search.append("job_type", t);
+  for (const r of params.remoteOptions ?? []) search.append("remote_option", r);
   if (params.minScore != null && !Number.isNaN(params.minScore))
     search.set("min_score", String(params.minScore));
   if (params.q) search.set("q", params.q);

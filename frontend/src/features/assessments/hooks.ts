@@ -11,6 +11,7 @@ import {
   updateAssessmentStatus,
 } from "@/features/assessments/api";
 import type { AssessmentStatus } from "@/features/assessments/types";
+import type { JobType, RemoteOption } from "@/features/jobs/consts";
 
 export function useAssessment(id: string) {
   return useQuery({
@@ -21,18 +22,31 @@ export function useAssessment(id: string) {
 
 export function useAssessmentsList(params: {
   statuses: AssessmentStatus[];
+  jobTypes: JobType[];
+  remoteOptions: RemoteOption[];
   minScore: number | undefined;
   q: string;
   preference: string | undefined;
   page: number;
   pageSize: number;
 }) {
-  const { statuses, minScore, q, preference, page, pageSize } = params;
+  const {
+    statuses,
+    jobTypes,
+    remoteOptions,
+    minScore,
+    q,
+    preference,
+    page,
+    pageSize,
+  } = params;
   return useQuery({
     queryKey: [
       "assessments",
       {
         statuses,
+        jobTypes,
+        remoteOptions,
         minScore: minScore ?? null,
         q,
         preference: preference ?? null,
@@ -42,6 +56,8 @@ export function useAssessmentsList(params: {
     queryFn: () =>
       listAssessments({
         statuses: statuses.length ? statuses : undefined,
+        jobTypes,
+        remoteOptions,
         minScore,
         q: q || undefined,
         preference,

@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { Search } from "lucide-react"
+import { ListFilter, Search } from "lucide-react"
 
 import { useHasWaitingPayment } from "@/features/billing/hooks"
 import { listPreferences } from "@/features/preferences/api"
@@ -15,6 +15,11 @@ import {
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -30,8 +35,16 @@ import {
 import {
   isAssessmentStatus,
   parseMinScoreInput,
+  pickOptions,
   sortStatuses,
 } from "@/features/assessments/utils"
+import {
+  JOB_TYPES,
+  REMOTE_OPTIONS,
+  type JobType,
+  type RemoteOption,
+} from "@/features/jobs/consts"
+import { CheckboxGroup } from "@/features/preferences/components/preference-form"
 import { AssessmentsTable } from "@/features/assessments/components/assessments-table"
 import type { AssessmentStatus } from "@/features/assessments/types"
 import {
@@ -43,6 +56,8 @@ import {
 export type AssessmentsSearch = {
   status?: AssessmentStatus[]
   status_all?: boolean
+  job_type?: JobType[]
+  remote_option?: RemoteOption[]
   min_score?: number
   q?: string
   preference?: string
@@ -61,6 +76,9 @@ export const Route = createFileRoute("/assessments/")({
       search.status_all === 1 ||
       search.status_all === true
 
+    const job_type = pickOptions(search.job_type, JOB_TYPES)
+    const remote_option = pickOptions(search.remote_option, REMOTE_OPTIONS)
+
     const ms = Number(search.min_score)
     const min_score =
       Number.isFinite(ms) && ms >= 0 && ms <= 100 ? Math.floor(ms) : undefined
@@ -76,6 +94,8 @@ export const Route = createFileRoute("/assessments/")({
     return {
       status: status.length ? status : undefined,
       status_all: allCleared || undefined,
+      job_type: job_type.length ? job_type : undefined,
+      remote_option: remote_option.length ? remote_option : undefined,
       min_score,
       q: q || undefined,
       preference: preference || undefined,
@@ -106,9 +126,14 @@ function AssessmentsPage() {
   const page = search.page ?? 1
   const minScore = parseMinScoreInput(minScoreInput)
   const statuses = sortStatuses(selectedStatuses)
+  const jobTypes = search.job_type ?? []
+  const remoteOptions = search.remote_option ?? []
+  const filterCount = statuses.length + jobTypes.length + remoteOptions.length
 
   const query = useAssessmentsList({
     statuses,
+    jobTypes,
+    remoteOptions,
     minScore,
     q: qInput.trim(),
     preference: search.preference,
@@ -137,6 +162,21 @@ function AssessmentsPage() {
         ...prev,
         status: nextArr.length ? nextArr : undefined,
         status_all: nextArr.length === 0 ? true : undefined,
+        page: undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  function setJobFilter(
+    key: "job_type" | "remote_option",
+    values: JobType[] | RemoteOption[],
+  ) {
+    navigate({
+      to: "/assessments",
+      search: (prev) => ({
+        ...prev,
+        [key]: values.length ? values : undefined,
         page: undefined,
       }),
       replace: true,
@@ -230,21 +270,53 @@ function AssessmentsPage() {
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              {ASSESSMENT_STATUSES.map((s) => (
-                <label
-                  key={s}
-                  className="flex cursor-pointer items-center gap-2 text-sm"
-                  title={STATUS_HINT[s]}
-                >
-                  <Checkbox
-                    checked={selectedStatuses.has(s)}
-                    onCheckedChange={(c) => toggleStatus(s, c === true)}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 text-xs">
+                  <ListFilter className="size-3.5" />
+                  Filter
+                  {filterCount > 0 && ` (${filterCount})`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="space-y-4">
+                <FilterSection label="Status">
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    {ASSESSMENT_STATUSES.map((s) => (
+                      <label
+                        key={s}
+                        className="inline-flex cursor-pointer select-none items-center gap-2 text-sm"
+                        title={STATUS_HINT[s]}
+                      >
+                        <Checkbox
+                          checked={selectedStatuses.has(s)}
+                          onCheckedChange={(c) => toggleStatus(s, c === true)}
+                        />
+                        {STATUS_LABEL[s]}
+                      </label>
+                    ))}
+                  </div>
+                </FilterSection>
+                <FilterSection label="Tipe">
+                  <CheckboxGroup<JobType>
+                    name="filter-job-type"
+                    options={JOB_TYPES}
+                    values={jobTypes}
+                    onChange={(next) => setJobFilter("job_type", next)}
                   />
-                  {STATUS_LABEL[s]}
-                </label>
-              ))}
-            </div>
+                </FilterSection>
+                <FilterSection label="Remote">
+                  <CheckboxGroup<RemoteOption>
+                    name="filter-remote"
+                    options={REMOTE_OPTIONS}
+                    values={remoteOptions}
+                    onChange={(next) => setJobFilter("remote_option", next)}
+                  />
+                </FilterSection>
+                <p className="text-xs text-muted-foreground">
+                  Kosongin Tipe/Remote = semua.
+                </p>
+              </PopoverContent>
+            </Popover>
             {prefs && prefs.length > 1 && (
               <Select
                 value={search.preference ?? "all"}
@@ -355,6 +427,21 @@ function AssessmentsPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function FilterSection({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      {children}
     </div>
   )
 }

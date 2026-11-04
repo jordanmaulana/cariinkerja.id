@@ -70,7 +70,7 @@ type CheckboxGroupProps<T extends string> = {
   onChange: (next: T[]) => void;
 };
 
-function CheckboxGroup<T extends string>({
+export function CheckboxGroup<T extends string>({
   name,
   options,
   values,

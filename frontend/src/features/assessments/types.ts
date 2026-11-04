@@ -40,6 +40,8 @@ export type Assessment = {
 
 export type AssessmentListParams = {
   statuses?: AssessmentStatus[];
+  jobTypes?: JobType[];
+  remoteOptions?: RemoteOption[];
   minScore?: number;
   q?: string;
   preference?: string;
