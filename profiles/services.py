@@ -4,6 +4,7 @@ import re
 from django.conf import settings
 from openai import OpenAI
 from pydantic import BaseModel, Field
+from pypdf import PdfReader
 
 from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status
@@ -24,7 +25,8 @@ class LinkedInIngest(BaseModel):
 
 
 SYSTEM_PROMPT = (
-    "You normalize a LinkedIn profile that a recruiter pasted from their browser. "
+    "You normalize a candidate profile: either a LinkedIn profile (pasted from a "
+    "browser or scraped) or text extracted from the candidate's CV/resume PDF. "
     "The input is messy: HTML cruft, repeated nav strings, the candidate's own copy, "
     "and possibly fragments of OTHER people's profiles (sidebars, "
     '"People you may know", endorsement rows). Your job:\n\n'
@@ -44,7 +46,7 @@ SYSTEM_PROMPT = (
     "— skills belong in the `skills` field ONLY (see 1); they are appended "
     "separately.\n\n"
     "3. Score sparseness: is_sparse=True ONLY if the profile is unusable for job "
-    "matching — e.g., job titles with no descriptions, no About section, fewer than "
+    "matching — e.g., job titles with no descriptions, no About/Summary section, fewer than "
     "~150 words of substantive content. A short but substantive profile is NOT "
     'sparse. Put a concrete reason in sparse_reason (e.g., "5 roles listed but zero '
     'have descriptions; no About section"). Leave sparse_reason empty when '
@@ -67,6 +69,13 @@ _SKILLS_HEADING_RE = re.compile(
     r"|^skills(?:\s*(?:&|and)\s*endorsements)?\s*$",
     re.IGNORECASE,
 )
+
+RESUME_MAX_BYTES = 5 * 1024 * 1024
+RESUME_MAX_PAGES = 10
+# Below this the PDF is almost certainly a scan / image-only export.
+RESUME_MIN_CHARS = 200
+# Cap on hand-edited CV text (the LLM only ever sees _MAX_RAW_CHARS of it).
+RESUME_MAX_TEXT_CHARS = 100_000
 
 _MAX_RAW_CHARS = 60_000
 _TAIL_CHARS = 20_000
@@ -123,6 +132,20 @@ def _truncate_for_llm(
         return raw
     head = limit - tail - len(_TRUNCATION_MARKER)
     return raw[:head] + _TRUNCATION_MARKER + raw[-tail:]
+
+
+def extract_pdf_text(f) -> str:
+    """Text of a CV PDF (first RESUME_MAX_PAGES pages). ValueError if unreadable."""
+    try:
+        reader = PdfReader(f)
+        if reader.is_encrypted:
+            raise ValueError("encrypted PDF")
+        pages = reader.pages[:RESUME_MAX_PAGES]
+        return "\n\n".join((page.extract_text() or "").strip() for page in pages)
+    except ValueError:
+        raise
+    except Exception as exc:  # pypdf raises a zoo of errors on junk input
+        raise ValueError(f"unreadable PDF: {exc}") from exc
 
 
 def ingest_linkedin(raw: str) -> LinkedInIngest:

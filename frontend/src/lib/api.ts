@@ -19,7 +19,10 @@ export async function api<T>(path: string, init?: ApiInit): Promise<T> {
       ? localStorage.getItem("token")
       : null;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    // FormData: the browser sets multipart Content-Type with its boundary.
+    ...(rest.body instanceof FormData
+      ? {}
+      : { "Content-Type": "application/json" }),
     ...((rest.headers as Record<string, string>) ?? {}),
   };
   if (token) headers["Authorization"] = `Token ${token}`;

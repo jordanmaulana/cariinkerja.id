@@ -29,7 +29,7 @@ function PrivacyPage() {
           </li>
           <li>
             <strong>Dari formulir onboarding</strong>: nama lengkap, nomor HP,
-            URL LinkedIn, bio (opsional), dan pencarianmu (job title, tipe
+            URL LinkedIn atau CV (PDF), bio (opsional), dan pencarianmu (job title, tipe
             kerja, opsi remote).
           </li>
           <li>
@@ -37,6 +37,11 @@ function PrivacyPage() {
             profil seperti pengalaman kerja, pendidikan, skill, bagian About,
             dan status Open to Work. Kami simpan versi mentahnya dan versi yang
             udah dirapikan AI.
+          </li>
+          <li>
+            <strong>Dari CV (PDF)</strong> kalau kamu upload CV, bukan LinkedIn:
+            kami ambil teksnya, lalu simpan versi mentah dan versi yang udah
+            dirapikan AI. File PDF-nya sendiri nggak kami simpan.
           </li>
           <li>
             <strong>Hasil penilaian</strong>: skor 0–100, skill yang cocok dan
@@ -59,7 +64,7 @@ function PrivacyPage() {
         <ul>
           <li>Menilai kecocokan tiap loker baru dengan profilmu.</li>
           <li>
-            Ngecek apakah profil LinkedIn-mu cukup lengkap buat dinilai, sebelum
+            Ngecek apakah profil LinkedIn atau CV-mu cukup lengkap buat dinilai, sebelum
             kamu bisa berlangganan.
           </li>
           <li>

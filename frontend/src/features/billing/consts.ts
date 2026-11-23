@@ -26,7 +26,7 @@ export const GATE_REASON: Record<PaymentGateCode, string> = {
   waiting_admin:
     "Sabar, kami lagi ngumpulin loker, nanti muncul di menu Loker Tersedia. Jadi biar kamu tau hasilnya dulu, baru beli. Ok?",
   linkedin_quality:
-    "Profil LinkedIn perlu lebih lengkap sebelum kamu bisa berlangganan.",
+    "Profil (LinkedIn/CV) perlu lebih lengkap sebelum kamu bisa berlangganan.",
 };
 
 export const OPEN_TO_WORK_HINT =

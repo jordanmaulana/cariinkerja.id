@@ -32,8 +32,11 @@ def crawl_and_ingest_linkedin(profile: Profile) -> LinkedInIngest | None:
         logger.warning("apify returned no items for %s", profile.linkedin_url)
         return None
 
-    raw_text = _flatten_apify_item(item)
+    return ingest_raw_profile(profile, _flatten_apify_item(item))
 
+
+def ingest_raw_profile(profile: Profile, raw_text: str) -> LinkedInIngest:
+    """Store raw profile text (LinkedIn or CV) and LLM-clean it into full_profile."""
     update_fields = ["linkedin_raw", "updated_on"]
     profile.linkedin_raw = raw_text
 

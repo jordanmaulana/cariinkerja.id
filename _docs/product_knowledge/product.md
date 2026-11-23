@@ -76,11 +76,12 @@ colloquial and unpolished — closer to how a friend talks than how a SaaS talks
    sign-in. But before the sign-in button becomes clickable, the user must tick four
    checkboxes acknowledging: fill in your LinkedIn properly, be honest in it, *don't sign up
    if you're financially struggling*, and *this is a paid service with no trial*.
-2. **Onboarding — one form.** Full name, phone number (needed later for payment), LinkedIn
-   URL (required), optional bio, plus the first search: job title, job types, remote
-   options. Nothing is charged here.
-3. **The LinkedIn profile is ingested and cleaned** in the background — pulled via a
-   scraping service, then rewritten by an LLM into the structured shape the scorer needs.
+2. **Onboarding — one form.** Full name, phone number (needed later for payment), **either**
+   a LinkedIn URL **or** a CV upload (PDF, max 5 MB, must have selectable text), optional
+   bio, plus the first search: job title, job types, remote options. Nothing is charged here.
+3. **The LinkedIn profile (or CV) is ingested and cleaned** in the background — LinkedIn is
+   pulled via a scraping service, a CV's text is extracted from the PDF (the file itself is
+   not kept), then either is rewritten by an LLM into the structured shape the scorer needs.
    This step also detects whether the profile is too sparse to score well, and whether the
    person has "Open to Work" enabled.
 4. **Subscribe.** A search does nothing until it's paid for. Two gates can block checkout
@@ -243,6 +244,7 @@ is retired; ignore it wherever it still appears.
 If the user's LinkedIn has "Open to Work" on, the **cheapest active plan** gets
 **Rp 15.000 off** — today that's Rp 49.000 → **Rp 34.000** for 1 search. Other plans stay
 full price. Reasoning: if you're hunting hard, you shouldn't be paying full price.
+Users who onboard with a CV instead of LinkedIn never get it — a PDF can't prove the flag.
 
 It applies to any non-upgrade checkout of the cheapest plan, including a repeat purchase —
 not "new subscriptions only" as earlier docs claimed. Upgrades are always full price.

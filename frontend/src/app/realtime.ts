@@ -45,6 +45,8 @@ function describeEvent(e: UserEvent): string | null {
     }
     case "assessment.status_changed":
       return null;
+    case "profile.ingested":
+      return "Profilmu udah selesai dibaca AI.";
     default:
       return null;
   }
@@ -69,6 +71,10 @@ export function useRealtimeQueryInvalidation() {
         case "subscription.activated":
           queryClient.invalidateQueries({ queryKey: ["subscription", "me"] });
           queryClient.invalidateQueries({ queryKey: ["plans"] });
+          queryClient.invalidateQueries({ queryKey: ["payment-gate"] });
+          break;
+        case "profile.ingested":
+          queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
           queryClient.invalidateQueries({ queryKey: ["payment-gate"] });
           break;
         case "preference.status_changed":

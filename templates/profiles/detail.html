@@ -22,8 +22,12 @@
     </section>
 
     <section class="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
-      <h3 class="text-sm font-semibold text-slate-700">LinkedIn ingest status</h3>
+      <h3 class="text-sm font-semibold text-slate-700">Profile ingest status</h3>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <dt class="text-slate-500">Source</dt>
+        <dd>
+          {% if profile.linkedin_url %}LinkedIn{% elif profile.linkedin_raw %}CV upload (PDF text){% else %}<span class="text-slate-400">—</span>{% endif %}
+        </dd>
         <dt class="text-slate-500">Quality</dt>
         <dd>
           {% if profile.linkedin_ingested_at %}
@@ -38,8 +42,10 @@
         </dd>
         <dt class="text-slate-500">Open to Work</dt>
         <dd>
-          {% if profile.open_to_work %}
+          {% if profile.linkedin_discount_eligible %}
             {% include "_partials/status_pill.html" with value="ACTIVE" label="Yes — discount eligible" %}
+          {% elif profile.open_to_work %}
+            {% include "_partials/status_pill.html" with value="EXPIRED" label="Yes — no discount (no LinkedIn)" %}
           {% else %}
             {% include "_partials/status_pill.html" with value="EXPIRED" label="No" %}
           {% endif %}

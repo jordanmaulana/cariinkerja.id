@@ -9,6 +9,7 @@ import {
   MessageCircle,
   ShieldCheck,
   SlidersHorizontal,
+  UserRound,
 } from "lucide-react";
 
 import { LogoMark } from "@/components/brand/logo-mark";
@@ -31,6 +32,7 @@ const NAV = [
   { to: "/assessments", label: "Loker Tersedia", icon: ClipboardCheck },
   { to: "/preferences", label: "Pencarian", icon: SlidersHorizontal },
   { to: "/plans", label: "Paket", icon: CreditCard },
+  { to: "/profile", label: "Profil", icon: UserRound },
 ] as const;
 
 const PAGE_TITLES: Record<string, string> = {
@@ -38,6 +40,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/assessments": "Loker Tersedia",
   "/preferences": "Pencarian",
   "/plans": "Paket",
+  "/profile": "Profil",
 };
 
 function pageTitle(pathname: string) {
@@ -138,6 +141,12 @@ export function AppShell() {
                     <DropdownMenuSeparator />
                   </>
                 )}
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <UserRound className="size-4" />
+                    Profil
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={onLogout}>
                   <LogOut className="size-4" />
                   Keluar

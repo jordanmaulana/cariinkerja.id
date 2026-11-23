@@ -73,8 +73,10 @@ would hide a real payment.
 def verify_webhook(request) -> bool:
     expected = getattr(settings, "MAYAR_WEBHOOK_TOKEN", "") or ""
     if not expected:
-        return False                       # not configured → reject
-    received = request.headers.get("X-Callback-Token") or request.headers.get("x-callback-token")
+        return False  # not configured → reject
+    received = request.headers.get("X-Callback-Token") or request.headers.get(
+        "x-callback-token"
+    )
     return bool(received) and received == expected
 ```
 
@@ -148,8 +150,11 @@ PENDING ──paid──────────► ACTIVE ──time──► E
 
 ```python
 class SubscriptionStatus(models.TextChoices):
-    PENDING = "PENDING"; ACTIVE = "ACTIVE"; EXPIRED = "EXPIRED"
-    CANCELLED = "CANCELLED"; REPLACED = "REPLACED"
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+    REPLACED = "REPLACED"
 ```
 
 `EXPIRED` is not auto-written by the payment flow — it's the meaning of
@@ -163,14 +168,19 @@ ACTIVE sub with `expires_at > now`.
 ```python
 OPEN_TO_WORK_DISCOUNT = 15000
 
+
 def effective_price(plan, profile, cheapest_id=None):
     if profile is None or not profile.linkedin_discount_eligible:
-        return plan.price                              # rule 0: not eligible
+        return plan.price  # rule 0: not eligible
     if cheapest_id is None:
-        cheapest_id = (Plan.objects.filter(is_active=True)
-                       .order_by("price").values_list("id", flat=True).first())
+        cheapest_id = (
+            Plan.objects.filter(is_active=True)
+            .order_by("price")
+            .values_list("id", flat=True)
+            .first()
+        )
     if plan.id != cheapest_id:
-        return plan.price                              # rule 1: only the cheapest plan
+        return plan.price  # rule 1: only the cheapest plan
     return max(plan.price - OPEN_TO_WORK_DISCOUNT, 0)  # rule 2: 15 000 off
 ```
 
@@ -265,47 +275,59 @@ Status codes: 401 bad token, 400 no ids, 404 unknown sub, 502 status re-fetch fa
 
 ```python
 ACTIVATION_DAYS = 30
-TOTAL_SECONDS   = ACTIVATION_DAYS * 86400   # 2_592_000
+TOTAL_SECONDS = ACTIVATION_DAYS * 86400  # 2_592_000
+
 
 def activate_subscription(sub) -> bool:
     if sub.status == SubscriptionStatus.ACTIVE:
-        return False                                   # idempotent no-op
+        return False  # idempotent no-op
     now = timezone.now()
     bonus_seconds = 0
     replaces_id = sub.replaces_id
 
-    if replaces_id:                                    # ── UPGRADE ──
+    if replaces_id:  # ── UPGRADE ──
         old = Subscription.objects.select_related("plan").filter(pk=replaces_id).first()
         if old and old.expires_at and sub.plan.price:
             seconds_remaining = max(0.0, (old.expires_at - now).total_seconds())
-            credit_value  = old.amount_paid * seconds_remaining / TOTAL_SECONDS
+            credit_value = old.amount_paid * seconds_remaining / TOTAL_SECONDS
             bonus_seconds = int(credit_value * TOTAL_SECONDS / sub.plan.price)
-        Subscription.objects.filter(pk=replaces_id, status=SubscriptionStatus.ACTIVE).update(
-            status=SubscriptionStatus.REPLACED, expires_at=now, updated_on=now)
+        Subscription.objects.filter(
+            pk=replaces_id, status=SubscriptionStatus.ACTIVE
+        ).update(status=SubscriptionStatus.REPLACED, expires_at=now, updated_on=now)
 
-    sub.status     = SubscriptionStatus.ACTIVE
+    sub.status = SubscriptionStatus.ACTIVE
     sub.started_at = now
     sub.expires_at = now + timedelta(days=ACTIVATION_DAYS, seconds=bonus_seconds)
     sub.save(update_fields=["status", "started_at", "expires_at", "updated_on"])
 
-    if not replaces_id:                                # ── NEW SUB ONLY ──
-        pending = Preference.objects.filter(profile=sub.profile,
-                                            status=PreferenceStatus.WAITING_PAYMENT)
+    if not replaces_id:  # ── NEW SUB ONLY ──
+        pending = Preference.objects.filter(
+            profile=sub.profile, status=PreferenceStatus.WAITING_PAYMENT
+        )
         pref_ids = list(pending.values_list("id", flat=True))
         pending.update(status=PreferenceStatus.RUNNING, updated_on=now)
-        crawlable = Preference.objects.filter(id__in=pref_ids).exclude(crawl_urls=[]) \
-                                      .values_list("id", flat=True)
+        crawlable = (
+            Preference.objects.filter(id__in=pref_ids)
+            .exclude(crawl_urls=[])
+            .values_list("id", flat=True)
+        )
         for pid in crawlable:
-            crawl_and_assess_preference.delay(pid)     # queue the paid work
+            crawl_and_assess_preference.delay(pid)  # queue the paid work
 
     user_id = getattr(getattr(sub.profile, "user", None), "id", None)
     if user_id is not None:
-        publish(user_channel(user_id), {
-            "event": "subscription.activated", "subscription_id": sub.id,
-            "status": sub.status, "expires_at": sub.expires_at.isoformat(),
-            "plan": sub.plan.name, "replaces_id": replaces_id,
-            "bonus_seconds": bonus_seconds,
-        })
+        publish(
+            user_channel(user_id),
+            {
+                "event": "subscription.activated",
+                "subscription_id": sub.id,
+                "status": sub.status,
+                "expires_at": sub.expires_at.isoformat(),
+                "plan": sub.plan.name,
+                "replaces_id": replaces_id,
+                "bonus_seconds": bonus_seconds,
+            },
+        )
     return True
 ```
 
@@ -337,24 +359,34 @@ time on the new one.** No refunds, no credit balance — a longer `expires_at`.
 
 ```python
 ACTIVATION_DAYS = 30
-TOTAL_SECONDS   = ACTIVATION_DAYS * 86400
+TOTAL_SECONDS = ACTIVATION_DAYS * 86400
+
 
 def compute_upgrade_quote(profile, new_plan, *, current_sub=None, at=None):
     now = at or timezone.now()
     current_sub = current_sub or get_active_subscription(profile)
     if current_sub is None or current_sub.status != SubscriptionStatus.ACTIVE:
-        raise UpgradeNotAllowed("no_active_sub", "No active subscription to upgrade from.")
+        raise UpgradeNotAllowed(
+            "no_active_sub", "No active subscription to upgrade from."
+        )
     if new_plan.id == current_sub.plan_id:
         raise UpgradeNotAllowed("same_plan", "Already on this plan.")
     if new_plan.price <= current_sub.plan.price:
         raise UpgradeNotAllowed("downgrade", "Downgrade is not available.")
 
-    seconds_remaining = max(0.0, (current_sub.expires_at - now).total_seconds()) if current_sub.expires_at else 0.0
-    credit_value  = current_sub.amount_paid * seconds_remaining / TOTAL_SECONDS
-    bonus_seconds = credit_value * TOTAL_SECONDS / new_plan.price if new_plan.price else 0.0
-    charge        = effective_price(new_plan, profile)
+    seconds_remaining = (
+        max(0.0, (current_sub.expires_at - now).total_seconds())
+        if current_sub.expires_at
+        else 0.0
+    )
+    credit_value = current_sub.amount_paid * seconds_remaining / TOTAL_SECONDS
+    bonus_seconds = (
+        credit_value * TOTAL_SECONDS / new_plan.price if new_plan.price else 0.0
+    )
+    charge = effective_price(new_plan, profile)
     return {
-        "current_plan_id": current_sub.plan_id, "new_plan_id": new_plan.id,
+        "current_plan_id": current_sub.plan_id,
+        "new_plan_id": new_plan.id,
         "seconds_remaining": int(seconds_remaining),
         "days_remaining": round(seconds_remaining / 86400, 2),
         "amount_paid_old": current_sub.amount_paid,
@@ -362,7 +394,9 @@ def compute_upgrade_quote(profile, new_plan, *, current_sub=None, at=None):
         "bonus_seconds": int(bonus_seconds),
         "bonus_days": round(bonus_seconds / 86400, 2),
         "charge": charge,
-        "new_expires_at_estimate": (now + timedelta(days=ACTIVATION_DAYS, seconds=int(bonus_seconds))).isoformat(),
+        "new_expires_at_estimate": (
+            now + timedelta(days=ACTIVATION_DAYS, seconds=int(bonus_seconds))
+        ).isoformat(),
     }
 ```
 
@@ -413,8 +447,12 @@ Activation truth reaches the browser by server-push, not by trusting the Mayar r
 
 ```python
 # core/realtime.py
-def user_channel(user_id: int) -> str: return f"user:{user_id}:events"
-def publish(channel, payload):          _client().publish(channel, json.dumps(payload, default=str))
+def user_channel(user_id: int) -> str:
+    return f"user:{user_id}:events"
+
+
+def publish(channel, payload):
+    _client().publish(channel, json.dumps(payload, default=str))
 ```
 
 `billing_api.stream` is a plain Django `StreamingHttpResponse` (`text/event-stream`):

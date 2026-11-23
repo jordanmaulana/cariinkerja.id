@@ -1,8 +1,11 @@
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
@@ -17,11 +20,48 @@ from profiles.services import (
     ingest_linkedin,
     render_full_profile,
 )
+from profiles.tasks import crawl_linkedin_for_profile
 
 _TEST_STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+
+def _pdf_bytes(text: str) -> bytes:
+    """Minimal one-page PDF whose text layer is `text` (no PDF writer needed)."""
+    content = b"BT /F1 12 Tf 72 720 Td (" + text.encode() + b") Tj ET"
+    objs = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
+        ),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for i, obj in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % i + obj + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    out += b"".join(b"%010d 00000 n \n" % off for off in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n" % (
+        len(objs) + 1,
+        xref,
+    )
+    out += b"%%EOF\n"
+    return bytes(out)
+
+
+CV_TEXT = "Jane Doe Backend Engineer Python Django PostgreSQL " * 6
+
+
+def _cv_upload(text: str = CV_TEXT, name: str = "cv.pdf") -> SimpleUploadedFile:
+    return SimpleUploadedFile(name, _pdf_bytes(text), content_type="application/pdf")
 
 
 def _mock_openai(parsed: LinkedInIngest):
@@ -687,6 +727,191 @@ class OnboardingAPITests(TestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("phone", resp.data)
         self.assertFalse(Preference.objects.filter(profile=self.profile).exists())
+
+    def _cv_payload(self, resume=None):
+        payload = dict(self.payload, resume=resume or _cv_upload())
+        del payload["linkedin_url"]
+        return payload
+
+    @patch("profiles.tasks.crawl_linkedin_for_profile")
+    def test_onboarding_with_cv_instead_of_linkedin(self, task):
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.api.post(self.url, self._cv_payload(), format="multipart")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.profile.refresh_from_db()
+        self.assertIsNone(self.profile.linkedin_url)
+        self.assertIn("Backend Engineer Python Django", self.profile.linkedin_raw)
+        pref = Preference.objects.get(profile=self.profile)
+        self.assertEqual(pref.status, Status.WAITING_PAYMENT)
+        # Multipart list fields arrive intact.
+        self.assertEqual(pref.job_type, [JobType.FULL_TIME])
+        self.assertEqual(pref.remote_option, [RemoteOption.REMOTE])
+        task.delay.assert_called_once_with(self.profile.id, pref.id)
+
+    def test_onboarding_both_linkedin_and_cv_rejected(self):
+        payload = dict(self.payload, resume=_cv_upload())
+        resp = self.api.post(self.url, payload, format="multipart")
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(Preference.objects.filter(profile=self.profile).exists())
+
+    def test_onboarding_neither_linkedin_nor_cv_rejected(self):
+        payload = dict(self.payload)
+        del payload["linkedin_url"]
+        resp = self.api.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(Preference.objects.filter(profile=self.profile).exists())
+
+    def test_onboarding_non_pdf_cv_rejected(self):
+        junk = SimpleUploadedFile("cv.pdf", b"not a pdf at all")
+        resp = self.api.post(
+            self.url, self._cv_payload(resume=junk), format="multipart"
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("resume", resp.data)
+
+    def test_onboarding_scanned_cv_rejected(self):
+        resp = self.api.post(
+            self.url,
+            self._cv_payload(resume=_cv_upload("too short")),
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("resume", resp.data)
+        self.assertFalse(Preference.objects.filter(profile=self.profile).exists())
+
+
+@patch("profiles.tasks.crawl_linkedin_for_profile")
+class ProfileCvAPITests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user("user", "user@example.com", "secret")
+        self.profile = Profile.objects.create(
+            user=self.user, full_name="Jane", linkedin_raw=CV_TEXT
+        )
+        self.api = APIClient()
+        self.api.force_authenticate(self.user)
+        self.url = reverse("api-v1-profile-cv")
+
+    def test_profile_me_exposes_cv_text(self, task):
+        resp = self.api.get(reverse("api-v1-profile-me"))
+        self.assertEqual(resp.data["cv_text"], CV_TEXT)
+
+    def test_edit_text_saves_and_requeues_ingest(self, task):
+        new_text = CV_TEXT + " Kubernetes Terraform"
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.api.post(self.url, {"cv_text": new_text}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["cv_text"], new_text.strip())
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.linkedin_raw, new_text.strip())
+        task.delay.assert_called_once_with(self.profile.id)
+
+    def test_unchanged_text_skips_ingest(self, task):
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.api.post(self.url, {"cv_text": CV_TEXT}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        task.delay.assert_not_called()
+
+    def test_reupload_pdf_replaces_text(self, task):
+        text = "Data Analyst SQL Tableau Python Looker " * 8
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.api.post(
+                self.url, {"resume": _cv_upload(text)}, format="multipart"
+            )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.profile.refresh_from_db()
+        self.assertIn("Data Analyst SQL Tableau", self.profile.linkedin_raw)
+        task.delay.assert_called_once()
+
+    def test_too_short_text_rejected(self, task):
+        resp = self.api.post(self.url, {"cv_text": "too short"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("cv_text", resp.data)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.linkedin_raw, CV_TEXT)
+
+    def test_linkedin_profile_cannot_edit(self, task):
+        self.profile.linkedin_url = "https://www.linkedin.com/in/jane"
+        self.profile.save()
+        resp = self.api.post(self.url, {"cv_text": CV_TEXT + " x"}, format="json")
+        self.assertEqual(resp.status_code, 409)
+        self.assertIsNone(self.api.get(reverse("api-v1-profile-me")).data["cv_text"])
+        task.delay.assert_not_called()
+
+    def test_second_change_same_day_blocked(self, task):
+        first = self.api.post(self.url, {"cv_text": CV_TEXT + " Go"}, format="json")
+        self.assertEqual(first.status_code, 200)
+        self.assertIsNotNone(first.data["cv_next_edit_at"])
+
+        resp = self.api.post(self.url, {"cv_text": CV_TEXT + " Rust"}, format="json")
+
+        self.assertEqual(resp.status_code, 429)
+        self.assertIn("sekali sehari", resp.data["detail"])
+        self.profile.refresh_from_db()
+        self.assertTrue(self.profile.linkedin_raw.endswith("Go"))
+
+    def test_change_allowed_again_after_a_day(self, task):
+        self.profile.cv_updated_at = timezone.now() - timedelta(hours=25)
+        self.profile.save()
+        resp = self.api.post(self.url, {"cv_text": CV_TEXT + " Go"}, format="json")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_unchanged_save_does_not_use_up_the_day(self, task):
+        self.api.post(self.url, {"cv_text": CV_TEXT}, format="json")
+        self.profile.refresh_from_db()
+        self.assertIsNone(self.profile.cv_updated_at)
+        self.assertIsNone(
+            self.api.get(reverse("api-v1-profile-me")).data["cv_next_edit_at"]
+        )
+
+
+class CvIngestTaskTests(TestCase):
+    @patch("profiles.services.OpenAI")
+    def test_task_ingests_cv_text_without_apify(self, openai_cls):
+        openai_cls.return_value = _mock_openai(
+            LinkedInIngest(
+                skills=["Python"],
+                cleaned_full_profile="Summary:\nBackend engineer.",
+                is_sparse=False,
+                open_to_work=True,
+                quality_notes="ok",
+            )
+        )
+        profile = Profile.objects.create(linkedin_raw=CV_TEXT)
+
+        crawl_linkedin_for_profile(profile.id)
+
+        profile.refresh_from_db()
+        self.assertEqual(
+            profile.full_profile, "Summary:\nBackend engineer.\n\nSkills\nPython"
+        )
+        self.assertTrue(profile.linkedin_quality_ok)
+        self.assertIsNotNone(profile.linkedin_ingested_at)
+        # No LinkedIn URL → no Open-to-Work discount even if the LLM says so.
+        self.assertFalse(profile.linkedin_discount_eligible)
+
+    @patch("profiles.tasks.publish")
+    @patch("profiles.services.OpenAI")
+    def test_task_tells_the_user_when_done(self, openai_cls, publish):
+        openai_cls.return_value = _mock_openai(
+            LinkedInIngest(
+                cleaned_full_profile="Summary:\nBackend engineer.",
+                is_sparse=False,
+                open_to_work=False,
+                quality_notes="ok",
+            )
+        )
+        user = User.objects.create_user("u", "u@example.com", "x")
+        profile = Profile.objects.create(user=user, linkedin_raw=CV_TEXT)
+
+        crawl_linkedin_for_profile(profile.id)
+
+        publish.assert_called_once_with(
+            f"user:{user.id}:events", {"event": "profile.ingested"}
+        )
+
+    def test_task_skips_profile_without_source(self):
+        profile = Profile.objects.create()
+        self.assertEqual(crawl_linkedin_for_profile(profile.id), "skipped_no_source")
 
 
 @patch("api.v1.serializers.classify_job_title")

@@ -17,6 +17,7 @@ urlpatterns = [
     path("auth/logout/", auth_api.logout, name="api-v1-logout"),
     path("auth/me/", auth_api.me, name="api-v1-me"),
     path("profile/me/", profiles_api.detail, name="api-v1-profile-me"),
+    path("profile/cv/", profiles_api.cv, name="api-v1-profile-cv"),
     path("onboarding/", profiles_api.onboarding, name="api-v1-onboarding"),
     path("dashboard/stats/", dashboard_api.stats, name="api-v1-dashboard-stats"),
     # Own prefix: under preferences/ it would hit preferences/<str:pk>/.

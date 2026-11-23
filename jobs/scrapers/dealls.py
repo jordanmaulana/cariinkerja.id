@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Iterator
+from collections.abc import Iterator
 from urllib.parse import parse_qsl, urlencode, urlparse
 
 from bs4 import BeautifulSoup

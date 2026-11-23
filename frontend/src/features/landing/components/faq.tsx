@@ -7,11 +7,11 @@ type Item = { q: string; a: string };
 const ITEMS: Item[] = [
   {
     q: "Kenapa nggak ada trial?",
-    a: "Dulu sempat ada trial. Nah, ternyata banyak yang ngisi job title asal kayak \"Coba kerja\", atau nempel link LinkedIn orang lain. Validasi itu gak ada ujungnya, jadi sekarang langsung berbayar. Sebagai gantinya, kami nolak pembayaran kalau profil LinkedIn-mu belum cukup lengkap buat dinilai.",
+    a: "Dulu sempat ada trial. Nah, ternyata banyak yang ngisi job title asal kayak \"Coba kerja\", atau nempel link LinkedIn orang lain. Validasi itu gak ada ujungnya, jadi sekarang langsung berbayar. Sebagai gantinya, kami nolak pembayaran kalau profil LinkedIn atau CV-mu belum cukup lengkap buat dinilai.",
   },
   {
-    q: "Kenapa harus LinkedIn?",
-    a: "AI-nya menilai tiap loker berdasarkan isi LinkedIn-mu: pengalaman, skill, dan About. Makin lengkap dan jujur profilmu, makin akurat skornya. LinkedIn kosong = penilaian jelek.",
+    q: "Harus pakai LinkedIn?",
+    a: "Nggak harus. Kamu bisa kasih URL LinkedIn atau upload CV (PDF). AI-nya menilai tiap loker berdasarkan isinya: pengalaman, skill, dan About/Summary. Makin lengkap dan jujur profilmu, makin akurat skornya. Profil kosong = penilaian jelek. Diskon Open to Work cuma berlaku lewat LinkedIn.",
   },
   {
     q: "Lokernya dari mana aja?",

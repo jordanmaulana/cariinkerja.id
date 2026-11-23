@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import io
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 from django.core.management import call_command
@@ -801,13 +801,13 @@ class WorkableUrlTests(TestCase):
 
 # --- Skill Map ---------------------------------------------------------------
 
-from django.core.cache import cache  # noqa: E402
-from django.test import override_settings  # noqa: E402
+from django.core.cache import cache
+from django.test import override_settings
 
-from billing.models import Plan  # noqa: E402
-from jobs.models import SkillMapPage, SkillMapSnapshot  # noqa: E402
-from jobs.scrapers.filters import title_has_words, title_words  # noqa: E402
-from jobs.skill_map.services import (  # noqa: E402
+from billing.models import Plan
+from jobs.models import SkillMapPage, SkillMapSnapshot
+from jobs.scrapers.filters import title_has_words, title_words
+from jobs.skill_map.services import (
     compute_snapshot,
     format_date_id,
     refresh_page,

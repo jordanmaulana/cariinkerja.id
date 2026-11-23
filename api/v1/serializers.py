@@ -11,6 +11,12 @@ from core.jev import INVALID, MULTIPLE, classify_job_title
 from jobs.consts import JobType, RemoteOption
 from jobs.models import Job
 from profiles.models import Preference, Profile
+from profiles.services import (
+    RESUME_MAX_BYTES,
+    RESUME_MAX_TEXT_CHARS,
+    RESUME_MIN_CHARS,
+    extract_pdf_text,
+)
 
 User = get_user_model()
 
@@ -28,6 +34,24 @@ def _validate_job_title(value):
     if error:
         raise serializers.ValidationError(error)
     return value
+
+
+def _resume_text(f):
+    """A CV PDF's extracted text; the PDF itself is never stored."""
+    if f.size > RESUME_MAX_BYTES:
+        raise serializers.ValidationError("CV maksimal 5 MB.")
+    try:
+        text = extract_pdf_text(f)
+    except ValueError:
+        raise serializers.ValidationError(
+            "PDF-nya nggak kebaca. Coba export ulang CV-mu ke PDF."
+        )
+    if len(text.strip()) < RESUME_MIN_CHARS:
+        raise serializers.ValidationError(
+            "Teks di CV-mu nggak kebaca (kayaknya hasil scan). Upload PDF "
+            "yang teksnya bisa di-copy, atau pakai LinkedIn."
+        )
+    return text
 
 
 class GoogleAuthSerializer(serializers.Serializer):
@@ -76,6 +100,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     onboarded = serializers.SerializerMethodField()
+    cv_text = serializers.SerializerMethodField()
+    cv_next_edit_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Profile
@@ -90,22 +116,76 @@ class ProfileSerializer(serializers.ModelSerializer):
             "whitelist",
             "linkedin_quality_ok",
             "linkedin_quality_reason",
+            "linkedin_ingested_at",
+            "cv_text",
+            "cv_next_edit_at",
         ]
         read_only_fields = [
             "open_to_work",
             "whitelist",
             "linkedin_quality_ok",
             "linkedin_quality_reason",
+            "linkedin_ingested_at",
         ]
 
     def get_onboarded(self, profile):
         return bool(profile.full_name)
 
+    def get_cv_text(self, profile):
+        # CV profiles only: a LinkedIn profile's raw is an Apify dump, not theirs to edit.
+        return None if profile.linkedin_url else profile.linkedin_raw
+
+
+class ProfileCvSerializer(serializers.Serializer):
+    """Replace a CV profile's text: edited text, or a fresh PDF. Exactly one."""
+
+    cv_text = serializers.CharField(
+        required=False,
+        min_length=RESUME_MIN_CHARS,
+        max_length=RESUME_MAX_TEXT_CHARS,
+        error_messages={
+            "blank": "Teks CV nggak boleh kosong.",
+            "min_length": "Teks CV kependekan buat dinilai.",
+            "max_length": "Teks CV kepanjangan, ringkas dulu ya.",
+        },
+    )
+    resume = serializers.FileField(required=False)
+
+    def validate_resume(self, f):
+        return _resume_text(f)
+
+    def validate(self, attrs):
+        if bool(attrs.get("cv_text")) == bool(attrs.get("resume")):
+            raise serializers.ValidationError(
+                "Kirim teks CV atau file PDF, pilih salah satu."
+            )
+        return attrs
+
+    def save(self, **kwargs):
+        from profiles.tasks import crawl_linkedin_for_profile
+
+        profile = self.context["profile"]
+        text = self.validated_data.get("resume") or self.validated_data["cv_text"]
+        # Unchanged text = no LLM call, and it doesn't use up today's edit.
+        if text.strip() != (profile.linkedin_raw or "").strip():
+            with transaction.atomic():
+                profile.linkedin_raw = text
+                profile.cv_updated_at = timezone.now()
+                profile.save(
+                    update_fields=["linkedin_raw", "cv_updated_at", "updated_on"]
+                )
+                transaction.on_commit(
+                    lambda: crawl_linkedin_for_profile.delay(profile.id)
+                )
+        return profile
+
 
 class OnboardingSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
     phone = serializers.CharField(max_length=32)
-    linkedin_url = serializers.URLField(required=True, allow_blank=False)
+    # Exactly one of linkedin_url / resume (a CV PDF), see validate().
+    linkedin_url = serializers.URLField(required=False, allow_blank=True)
+    resume = serializers.FileField(required=False)
     bio = serializers.CharField(required=False, allow_blank=True)
     title = serializers.CharField(max_length=255)
     job_type = serializers.ListField(
@@ -124,6 +204,16 @@ class OnboardingSerializer(serializers.Serializer):
     def validate_title(self, value):
         return _validate_job_title(value)
 
+    def validate_resume(self, f):
+        return _resume_text(f)
+
+    def validate(self, attrs):
+        if bool(attrs.get("linkedin_url")) == bool(attrs.get("resume")):
+            raise serializers.ValidationError(
+                "Isi URL LinkedIn atau upload CV, pilih salah satu."
+            )
+        return attrs
+
     def save(self, **kwargs):
         from profiles.services import prepare_preference_for_payment
         from profiles.tasks import crawl_linkedin_for_profile
@@ -134,7 +224,9 @@ class OnboardingSerializer(serializers.Serializer):
             profile = user.profile
             profile.full_name = data["full_name"]
             profile.phone = data["phone"]
-            profile.linkedin_url = data["linkedin_url"]
+            profile.linkedin_url = data.get("linkedin_url") or None
+            if data.get("resume"):
+                profile.linkedin_raw = data["resume"]
             profile.bio = data.get("bio") or None
             profile.save()
             preference = Preference.objects.create(

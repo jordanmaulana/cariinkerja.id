@@ -42,17 +42,32 @@ export async function getProfile(): Promise<ProfileMe> {
   return api<ProfileMe>("/profile/me/");
 }
 
+// Edited CV text, or a fresh PDF that replaces it. The AI re-reads it async.
+export async function updateCv(
+  input: { cv_text: string } | { resume: File },
+): Promise<ProfileMe> {
+  const body = new FormData();
+  if ("resume" in input) body.append("resume", input.resume);
+  else body.append("cv_text", input.cv_text);
+  return api<ProfileMe>("/profile/cv/", { method: "POST", body });
+}
+
 export async function submitOnboarding(payload: {
   full_name: string;
   phone: string;
   linkedin_url?: string;
+  resume?: File;
   bio?: string;
   title: string;
   job_type: JobType[];
   remote_option: RemoteOption[];
 }): Promise<ProfileMe> {
-  return api<ProfileMe>("/onboarding/", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  // Multipart so the CV PDF can ride along; lists go as repeated keys.
+  const body = new FormData();
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === undefined || value === "") continue;
+    if (Array.isArray(value)) value.forEach((v) => body.append(key, v));
+    else body.append(key, value);
+  }
+  return api<ProfileMe>("/onboarding/", { method: "POST", body });
 }

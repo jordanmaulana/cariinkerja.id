@@ -2,7 +2,6 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import httpx
-
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
@@ -853,7 +852,11 @@ class EffectivePriceTests(TestCase):
     def setUp(self):
         self.base = Plan.objects.create(name="Basic", price=49000, preference_limit=1)
         self.pro = Plan.objects.create(name="Pro", price=99000, preference_limit=3)
-        self.otw = Profile.objects.create(full_name="O", open_to_work=True)
+        self.otw = Profile.objects.create(
+            full_name="O",
+            open_to_work=True,
+            linkedin_url="https://www.linkedin.com/in/o",
+        )
         self.normal = Profile.objects.create(full_name="N")
 
     def test_open_to_work_gets_15k_off_base_plan(self):
@@ -865,6 +868,11 @@ class EffectivePriceTests(TestCase):
     def test_not_eligible_pays_full(self):
         self.assertEqual(effective_price(self.base, self.normal), 49000)
         self.assertEqual(effective_price(self.base, None), 49000)
+
+    def test_open_to_work_without_linkedin_pays_full(self):
+        # CV-upload profiles can't prove Open to Work.
+        cv = Profile.objects.create(full_name="C", open_to_work=True)
+        self.assertEqual(effective_price(self.base, cv), 49000)
 
 
 def _mayar_resp(status_code, body):

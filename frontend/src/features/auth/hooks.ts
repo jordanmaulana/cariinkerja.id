@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 
 import { ApiError } from "@/lib/api";
 import { getProfile, submitOnboarding } from "@/features/auth/api";
 import type { OnboardingPayload } from "@/features/auth/components/onboarding-form";
 import { userAtom } from "@/features/auth/state";
+
+// Invalidated by the "profile.ingested" realtime event.
+export function useProfile() {
+  return useQuery({ queryKey: ["profile", "me"], queryFn: getProfile });
+}
 
 export function useProfilePrefill() {
   const [initialFullName, setInitialFullName] = useState("");
@@ -42,7 +48,8 @@ export function useOnboardingSubmit() {
       await submitOnboarding({
         full_name: payload.full_name,
         phone: payload.phone,
-        linkedin_url: payload.linkedin_url,
+        linkedin_url: payload.resume ? undefined : payload.linkedin_url,
+        resume: payload.resume ?? undefined,
         bio: payload.bio || undefined,
         title: payload.title,
         job_type: payload.job_type,

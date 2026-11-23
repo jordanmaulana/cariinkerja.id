@@ -23,7 +23,7 @@ function TermsPage() {
       <LegalSection title="Layanannya apa">
         <p>
           cariinkerja.id nyariin loker dari berbagai job board tiap hari, terus
-          AI menilai tiap loker terhadap profil LinkedIn-mu: skor 0–100, skill
+          AI menilai tiap loker terhadap profil LinkedIn atau CV-mu: skor 0–100, skill
           yang cocok, skill gap, dan verdict singkat.
         </p>
         <p>
@@ -38,11 +38,11 @@ function TermsPage() {
         <ul>
           <li>Sign in pakai akun Google.</li>
           <li>
-            Isi data dengan jujur, dan pakai profil LinkedIn milikmu sendiri.
+            Isi data dengan jujur, dan pakai LinkedIn atau CV milikmu sendiri.
             Jangan pakai profil orang lain.
           </li>
           <li>
-            Kualitas penilaian bergantung sama isi LinkedIn-mu. Kalau profilmu
+            Kualitas penilaian bergantung sama isi LinkedIn atau CV-mu. Kalau profilmu
             terlalu kosong, kami bisa menolak pembayaran sampai profilnya
             dilengkapi.
           </li>
@@ -126,7 +126,7 @@ function TermsPage() {
 
       <LegalSection title="Yang nggak boleh">
         <ul>
-          <li>Pakai data palsu atau profil LinkedIn orang lain.</li>
+          <li>Pakai data palsu, atau profil LinkedIn / CV orang lain.</li>
           <li>
             Menyalahgunakan layanan, misalnya membebani server atau mengambil
             data secara otomatis dari aplikasi ini.

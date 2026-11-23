@@ -20,8 +20,8 @@ from __future__ import annotations
 import logging
 import random
 import time
+from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
-from typing import Iterator
 from urllib.parse import parse_qsl, urlencode, urlparse
 
 from bs4 import BeautifulSoup

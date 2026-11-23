@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   JOB_TYPES,
   REMOTE_OPTIONS,
@@ -11,10 +12,16 @@ import {
 import { checkJobTitle } from "@/features/preferences/api";
 import { ApiError } from "@/lib/api";
 
+// Mirrors RESUME_MAX_BYTES in profiles/services.py.
+const RESUME_MAX_BYTES = 5 * 1024 * 1024;
+
+type ProfileSource = "linkedin" | "resume";
+
 export type OnboardingPayload = {
   full_name: string;
   phone: string;
   linkedin_url: string;
+  resume: File | null;
   bio: string;
   title: string;
   job_type: JobType[];
@@ -41,7 +48,10 @@ export function OnboardingForm({
   const [phoneEdit, setPhone] = useState<string | null>(null);
   const fullName = fullNameEdit ?? initialFullName;
   const phone = phoneEdit ?? initialPhone;
+  const [source, setSource] = useState<ProfileSource>("linkedin");
   const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [resume, setResume] = useState<File | null>(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
   const [bio, setBio] = useState("");
   const [title, setTitle] = useState("");
   const [jobType, setJobType] = useState<JobType[]>([]);
@@ -67,6 +77,18 @@ export function OnboardingForm({
         setTitleCheck({ title: value, error: err.message });
       }
     }
+  }
+
+  function pickResume(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (file && file.size > RESUME_MAX_BYTES) {
+      e.target.value = "";
+      setResume(null);
+      setResumeError("CV maksimal 5 MB.");
+      return;
+    }
+    setResume(file);
+    setResumeError(null);
   }
 
   function toggleJobType(value: JobType, checked: boolean) {
@@ -98,7 +120,8 @@ export function OnboardingForm({
     onSubmit({
       full_name: fullName,
       phone,
-      linkedin_url: linkedinUrl,
+      linkedin_url: source === "linkedin" ? linkedinUrl : "",
+      resume: source === "resume" ? resume : null,
       bio,
       title,
       job_type: jobType,
@@ -140,23 +163,63 @@ export function OnboardingForm({
             Dipakai pas kamu langganan nanti. Sekarang kamu belum ditagih.
           </p>
         </div>
-        <div className="space-y-1">
-          <label htmlFor="linkedin_url" className="text-sm font-medium">
-            URL LinkedIn
-          </label>
-          <input
-            id="linkedin_url"
-            type="url"
-            required
-            placeholder="https://linkedin.com/in/..."
-            value={linkedinUrl}
-            onChange={(e) => setLinkedinUrl(e.target.value)}
-            className="w-full rounded border px-3 py-2"
-          />
-          <p className="text-xs text-muted-foreground">
-            Kami ambil LinkedIn-mu buat verifikasi profil dan menyesuaikan
-            kecocokan loker.
-          </p>
+        <div className="space-y-2">
+          <span className="text-sm font-medium">Sumber profil</span>
+          <Tabs
+            value={source}
+            onValueChange={(v) => setSource(v as ProfileSource)}
+          >
+            <TabsList className="w-full">
+              <TabsTrigger value="linkedin">LinkedIn</TabsTrigger>
+              <TabsTrigger value="resume">Upload CV (PDF)</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {source === "linkedin" ? (
+            <div className="space-y-1">
+              <label htmlFor="linkedin_url" className="text-sm font-medium">
+                URL LinkedIn
+              </label>
+              <input
+                id="linkedin_url"
+                type="url"
+                required
+                placeholder="https://linkedin.com/in/..."
+                value={linkedinUrl}
+                onChange={(e) => setLinkedinUrl(e.target.value)}
+                className="w-full rounded border px-3 py-2"
+              />
+              <p className="text-xs text-muted-foreground">
+                Kami ambil LinkedIn-mu buat verifikasi profil dan menyesuaikan
+                kecocokan loker.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <label htmlFor="resume" className="text-sm font-medium">
+                CV (PDF)
+              </label>
+              <input
+                id="resume"
+                type="file"
+                required
+                accept="application/pdf,.pdf"
+                onChange={pickResume}
+                aria-invalid={!!resumeError}
+                aria-describedby={resumeError ? "resume-error" : undefined}
+                className="w-full rounded border px-3 py-2 text-sm"
+              />
+              {resumeError && (
+                <p id="resume-error" className="text-xs text-red-600">
+                  {resumeError}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                PDF yang teksnya bisa di-copy (bukan hasil scan), maks 5 MB.
+                Teksnya bisa kamu rapikan nanti di menu Profil (maks 1x
+                sehari). Diskon Open to Work cuma berlaku lewat LinkedIn.
+              </p>
+            </div>
+          )}
         </div>
         <div className="space-y-1">
           <label htmlFor="bio" className="text-sm font-medium">

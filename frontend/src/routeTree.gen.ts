@@ -18,6 +18,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PlansRouteImport } from './routes/plans'
 import { Route as PreferencesRouteImport } from './routes/preferences'
 import { Route as PrivasiRouteImport } from './routes/privasi'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SyaratRouteImport } from './routes/syarat'
 import { Route as AssessmentsIndexRouteImport } from './routes/assessments.index'
 import { Route as AssessmentsIdRouteImport } from './routes/assessments.$id'
@@ -70,6 +71,11 @@ const PrivasiRoute = PrivasiRouteImport.update({
   path: '/privasi',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SyaratRoute = SyaratRouteImport.update({
   id: '/syarat',
   path: '/syarat',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/plans': typeof PlansRouteWithChildren
   '/preferences': typeof PreferencesRouteWithChildren
   '/privasi': typeof PrivasiRoute
+  '/profile': typeof ProfileRoute
   '/syarat': typeof SyaratRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/privasi': typeof PrivasiRoute
+  '/profile': typeof ProfileRoute
   '/syarat': typeof SyaratRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/plans': typeof PlansRouteWithChildren
   '/preferences': typeof PreferencesRouteWithChildren
   '/privasi': typeof PrivasiRoute
+  '/profile': typeof ProfileRoute
   '/syarat': typeof SyaratRoute
   '/assessments/$id': typeof AssessmentsIdRoute
   '/preferences/$id': typeof PreferencesIdRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/plans'
     | '/preferences'
     | '/privasi'
+    | '/profile'
     | '/syarat'
     | '/assessments/$id'
     | '/preferences/$id'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/privasi'
+    | '/profile'
     | '/syarat'
     | '/assessments/$id'
     | '/preferences/$id'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/plans'
     | '/preferences'
     | '/privasi'
+    | '/profile'
     | '/syarat'
     | '/assessments/$id'
     | '/preferences/$id'
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   PlansRoute: typeof PlansRouteWithChildren
   PreferencesRoute: typeof PreferencesRouteWithChildren
   PrivasiRoute: typeof PrivasiRoute
+  ProfileRoute: typeof ProfileRoute
   SyaratRoute: typeof SyaratRoute
 }
 
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       path: '/privasi'
       fullPath: '/privasi'
       preLoaderRoute: typeof PrivasiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/syarat': {
@@ -372,6 +392,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlansRoute: PlansRouteWithChildren,
   PreferencesRoute: PreferencesRouteWithChildren,
   PrivasiRoute: PrivasiRoute,
+  ProfileRoute: ProfileRoute,
   SyaratRoute: SyaratRoute,
 }
 export const routeTree = rootRouteImport

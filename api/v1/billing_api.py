@@ -23,8 +23,8 @@ from billing.upgrades import (
     get_active_subscription,
 )
 from core.payments.mayar import (
-    MayarError,
     PAID_STATUSES,
+    MayarError,
     create_payment_link,
     get_payment_status,
 )
@@ -32,7 +32,8 @@ from core.payments.subscriptions import (
     activate_subscription,
     cancel_pending_subscription,
 )
-from core.realtime import _client as redis_client, user_channel
+from core.realtime import _client as redis_client
+from core.realtime import user_channel
 from core.tasks import (
     CHECKOUT_POLL_INTERVAL_SECONDS,
     poll_subscription_after_checkout,

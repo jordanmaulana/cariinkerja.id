@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { AlertTriangle, Clock } from "lucide-react";
 
 import { usePaymentGate } from "@/features/billing/hooks";
@@ -8,7 +9,7 @@ type GateCode = Extract<PaymentGate, { locked: true }>["code"];
 
 const TITLE: Record<GateCode, string> = {
   waiting_admin: "Lagi ngumpulin loker yang kamu cari",
-  linkedin_quality: "Profil LinkedIn perlu lebih lengkap",
+  linkedin_quality: "Profil (LinkedIn/CV) perlu lebih lengkap",
 };
 
 const VARIANT_CLS: Record<
@@ -49,8 +50,14 @@ export function PaymentGateBanner() {
           {data.code === "waiting_admin"
             ? "Sabar, kami lagi ngumpulin loker, nanti muncul di menu Loker Tersedia. Jadi biar kamu tau hasilnya dulu, baru beli. Ok?"
             : data.detail}
-          {data.code === "linkedin_quality" &&
-            " Lengkapi profil LinkedIn-mu dan kirim ulang sebelum bayar."}
+          {data.code === "linkedin_quality" && (
+            <>
+              {" Lengkapi LinkedIn atau CV-mu dan kirim ulang sebelum bayar. "}
+              <Link to="/profile" className="font-medium underline">
+                Buka Profil
+              </Link>
+            </>
+          )}
         </p>
       </div>
     </div>
