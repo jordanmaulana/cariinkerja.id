@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -5,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from api.v1.serializers import JobTitleCheckSerializer, PreferenceSerializer
+from assessment.tasks import crawl_and_assess_preference
 from billing.upgrades import get_active_subscription
 from jobs.url_builders import build_crawl_urls
 from profiles.consts import Status as PreferenceStatus
@@ -43,6 +45,16 @@ def create(request):
     serializer = PreferenceSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     pref = serializer.save(profile=profile)
+    # Gate above passed (whitelist or within plan limit), so skip the
+    # WAITING_PAYMENT the post_save signal set and start crawling right away.
+    if not pref.crawl_urls:
+        pref.crawl_urls = build_crawl_urls(
+            pref.title, pref.job_type, pref.remote_option
+        )
+    pref.status = PreferenceStatus.RUNNING
+    pref.save(update_fields=["crawl_urls", "status", "updated_on"])
+    if pref.crawl_urls:
+        transaction.on_commit(lambda: crawl_and_assess_preference.delay(pref.id))
     return Response(PreferenceSerializer(pref).data, status=status.HTTP_201_CREATED)
 
 

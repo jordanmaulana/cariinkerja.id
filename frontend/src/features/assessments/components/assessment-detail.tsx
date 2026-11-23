@@ -9,10 +9,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ScoreGauge } from "@/features/assessments/components/score-gauge";
 import { SkillGapCard } from "@/features/assessments/components/skill-gap-card";
 import { SourceCredit } from "@/features/assessments/components/source-credit";
-import { getActionsForStatus } from "@/features/assessments/actions";
+import { STATUS_LABEL, STATUS_ORDER } from "@/features/assessments/consts";
 import type {
   Assessment,
   AssessmentStatus,
@@ -27,7 +34,6 @@ type Props = {
 
 export function AssessmentDetail({ assessment, isPending, onAction }: Props) {
   const { job, preference, status, score, verdict, created_on } = assessment;
-  const actions = getActionsForStatus(status);
   const created = new Date(created_on).toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
@@ -77,23 +83,22 @@ export function AssessmentDetail({ assessment, isPending, onAction }: Props) {
                 Lihat loker asli
               </a>
             </Button>
-            {actions.length === 0 ? (
-              <span className="text-xs text-muted-foreground">
-                Status final — tidak ada aksi lebih lanjut.
-              </span>
-            ) : (
-              actions.map((a) => (
-                <Button
-                  key={a.next}
-                  size="sm"
-                  variant={a.variant ?? "default"}
-                  disabled={isPending}
-                  onClick={() => onAction(a.next)}
-                >
-                  {a.label}
-                </Button>
-              ))
-            )}
+            <Select
+              value={status}
+              disabled={isPending}
+              onValueChange={(v) => onAction(v as AssessmentStatus)}
+            >
+              <SelectTrigger aria-label="Ubah status" className="h-8 w-44 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_ORDER.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

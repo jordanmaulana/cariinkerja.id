@@ -40,7 +40,7 @@ export function NewPreferenceDialog() {
       setOpen(false);
       setValues(buildInitialValues());
       toast.success(
-        `Pencarian “${created.title || "Tanpa judul"}” dibuat. Admin akan meninjau berikutnya.`,
+        `Pencarian “${created.title || "Tanpa judul"}” dibuat dan langsung jalan. Loker pertama muncul beberapa menit lagi.`,
       );
     },
     onError: (err) => {

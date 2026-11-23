@@ -985,3 +985,44 @@ class MayarWebhookTests(TestCase):
         self.assertEqual(self._post(token="nope").status_code, 401)
         status_.assert_not_called()
         activate.assert_not_called()
+
+
+@patch("profiles.signals.notify_preference_created")
+@patch("api.v1.preferences_api.crawl_and_assess_preference")
+class PreferenceCreateTests(TestCase):
+    """A finder created within the plan limit runs immediately."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("p", "p@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="P")
+        token, _ = Token.objects.get_or_create(user=self.user)
+        self.api = APIClient()
+        self.api.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        self.url = reverse("api-v1-preference-list")
+        plan = Plan.objects.create(name="A", price=10000, preference_limit=1)
+        Subscription.objects.create(
+            profile=self.profile,
+            plan=plan,
+            status=SubscriptionStatus.ACTIVE,
+            started_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+
+    def _post(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            return self.api.post(self.url, {"title": "Data Analyst"}, format="json")
+
+    def test_within_limit_runs_and_queues_crawl(self, crawl, _notify):
+        resp = self._post()
+        self.assertEqual(resp.status_code, 201)
+        pref = Preference.objects.get(id=resp.data["id"])
+        self.assertEqual(pref.status, PreferenceStatus.RUNNING)
+        self.assertTrue(pref.crawl_urls)
+        crawl.delay.assert_called_once_with(pref.id)
+
+    def test_limit_reached_creates_nothing(self, crawl, _notify):
+        Preference.objects.create(profile=self.profile, title="Existing")
+        resp = self._post()
+        self.assertEqual(resp.status_code, 409)
+        self.assertEqual(Preference.objects.filter(profile=self.profile).count(), 1)
+        crawl.delay.assert_not_called()
