@@ -33,6 +33,7 @@ from core.dashboard_cache import (
 )
 from core.forms import SmtpTestForm
 from core.notifications.email import send_email
+from core.payments.subscriptions import activate_subscription
 from core.realtime import publish, user_channel
 from jobs.models import Job
 from jobs.scrapers import scraper_for_url
@@ -559,22 +560,15 @@ class SubscriptionDetailView(SuperuserRequiredMixin, View):
     def post(self, request, pk):
         sub = self._get(pk)
         action = request.POST.get("action", "")
-        now = timezone.now()
         if action == "activate":
-            sub.status = SubscriptionStatus.ACTIVE
-            sub.started_at = sub.started_at or now
-            sub.expires_at = now + timedelta(days=sub.plan.duration_days)
-            sub.payment_provider = sub.payment_provider or "manual"
-            sub.save(
-                update_fields=[
-                    "status",
-                    "started_at",
-                    "expires_at",
-                    "payment_provider",
-                    "updated_on",
-                ]
-            )
-            messages.success(request, "Subscription activated.")
+            if not sub.payment_provider:
+                sub.payment_provider = "manual"
+                sub.save(update_fields=["payment_provider", "updated_on"])
+            # Same path as a paid webhook, so searches resume and crawls queue.
+            if activate_subscription(sub):
+                messages.success(request, "Subscription activated.")
+            else:
+                messages.info(request, "Subscription is already active.")
         elif action == "expire":
             sub.status = SubscriptionStatus.EXPIRED
             sub.save(update_fields=["status", "updated_on"])

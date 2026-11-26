@@ -647,11 +647,11 @@ class PreferenceDetailAPITests(TestCase):
         self.assertEqual(resp.status_code, 409)
         self.assertTrue(Preference.objects.filter(pk=pref.id).exists())
 
-    def test_delete_blocked_when_expired(self):
+    def test_delete_allowed_when_expired(self):
         pref = self._pref(status=Status.EXPIRED)
         resp = self.api.delete(self.url(pref.id))
-        self.assertEqual(resp.status_code, 409)
-        self.assertTrue(Preference.objects.filter(pk=pref.id).exists())
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(Preference.objects.filter(pk=pref.id).exists())
 
     def test_user_cannot_set_status_directly(self):
         pref = self._pref(status=Status.WAITING_PAYMENT)

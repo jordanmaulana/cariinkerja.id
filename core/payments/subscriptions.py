@@ -13,14 +13,61 @@ from profiles.models import Preference
 
 logger = logging.getLogger(__name__)
 
+# Unpaid (WAITING_PAYMENT) and lapsed (EXPIRED) searches both come back on payment.
+RESUMABLE = (PreferenceStatus.WAITING_PAYMENT, PreferenceStatus.EXPIRED)
+
+
+def _resume_preferences(sub: Subscription) -> int:
+    """Flip the profile's resumable Preferences to RUNNING and queue a crawl each.
+
+    Capped at the plan's free slots (limit minus already-RUNNING), most recently
+    edited first, so renewing on a smaller plan can't keep a bigger plan's
+    searches; the rest stay EXPIRED. Whitelisted profiles aren't capped.
+    """
+    prefs = Preference.objects.filter(profile=sub.profile)
+    resumable = prefs.filter(status__in=RESUMABLE).order_by(
+        "-updated_on", "-created_on"
+    )
+    if not sub.profile.whitelist:
+        running = prefs.filter(status=PreferenceStatus.RUNNING).count()
+        resumable = resumable[: max(sub.plan.preference_limit - running, 0)]
+    resumed = 0
+    for pref in resumable:
+        # The post-payment crawl is the only crawl a paid user gets, so guarantee
+        # it: backfill crawl_urls for any pref that got here without them (admin
+        # manual path, whitespace title, etc.), and never skip silently.
+        if not pref.crawl_urls and pref.title:
+            pref.crawl_urls = build_crawl_urls(
+                pref.title, pref.job_type, pref.remote_option
+            )
+        pref.status = PreferenceStatus.RUNNING
+        pref.save(update_fields=["crawl_urls", "status", "updated_on"])
+        resumed += 1
+        if pref.crawl_urls:
+            crawl_and_assess_preference.delay(pref.id)
+            logger.info(
+                "activate_subscription: sub=%s queued crawl preference=%s",
+                sub.id,
+                pref.id,
+            )
+        else:
+            logger.warning(
+                "activate_subscription: sub=%s preference=%s has no crawl_urls "
+                "(no usable title); crawl skipped",
+                sub.id,
+                pref.id,
+            )
+    return resumed
+
 
 def activate_subscription(sub: Subscription) -> bool:
-    """Flip Subscription PENDING→ACTIVE and unlock Preferences. Idempotent.
+    """Flip Subscription PENDING→ACTIVE and resume Preferences. Idempotent.
 
     Runs for `sub.plan.duration_days`. For upgrade subs (`replaces` set):
-    grants bonus_seconds derived from the old sub's unused value, marks the
-    old sub REPLACED, and skips preference unlock (preferences already RUNNING
-    under the old plan).
+    grants bonus_seconds derived from the old sub's unused value and marks the
+    old sub REPLACED. Either way, WAITING_PAYMENT/EXPIRED preferences resume up
+    to the plan's free slots (see `_resume_preferences`); RUNNING ones are left
+    alone.
 
     Returns True if a transition happened, False if already ACTIVE.
     """
@@ -52,49 +99,15 @@ def activate_subscription(sub: Subscription) -> bool:
     sub.started_at = now
     sub.expires_at = now + timedelta(days=sub.plan.duration_days, seconds=bonus_seconds)
     sub.save(update_fields=["status", "started_at", "expires_at", "updated_on"])
-    if replaces_id:
-        logger.info(
-            "activate_subscription: sub=%s upgrade ACTIVE bonus_seconds=%d expires_at=%s",
-            sub.id,
-            bonus_seconds,
-            sub.expires_at.isoformat(),
-        )
-    else:
-        pending_prefs = Preference.objects.filter(
-            profile=sub.profile,
-            status=PreferenceStatus.WAITING_PAYMENT,
-        )
-        pref_ids = list(pending_prefs.values_list("id", flat=True))
-        unlocked = pending_prefs.update(status=PreferenceStatus.RUNNING, updated_on=now)
-        logger.info(
-            "activate_subscription: sub=%s ACTIVE expires_at=%s preferences_unlocked=%d",
-            sub.id,
-            sub.expires_at.isoformat(),
-            unlocked,
-        )
-        # The post-payment crawl is the only crawl a paid user gets, so guarantee
-        # it: backfill crawl_urls for any pref that reached WAITING_PAYMENT without
-        # them (admin manual path, whitespace title, etc.), and never skip silently.
-        for pref in Preference.objects.filter(id__in=pref_ids):
-            if not pref.crawl_urls and pref.title:
-                pref.crawl_urls = build_crawl_urls(
-                    pref.title, pref.job_type, pref.remote_option
-                )
-                pref.save(update_fields=["crawl_urls", "updated_on"])
-            if pref.crawl_urls:
-                crawl_and_assess_preference.delay(pref.id)
-                logger.info(
-                    "activate_subscription: sub=%s queued crawl preference=%s",
-                    sub.id,
-                    pref.id,
-                )
-            else:
-                logger.warning(
-                    "activate_subscription: sub=%s preference=%s has no crawl_urls "
-                    "(no usable title); crawl skipped",
-                    sub.id,
-                    pref.id,
-                )
+    resumed = _resume_preferences(sub)
+    logger.info(
+        "activate_subscription: sub=%s ACTIVE expires_at=%s bonus_seconds=%d "
+        "preferences_resumed=%d",
+        sub.id,
+        sub.expires_at.isoformat(),
+        bonus_seconds,
+        resumed,
+    )
     user_id = getattr(getattr(sub.profile, "user", None), "id", None)
     if user_id is not None:
         publish(
