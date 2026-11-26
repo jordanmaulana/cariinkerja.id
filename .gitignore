@@ -19,3 +19,7 @@ staticfiles/
 db.sqlite3-*
 pgdata/
 .playwright-mcp
+
+# Local tool state
+.codegraph/
+.remember/

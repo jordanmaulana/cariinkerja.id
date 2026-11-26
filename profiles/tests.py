@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -1246,3 +1247,10 @@ class DropRemoteOkMigrationTests(TestCase):
         migration.drop_removed_urls(apps, None)
         pref.refresh_from_db()
         self.assertEqual(pref.crawl_urls, [linkedin, workable])
+
+
+class IngestLinkedInProfileCommandTests(TestCase):
+    def test_command_resolves_to_profiles_app(self):
+        # Was shadowed by jobs' crawl_linkedin under the old name.
+        with self.assertRaisesMessage(CommandError, "not found"):
+            call_command("ingest_linkedin_profile", "nope")

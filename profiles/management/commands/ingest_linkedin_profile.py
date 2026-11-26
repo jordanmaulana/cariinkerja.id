@@ -2,7 +2,7 @@
 
 Example:
 
-    uv run manage.py crawl_linkedin <profile_id>
+    uv run manage.py ingest_linkedin_profile <profile_id>
 """
 
 from __future__ import annotations
