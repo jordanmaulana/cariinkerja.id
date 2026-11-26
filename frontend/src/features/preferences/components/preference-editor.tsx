@@ -30,23 +30,21 @@ export function PreferenceEditor({ preference }: { preference: Preference }) {
   );
   const [error, setError] = useState<string | null>(null);
   const isRunning = preference.status === "running";
-  const canDelete = preference.status === "waiting_payment";
+  const canDelete =
+    preference.status === "waiting_payment" || preference.status === "expired";
 
   const updateMutation = useMutation({
     mutationFn: (v: PreferenceFormValues) =>
       updatePreference(preference.id, valuesToPayload(v)),
     onSuccess: (updated) => {
-      const wasRunning = isRunning;
       queryClient.setQueryData(["preference", preference.id], updated);
       queryClient.invalidateQueries({ queryKey: ["preferences"] });
       setValues(buildInitialValues(updated));
-      if (wasRunning) {
-        toast.warning(
-          "Tersimpan. Crawl dijeda — dikirim ulang ke admin untuk ditinjau sebelum berjalan lagi.",
-        );
-      } else {
-        toast.success("Pencarian diperbarui.");
-      }
+      toast.success(
+        isRunning
+          ? "Tersimpan. Pencarianmu tetap jalan pakai pengaturan baru."
+          : "Pencarian diperbarui.",
+      );
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Gagal menyimpan Pencarian.");
@@ -92,8 +90,8 @@ export function PreferenceEditor({ preference }: { preference: Preference }) {
         >
           <span className="font-semibold">Perhatian —</span>
           <span>
-            Pencarian ini lagi berjalan. Menyimpan akan menjeda crawl dan
-            dikirim ulang ke admin untuk ditinjau sebelum berjalan lagi.
+            Pencarian ini lagi berjalan. Kalau kamu simpan, loker berikutnya
+            dicari pakai pengaturan baru.
           </span>
         </div>
       )}

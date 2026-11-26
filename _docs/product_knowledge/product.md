@@ -106,8 +106,8 @@ filter empty means "no constraint".
 One search automatically fans out to every supported source — the user never assembles a
 board URL or picks a site. How many searches you can keep is capped by your plan tier.
 
-Editing a running search pauses it and sends it back for admin review before it resumes.
-Searches can only be deleted while unpaid.
+Editing a running search keeps it running; the next crawl uses the new title and filters.
+Searches can be deleted while unpaid or after the subscription lapses, not while running.
 
 ### Sources
 
@@ -256,7 +256,12 @@ not "new subscriptions only" as earlier docs claimed. Upgrades are always full p
   balance — just a later expiry date. The final bonus is calculated at payment time, so
   paying later means slightly fewer bonus days.
 - **Downgrade**: rejected outright. Wait for the current plan to expire.
-- **Expiry**: when a subscription lapses, its searches stop running.
+- **Expiry**: when a subscription lapses, its searches stop running ("Kedaluwarsa") and stop
+  counting toward the plan's search limit. Paying again resumes them and queues a fresh crawl,
+  up to the new plan's limit, most recently edited first. The rest stay lapsed until the user
+  deletes them or upgrades.
+- **Same plan again**: buying the plan you're already on is rejected. There's no early renewal;
+  renew once the current plan lapses.
 
 ### Two gates that block payment
 

@@ -451,6 +451,18 @@ class UpgradeCheckoutTests(TestCase):
 
     @patch("api.v1.billing_api.poll_subscription_after_checkout")
     @patch("api.v1.billing_api.create_payment_link")
+    def test_same_plan_while_active_rejected(self, link, _poll):
+        # Would start a fresh window from now and drop the live sub's days.
+        resp = self.api.post(
+            self.checkout_url, {"plan_id": self.basic.id}, format="json"
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.data["code"], "same_plan")
+        link.assert_not_called()
+        self.assertEqual(Subscription.objects.filter(profile=self.profile).count(), 1)
+
+    @patch("api.v1.billing_api.poll_subscription_after_checkout")
+    @patch("api.v1.billing_api.create_payment_link")
     def test_upgrade_idempotent_same_plan(self, link, _poll):
         link.return_value = _mock_link("tx-up", "https://pay/up")
         first = self.api.post(
@@ -614,6 +626,125 @@ class ExpireSubscriptionsTests(TestCase):
 
         self._sub(SubscriptionStatus.ACTIVE, timezone.now() - timedelta(days=1))
         self.assertIsNone(get_active_subscription(self.profile))
+
+
+class RenewalTests(TestCase):
+    """A lapsed user who pays again gets their searches back (M1 renewal dead-end)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("r", "r@example.com", "secret")
+        self.profile = Profile.objects.create(user=self.user, full_name="R")
+        self.basic = Plan.objects.create(name="Basic", price=49000, preference_limit=1)
+        self.pro = Plan.objects.create(name="Pro", price=99000, preference_limit=3)
+
+    def _pending(self, plan, **kwargs):
+        return Subscription.objects.create(
+            profile=self.profile,
+            plan=plan,
+            status=SubscriptionStatus.PENDING,
+            amount_paid=plan.price,
+            **kwargs,
+        )
+
+    def _expired_pref(self, title, updated_days_ago=0):
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title=title,
+            status=PreferenceStatus.EXPIRED,
+            crawl_urls=[f"https://example.com/{title}"],
+        )
+        Preference.objects.filter(pk=pref.pk).update(
+            updated_on=timezone.now() - timedelta(days=updated_days_ago)
+        )
+        return pref
+
+    @patch("core.payments.subscriptions.crawl_and_assess_preference")
+    def test_lapse_then_renew_resumes_and_crawls(self, crawl):
+        from core.tasks import expire_subscriptions
+
+        Subscription.objects.create(
+            profile=self.profile,
+            plan=self.basic,
+            status=SubscriptionStatus.ACTIVE,
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+        pref = Preference.objects.create(
+            profile=self.profile,
+            title="x",
+            status=PreferenceStatus.RUNNING,
+            crawl_urls=["https://example.com/x"],
+        )
+        expire_subscriptions()
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, PreferenceStatus.EXPIRED)
+
+        activate_subscription(self._pending(self.basic))
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, PreferenceStatus.RUNNING)
+        crawl.delay.assert_called_once_with(pref.id)
+
+    @patch("core.payments.subscriptions.crawl_and_assess_preference")
+    def test_renew_on_smaller_plan_resumes_newest_up_to_limit(self, crawl):
+        old = self._expired_pref("old", updated_days_ago=5)
+        newest = self._expired_pref("newest", updated_days_ago=0)
+        mid = self._expired_pref("mid", updated_days_ago=2)
+        activate_subscription(self._pending(self.basic))
+        statuses = {
+            p.id: p.status for p in Preference.objects.filter(profile=self.profile)
+        }
+        self.assertEqual(statuses[newest.id], PreferenceStatus.RUNNING)
+        self.assertEqual(statuses[mid.id], PreferenceStatus.EXPIRED)
+        self.assertEqual(statuses[old.id], PreferenceStatus.EXPIRED)
+        crawl.delay.assert_called_once_with(newest.id)
+
+    @patch("core.payments.subscriptions.crawl_and_assess_preference")
+    def test_whitelist_resumes_all(self, crawl):
+        self.profile.whitelist = True
+        self.profile.save()
+        for t in ("a", "b"):
+            self._expired_pref(t)
+        activate_subscription(self._pending(self.basic))
+        self.assertFalse(
+            Preference.objects.filter(
+                profile=self.profile, status=PreferenceStatus.EXPIRED
+            ).exists()
+        )
+        self.assertEqual(crawl.delay.call_count, 2)
+
+    @patch("core.payments.subscriptions.crawl_and_assess_preference")
+    def test_upgrade_resumes_leftovers_into_new_slots(self, crawl):
+        now = timezone.now()
+        old_sub = Subscription.objects.create(
+            profile=self.profile,
+            plan=self.basic,
+            status=SubscriptionStatus.ACTIVE,
+            started_at=now - timedelta(days=5),
+            expires_at=now + timedelta(days=25),
+            amount_paid=49000,
+        )
+        running = Preference.objects.create(
+            profile=self.profile, title="r", status=PreferenceStatus.RUNNING
+        )
+        leftover = self._expired_pref("left")
+        activate_subscription(self._pending(self.pro, replaces=old_sub))
+        leftover.refresh_from_db()
+        running.refresh_from_db()
+        self.assertEqual(leftover.status, PreferenceStatus.RUNNING)
+        self.assertEqual(running.status, PreferenceStatus.RUNNING)
+        crawl.delay.assert_called_once_with(leftover.id)
+
+    @patch("core.payments.subscriptions.crawl_and_assess_preference")
+    def test_admin_activate_resumes_expired(self, crawl):
+        admin_user = User.objects.create_superuser("a", "a@example.com", "secret")
+        self.client.force_login(admin_user)
+        pref = self._expired_pref("x")
+        sub = self._pending(self.basic)
+        self.client.post(
+            reverse("subscription_detail", args=[sub.id]), {"action": "activate"}
+        )
+        pref.refresh_from_db()
+        self.assertEqual(pref.status, PreferenceStatus.RUNNING)
+        crawl.delay.assert_called_once_with(pref.id)
 
 
 class PlanDurationTests(TestCase):
@@ -828,8 +959,8 @@ class PlanDurationSurfaceTests(TestCase):
         self.assertContains(resp, "duration_days")
 
     def test_manual_admin_activate_honors_duration_days(self):
-        # core.views activate action bypasses activate_subscription entirely,
-        # so it needs its own coverage.
+        # The admin activate action goes through activate_subscription; this
+        # pins the duration through that view.
         admin_user = User.objects.create_superuser("a", "a@example.com", "secret")
         self.client.force_login(admin_user)
         sub = Subscription.objects.create(
@@ -1034,3 +1165,10 @@ class PreferenceCreateTests(TestCase):
         self.assertEqual(resp.status_code, 409)
         self.assertEqual(Preference.objects.filter(profile=self.profile).count(), 1)
         crawl.delay.assert_not_called()
+
+    def test_expired_pref_does_not_hold_a_slot(self, crawl, _notify):
+        Preference.objects.create(
+            profile=self.profile, title="Old", status=PreferenceStatus.EXPIRED
+        )
+        resp = self._post()
+        self.assertEqual(resp.status_code, 201)

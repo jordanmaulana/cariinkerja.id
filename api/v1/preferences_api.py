@@ -36,7 +36,12 @@ def create(request):
                 {"detail": "Active subscription required to create a finder."},
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
-        used = Preference.objects.filter(profile=profile).count()
+        # A lapsed (EXPIRED) search doesn't hold a slot.
+        used = (
+            Preference.objects.filter(profile=profile)
+            .exclude(status=PreferenceStatus.EXPIRED)
+            .count()
+        )
         if used >= active_sub.plan.preference_limit:
             return Response(
                 {"detail": "Preference limit reached for current plan."},
@@ -73,7 +78,10 @@ def detail(request, pk):
     if request.method == "GET":
         return Response(PreferenceSerializer(pref).data)
     if request.method == "DELETE":
-        if pref.status != PreferenceStatus.WAITING_PAYMENT:
+        if pref.status not in (
+            PreferenceStatus.WAITING_PAYMENT,
+            PreferenceStatus.EXPIRED,
+        ):
             return Response(
                 {"detail": "Finder cannot be deleted after submission."},
                 status=status.HTTP_409_CONFLICT,

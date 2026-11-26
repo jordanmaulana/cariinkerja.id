@@ -142,7 +142,14 @@ def create(request):
 
     active_sub = get_active_subscription(profile)
     is_upgrade = False
-    if active_sub is not None and active_sub.plan_id != plan.id:
+    if active_sub is not None:
+        # Buying the current plan again would start a fresh window from now and
+        # throw away the days left on the live sub.
+        if active_sub.plan_id == plan.id:
+            return Response(
+                {"detail": "Already on this plan.", "code": "same_plan"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if plan.price <= active_sub.plan.price:
             return Response(
                 {
