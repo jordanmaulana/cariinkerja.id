@@ -43,7 +43,8 @@ jobs:
       # OPENAI_API_KEY is deliberately unset, so RelevanceGateLiveTests skips.
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10 # Python from .python-version
+      # setup-uv publishes no floating major tag; Python from .python-version.
+      - uses: astral-sh/setup-uv@v10.4.0
         with:
           enable-cache: true
       - run: uv sync --locked
