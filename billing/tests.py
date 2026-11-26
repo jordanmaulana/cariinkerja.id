@@ -1012,13 +1012,13 @@ def _mayar_resp(status_code, body):
 
 @override_settings(MAYAR_API_KEY="k", MAYAR_BASE_URL="https://api.mayar.io/hl/v2")
 class MayarV2AdapterTests(TestCase):
-    LINK_ARGS = dict(
-        name="U",
-        amount=49000,
-        email="u@x.com",
-        description="d",
-        redirect_url="https://r",
-    )
+    LINK_ARGS = {
+        "name": "U",
+        "amount": 49000,
+        "email": "u@x.com",
+        "description": "d",
+        "redirect_url": "https://r",
+    }
 
     @patch("core.payments.mayar.httpx.request")
     def test_create_returns_payment_request_id(self, req):

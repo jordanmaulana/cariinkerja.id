@@ -342,12 +342,12 @@ class CheckRelevanceTests(TestCase):
     def _check(self, remote_option, location="Singapore", **answer):
         from assessment.services import _RelevanceAnswer, check_relevance
 
-        fields = dict(
-            same_field=True,
-            residency_excludes_indonesia=False,
-            requires_foreign_work_authorization=False,
-            reason="r",
-        )
+        fields = {
+            "same_field": True,
+            "residency_excludes_indonesia": False,
+            "requires_foreign_work_authorization": False,
+            "reason": "r",
+        }
         fields.update(answer)
         job = Job(
             url="https://x",

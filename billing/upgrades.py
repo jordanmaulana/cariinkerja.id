@@ -79,7 +79,7 @@ def compute_upgrade_quote(profile, new_plan, *, current_sub=None, at=None):
         "seconds_remaining": int(seconds_remaining),
         "days_remaining": round(seconds_remaining / 86400, 2),
         "amount_paid_old": current_sub.amount_paid,
-        "credit_value": int(round(credit_value)),
+        "credit_value": round(credit_value),
         "bonus_seconds": int(bonus_seconds),
         "bonus_days": round(bonus_seconds / 86400, 2),
         "charge": charge,

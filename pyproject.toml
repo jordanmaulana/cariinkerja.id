@@ -29,3 +29,9 @@ dependencies = [
     "pypdf>=7.1.1",
     "sentry-sdk>=3.0.1",
 ]
+
+[tool.ruff.lint]
+# RUF012: Django Meta / DRF / Form class attributes are lists by convention.
+# BLE001: scrapers must never raise out of crawl() (see CLAUDE.md), so the
+# broad `except Exception` catches are on purpose.
+extend-ignore = ["RUF012", "BLE001"]

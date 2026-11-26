@@ -12,8 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { updateCv } from "@/features/auth/api";
-import { formatDateTime } from "@/features/auth/components/profile-source-card";
 import type { ProfileMe } from "@/features/auth/types";
+import { formatDateTime } from "@/lib/utils";
 
 // Mirror profiles/services.py RESUME_MIN_CHARS / RESUME_MAX_BYTES.
 const MIN_CHARS = 200;
