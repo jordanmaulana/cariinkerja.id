@@ -64,9 +64,7 @@ uv run manage.py crawl_dealls   "<listing-url>" [...]
 
 Defaults: `--max-pages 1`, `--limit 20`, `--sleep` from each scraper's `DEFAULT_SLEEP` (LinkedIn 2.5s, Dealls 1.5s).
 
-Other commands: `backfill_job_skills [--source S] [--since-days N] [--dry-run] [--sync]`, `skill_map_candidates [--limit N] [--min-jobs N] [--create [--draft]]` (most-searched Preference titles × matching skill-tagged job count; `--create` makes, publishes and snapshots a Skill Map page for every title with ≥ `--min-jobs` jobs that has no page yet, `--draft` leaves them unpublished).
-
-**Gotcha:** two apps define `crawl_linkedin` — `jobs/` (listing-URL job crawler) and `profiles/` (Apify *profile* ingest, takes a `profile_id`). Django resolves the name to **`jobs`** (earlier in `INSTALLED_APPS` wins), so the profiles one is unreachable via `manage.py`; call `profiles.methods.crawl_and_ingest_linkedin` or the `crawl_linkedin_for_profile` task instead. Rename one if you touch this area.
+Other commands: `backfill_job_skills [--source S] [--since-days N] [--dry-run] [--sync]`, `skill_map_candidates [--limit N] [--min-jobs N] [--create [--draft]]` (most-searched Preference titles × matching skill-tagged job count; `--create` makes, publishes and snapshots a Skill Map page for every title with ≥ `--min-jobs` jobs that has no page yet, `--draft` leaves them unpublished), `ingest_linkedin_profile <profile_id>` (Apify LinkedIn *profile* ingest via `profiles.methods.crawl_and_ingest_linkedin`; unrelated to the `crawl_linkedin` *jobs* crawler above).
 
 ## Architecture
 
@@ -167,7 +165,6 @@ Consequence: the post-payment crawl is the *only* crawl a paying user gets on ac
 - `DashboardView` — superuser overview of Profile/Job/Assessment counts, top profiles, paginated recent assessments, and 30-day trends (Chart.js). Expensive sections are split into lazy fragment views and cached; `core/dashboard_cache.py` holds the day-scoped cache keys/TTLs and `core/signals.py` busts them `on_commit` when Assessment/Subscription/Profile/Preference rows change.
 - DRF surface (consumed by the SPA) is at `api/v1/urls.py` — **top-level `api` package**, mounted at `/api/v1/`; impls split per domain (`auth_api.py`, `profiles_api.py`, `preferences_api.py`, `assessments_api.py`, `billing_api.py`, `payments_api.py`, `dashboard_api.py`, `landing_api.py`). Endpoints: public landing stats, auth (Google + token + `me`/`logout`), profile (`me/`, `cv/`)/onboarding, preferences, assessments, `payment-gate/`, plans, subscriptions (`me/`, `stream/` SSE, `checkout/`, `upgrade-quote/`, `cancel-pending/`, `<pk>/recheck/`), Mayar webhook, dashboard stats.
 - Templates live at the project-root `templates/` dir (configured via `TEMPLATES.DIRS`), not per-app.
-- `core/api/` holds only stale `__pycache__` — no live source. Ignore it; don't add endpoints there.
 
 ## Conventions
 
@@ -181,4 +178,4 @@ Consequence: the post-payment crawl is the *only* crawl a paying user gets on ac
 - The Celery pipeline gates crawls on **ACTIVE Subscription OR `profile.whitelist`**, not just Preference status — don't loosen this without intent.
 - Scrapers must degrade gracefully: log + skip a bad posting, log + `break` on a block, never raise out of `crawl()`. `crawl_health_check` depends on those log records to explain failures.
 - Custom template tag lib: `core/templatetags/format_number.py` — load with `{% load format_number %}`.
-- `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, DB, Celery/Redis, OpenAI, Mayar, Google OAuth, Discord, SMTP (`EMAIL_*`, `DEFAULT_FROM_EMAIL`), `SITE_URL`, `FRONTEND_URL`, `APIFY_TOKEN`, and CORS/CSRF origins are read from env (see `.env.example` — note it currently omits `APIFY_TOKEN`, which `core/settings.py` does read). `SECRET_KEY` falls back to a hardcoded `django-insecure-` dev value; production boot raises `RuntimeError` if `DEBUG=False` and that fallback is still in use — never rely on that fallback in prod.
+- `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, DB, Celery/Redis, OpenAI, Mayar, Google OAuth, Discord, SMTP (`EMAIL_*`, `DEFAULT_FROM_EMAIL`), `SITE_URL`, `FRONTEND_URL`, `APIFY_TOKEN`, and CORS/CSRF origins are read from env (see `.env.example`). `SECRET_KEY` falls back to a hardcoded `django-insecure-` dev value; production boot raises `RuntimeError` if `DEBUG=False` and that fallback is still in use — never rely on that fallback in prod.
