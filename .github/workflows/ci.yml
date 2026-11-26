@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      # Same images as docker-compose.yml, so tests run on what prod runs.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cariinkerja
+          POSTGRES_USER: cariinkerja
+          POSTGRES_PASSWORD: cariinkerja
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cariinkerja"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      # Some code paths under test call .delay() / realtime.publish, which
+      # reach the broker; local dev always has Redis up, so CI does too.
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_DB: cariinkerja
+      POSTGRES_USER: cariinkerja
+      POSTGRES_PASSWORD: cariinkerja
+      # OPENAI_API_KEY is deliberately unset, so RelevanceGateLiveTests skips.
+    steps:
+      - uses: actions/checkout@v7
+      # setup-uv publishes no floating major tag; Python from .python-version.
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run manage.py test --noinput
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # version from packageManager
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22 # same as frontend/Dockerfile
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build

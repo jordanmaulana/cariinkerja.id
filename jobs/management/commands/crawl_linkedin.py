@@ -73,9 +73,9 @@ class Command(BaseCommand):
                             "source": "linkedin",
                         },
                     )
-            except Exception as exc:
+            except Exception:
                 skipped += 1
-                logger.exception("persist failed for %s: %s", posting["url"], exc)
+                logger.exception("persist failed for %s", posting["url"])
                 continue
             if was_created:
                 created += 1

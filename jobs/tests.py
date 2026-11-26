@@ -643,11 +643,11 @@ class JobBriefSerializerExpiryTests(TestCase):
 
 class ExtractJobSkillsTaskTests(TestCase):
     def _make_job(self, **kwargs):
-        defaults = dict(
-            url="https://id.indeed.com/viewjob?jk=skilltest",
-            title="Backend Engineer",
-            description="We need Python and Django experience plus teamwork.",
-        )
+        defaults = {
+            "url": "https://id.indeed.com/viewjob?jk=skilltest",
+            "title": "Backend Engineer",
+            "description": "We need Python and Django experience plus teamwork.",
+        }
         defaults.update(kwargs)
         return Job.objects.create(**defaults)
 

@@ -46,9 +46,8 @@ def poll_pending_subscriptions():
         if status_str in PAID_STATUSES:
             if activate_subscription(sub):
                 activated += 1
-        elif status_str in FAILED_STATUSES:
-            if cancel_pending_subscription(sub):
-                cancelled += 1
+        elif status_str in FAILED_STATUSES and cancel_pending_subscription(sub):
+            cancelled += 1
     logger.info(
         "poll_pending_subscriptions: activated=%d cancelled=%d errors=%d",
         activated,

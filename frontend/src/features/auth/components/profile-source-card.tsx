@@ -9,16 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { ProfileMe } from "@/features/auth/types";
-
-export function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDateTime } from "@/lib/utils";
 
 export function ProfileSourceCard({ profile }: { profile: ProfileMe }) {
   const isCv = profile.cv_text !== null;
