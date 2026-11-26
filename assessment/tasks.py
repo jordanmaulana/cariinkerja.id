@@ -5,7 +5,9 @@ from collections import defaultdict
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
+import sentry_sdk
 from celery import shared_task
+from celery.signals import task_retry
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -161,6 +163,22 @@ def assess_job(job_id: str, preference_id: str):
     if created:
         _publish_assessment_created(assessment, pref)
     return "created" if created else "skipped"
+
+
+@task_retry.connect
+def _report_assess_job_retry(sender=None, reason=None, **kwargs):
+    # Sentry's Celery integration skips Retry (control flow), so autoretries
+    # are invisible. One fixed fingerprint = one issue whose event rate drives
+    # the "assess_job retry spike" alert.
+    if sender is None or sender.name != assess_job.name:
+        return
+    # ponytail: one event per retry attempt; sample if an OpenAI outage eats the quota
+    sentry_sdk.capture_exception(
+        getattr(reason, "exc", None) or reason,
+        level="warning",
+        fingerprint=["assess-job-retry"],
+        tags={"retry": "assess_job"},
+    )
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)

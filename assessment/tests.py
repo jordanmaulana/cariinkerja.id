@@ -16,9 +16,11 @@ from rest_framework.test import APIClient
 from assessment.consts import Status as AssessmentStatus
 from assessment.models import Assessment
 from assessment.tasks import (
+    assess_job,
     crawl_and_assess_preference,
     crawl_running_preferences,
     email_morning_high_score_summary,
+    reassess_assessment,
 )
 from jobs.models import Job
 from profiles.consts import Status as PrefStatus
@@ -194,6 +196,26 @@ class MorningEmailTaskTests(TestCase):
         self.user.save()
         self._make_assessment(slug="a", score=95)
         self.assertEqual(email_morning_high_score_summary(), 0)
+
+
+@patch("assessment.tasks.sentry_sdk.capture_exception")
+class AssessJobRetryReportTests(TestCase):
+    """Each assess_job autoretry lands in one Sentry issue (the spike alert)."""
+
+    def test_each_retry_is_reported_under_one_fingerprint(self, capture):
+        # Missing job -> DoesNotExist -> eager autoretry, max_retries=3.
+        assess_job.apply(args=["missing", "missing"])
+
+        self.assertEqual(capture.call_count, 3)
+        for call in capture.call_args_list:
+            self.assertIsInstance(call.args[0], Job.DoesNotExist)
+            self.assertEqual(call.kwargs["fingerprint"], ["assess-job-retry"])
+            self.assertEqual(call.kwargs["level"], "warning")
+
+    def test_other_tasks_retries_are_not_reported(self, capture):
+        reassess_assessment.apply(args=["missing"])
+
+        capture.assert_not_called()
 
 
 class CrawlWhitelistTests(TestCase):

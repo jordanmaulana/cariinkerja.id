@@ -107,6 +107,13 @@ function PrivacyPage() {
             analytics dan rekaman sesi.
           </li>
           <li>
+            <strong>Sentry</strong>: buat nyatet error di aplikasi biar cepat
+            kami perbaiki. Yang dikirim pesan error dan info teknis (browser,
+            halaman yang dibuka). Kami matikan pengiriman isi request, alamat
+            IP, dan variabel kode, jadi isi profil dan CV-mu nggak ikut
+            terkirim.
+          </li>
+          <li>
             <strong>Discord</strong>: notifikasi internal ke admin waktu ada
             pencarian baru, isinya nama profil dan job title-nya.
           </li>

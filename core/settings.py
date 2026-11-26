@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+import sentry_sdk
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -206,6 +207,24 @@ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 # Jev (TypeSafe AI) job-title check. Blank under `manage.py test` because
 # load_dotenv(override=True) would otherwise let the suite hit the live API.
 TYPESAFE_API_KEY = "" if "test" in sys.argv else os.environ.get("TYPESAFE_API_KEY", "")
+
+# Error monitoring for gunicorn, the Celery worker and beat: all three load
+# these settings. Blank under `manage.py test` for the same reason as above.
+SENTRY_DSN = "" if "test" in sys.argv else os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment="development" if DEBUG else "production",
+        # CV / LinkedIn text sits in request bodies and in assess()'s locals,
+        # and user_info would attach the user's email and IP. ?token= on the
+        # SSE stream is already masked by the SDK's default query denylist.
+        data_collection={
+            "user_info": False,
+            "http_bodies": [],
+            "stack_frame_variables": False,
+            "gen_ai": {"inputs": False, "outputs": False},
+        },
+    )
 
 MAYAR_API_KEY = os.environ.get("MAYAR_API_KEY", "")
 MAYAR_WEBHOOK_TOKEN = os.environ.get("MAYAR_WEBHOOK_TOKEN", "")

@@ -27,4 +27,5 @@ dependencies = [
     "apify-client>=2.5.0",
     "typesafe-sdk>=0.7.5",
     "pypdf>=7.1.1",
+    "sentry-sdk>=3.0.1",
 ]

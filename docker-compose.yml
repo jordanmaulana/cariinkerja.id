@@ -125,6 +125,8 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
     ports:
       - "3005:3000"
 
